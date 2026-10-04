@@ -154,11 +154,15 @@ func on_snapshot(snapshot: Dictionary) -> void:
 func finish_client() -> void:
 	finishing=true
 	if not check(game.sim.result=="" and game.playing and not game.ended and game.online.mission_sequence>=2,"rematch initializes fresh duel"): return
-	# Ping is sampled once per second; an immediate rematch may beat its first pong.
-	for attempt in 120:
+	# Probe the real RPC explicitly so rematch timing and frame rate do not decide this check.
+	var ping_deadline := Time.get_ticks_msec() + 10000
+	while Time.get_ticks_msec() < ping_deadline:
 		if game.online.ping_ms>=0: break
-		await create_timer(0.025).timeout
-	if not check(game.online.ping_ms>=0 and not game.connection_label.text.is_empty(),"ping and sync indicator"): return
+		game.online._process(1.0)
+		await create_timer(0.1).timeout
+	if not check(game.online.ping_ms>=0,"real ping RPC returns after rematch"): return
+	await process_frame
+	if not check(not game.connection_label.text.is_empty(),"sync indicator displays after rematch"): return
 	game.toggle_chat()
 	await process_frame
 	await create_timer(0.12).timeout

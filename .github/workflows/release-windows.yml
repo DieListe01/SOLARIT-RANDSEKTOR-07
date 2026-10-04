@@ -1,6 +1,12 @@
 name: Windows Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version from data/update_history.json"
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -22,7 +28,8 @@ jobs:
       - name: Validate release version
         shell: pwsh
         run: |
-          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          $version = '${{ inputs.version }}'
+          if ([string]::IsNullOrWhiteSpace($version)) { $version = $env:GITHUB_REF_NAME -replace '^v', '' }
           $history = Get-Content data/update_history.json -Raw | ConvertFrom-Json
           if ($history.current_version -ne $version) {
             throw "Release tag $version does not match data/update_history.json ($($history.current_version))."
@@ -107,7 +114,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
             throw 'Add the ASHLINE_RELEASE_TOKEN Actions secret. It needs Contents: Read and write access to DieListe01/ASHLINE-Releases.'
           }
-          gh release create $env:GITHUB_REF_NAME --repo DieListe01/ASHLINE-Releases `
+          gh release create "v$env:SOLARIT_VERSION" --repo DieListe01/ASHLINE-Releases `
             "build/SOLARIT-RANDSEKTOR-07-Setup-$env:SOLARIT_VERSION.exe" `
             "build/SOLARIT-RANDSEKTOR-07-Setup-$env:SOLARIT_VERSION.exe.sha256" `
             "build/SOLARIT-RANDSEKTOR-07-$env:SOLARIT_VERSION-release.json" `
