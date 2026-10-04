@@ -1,0 +1,605 @@
+PROMPT – ASHLINE Visual Polish Pass 2
+Fokus: spektakulärere Effekte, stärkere Lesbarkeit, mehr Wüsten-RTS-Wucht
+Du bist Art Director, Technical Artist, VFX Designer, UI/UX Designer und RTS-Gameplay-Programmierer für das Projekt:
+ASHLINE
+ASHLINE ist ein modernes Retro-RTS mit starker Inspiration durch klassische 90er-Basisbau-RTS-Spiele.
+Die aktuelle Richtung ist bereits deutlich verbessert, aber das Spiel soll jetzt in einem zweiten großen Art-/VFX-Pass sichtbar spektakulärer, dramatischer, wärmer und eindrucksvoller werden.
+WICHTIG:
+Das Ziel ist nicht Fotorealismus.
+Das Ziel ist nicht Effektchaos ohne Lesbarkeit.
+Das Ziel ist:
+- mehr Wucht
+- mehr Atmosphäre
+- mehr visuelles Feedback
+- mehr RTS-Spektakel
+- mehr Dune-artige Wüstenenergie
+- klarere Freund-/Feind-Lesbarkeit
+- dramatischere Kämpfe
+- eindrucksvollere Bau- und Zerstörungseffekte
+Dabei muss das Spiel weiterhin:
+- lesbar bleiben
+- im Top-Down-RTS-Kontext funktionieren
+- multiplayer-ready vorbereitet bleiben
+- zwischen Modern-Retro und Classic-Retro umschaltbar sein
+1. OBERZIEL DIESES PASSES
+Der nächste Pass soll dafür sorgen, dass ein Screenshot oder kurzer Gameplay-Moment sofort vermittelt:
+- Hier passiert etwas
+- Das ist ein richtiges Wüsten-RTS
+- Gebäude und Fahrzeuge haben Gewicht
+- Kämpfe haben Energie
+- Bauen macht Spaß
+- Zerstörung fühlt sich gut an
+- Freund und Feind sind sofort zu unterscheiden
+Die aktuelle Version ist bereits atmosphärischer als vorher, soll aber jetzt noch deutlich spektakulärer werden.
+2. ART-DIRECTION-GRUNDRICHTUNG
+ASHLINE soll aussehen wie ein hochwertiges, verlorenes Sci-Fi-RTS:
+- heiß
+- trocken
+- mineralisch
+- staubig
+- industriell
+- militärisch
+- gefährlich
+- wertvoll
+- strategisch
+Die Welt soll sich anfühlen wie:
+- Wüste
+- Metall
+- Hitze
+- Energie
+- Krieg
+- Förderung
+- Basisbau
+- Frontlinie
+3. FARBWELT WEITER SCHÄRFEN
+Die Welt bleibt klar:
+Welt / Terrain
+- Ocker
+- Sandbraun
+- Terrakotta
+- verbranntes Orange
+- warmes Steinbraun
+- staubiges Umbra
+- warme Schatten
+Spielerfraktion
+- kräftiges Cyan / Türkis
+- gut sichtbare Teamakzente
+- technische Leuchtlinien
+- klar definierte Spieleridentität
+Feindfraktion
+- Rot / Orange-Rot / rostiges Rot
+- aggressiver
+- heißer
+- gefährlicher
+- deutlich erkennbar
+Ressourcen
+- helles Aquamarin
+- Türkisweiß
+- kühl und wertvoll
+- starker Kontrast zur warmen Welt
+WICHTIG:
+Freund und Feind müssen in unter einer Sekunde unterscheidbar sein.
+4. FREUND-/FEIND-LESBARKEIT DEUTLICH VERBESSERN
+Das ist ein Kernziel dieses Passes.
+Spieler
+- Cyan/Türkis-Akzente deutlich sichtbar
+- Auswahlringe klar cyan
+- Gebäudeleisten, Panelsegmente, Fahrzeugpanzerplatten in Teamfarbe
+- Minimap-Markierungen cyan
+- UI-Akzente bei Auswahl cyan
+Feind
+- Rot/Orange-Rot deutlich sichtbar
+- nicht nur kleine Punkte oder Lichtchen
+- größere farbige Panzersegmente
+- klare aggressive Umrisse
+- rote Auswahl-/Target-Markierung
+- Minimap-Markierungen rot
+- feindliche Gebäude ebenfalls deutlich mit Rot/Orange markiert
+Zusätzlich zur Farbe
+Freund und Feind dürfen nicht nur über Farbe differenziert werden.
+Zusätzlich unterscheiden durch:
+- Silhouette
+- Formensprache
+- Panzerung
+- Turmform
+- Profil
+- Lichter
+- Umriss
+- Fahrgestell-Charakter
+5. GEBÄUDE SILHOUETTEN STÄRKER DIFFERENZIEREN
+Gebäude sind aktuell besser, aber noch zu ähnlich.
+Jede Struktur braucht eine stärkere visuelle Funktionserkennung.
+Construction Core / Baukern
+- Kommando-/Zentralcharakter
+- schwere, zentrale Struktur
+- Antennen / Kernmodul
+- dominant und wichtig
+Kraftwerk / Impulswerk
+- hohe Energiekomponenten
+- Kühlrippen
+- leuchtende Leitungen
+- Hitzeflimmern
+- pulsierende Energieknoten
+Raffinerie
+- Tanks
+- Fördertechnik
+- sichtbare Einfahrt
+- Materialfluss
+- Rohstoffverarbeitung
+- Dampf / Staub / Entladeeffekte
+Fahrzeugwerk
+- großes Werkstor
+- Produktionshalle
+- Kran / Schienen / Ausfahrtrampe
+- mechanischer Industriecharakter
+Radar / Signalstation
+- klare Scanner- / Antennenfunktion
+- rotierende oder pulsierende Elemente
+- Leuchtimpulse
+- Scan-Animation
+Servicehangar
+- Wartungsplattform
+- technische Arme
+- Reparaturcharakter
+- Werkstattgefühl
+Verteidigung
+- klar bewaffnet
+- Waffe sofort sichtbar
+- aggressiver Stand
+- rotierende oder ausfahrbare Türme möglich
+WICHTIG:
+Ein Gebäude muss schon an seiner Silhouette erkennbar sein, nicht erst durch Tooltip.
+6. GEBÄUDE VIEL LEBENDIGER MACHEN
+Gebäude sollen nicht statisch wirken.
+Jedes Gebäude braucht subtile bis mittlere Idle-Animationen:
+- blinkende Statuslichter
+- drehende Lüfter
+- pulsierende Energieelemente
+- Dampf / Rauch
+- Hitzeflimmern
+- kleine mechanische Bewegungen
+- Öffnen/Schließen kleiner Klappen
+- Förderbandbewegung
+- rotierende Scanner
+- vibrierende Energiekabel
+Ziel
+Gebäude sollen sich wie aktive Industrieanlagen anfühlen.
+7. BAU-EFFEKTE DEUTLICH SPEKTAKULÄRER
+Gebäudebau darf nicht unspektakulär sein.
+Der Bauvorgang soll sich belohnend anfühlen.
+Gewünschte Bauphasen
+1. Platzierungs-Hologramm / Ghost Preview
+2. Fundament / Bodenmarkierung
+3. Energie-/Montagephase
+4. sichtbarer Aufbau
+5. Online-Schaltung
+Bau-VFX
+- Hologramm-Konturen
+- Energiegerüst
+- Funken
+- Staub
+- Materialisierung
+- kurze mechanische Lichtblitze
+- Bauprojektorstrahlen
+- Bodenstaub am Fundament
+- kleine Drohnen optional
+- Abschlussimpuls bei Fertigstellung
+Fertigstellungsfeedback
+- kurzer Lichtimpuls
+- Statuslichter springen an
+- Sound-Cue
+- UI-Hinweis
+- optional kleiner Kamera-Impuls
+Bauen soll sich wichtig anfühlen.
+8. EINHEITEN MASSIVER UND CHARAKTERVOLLER
+Einheiten sollen mehr Gewicht und Präsenz bekommen.
+Vor allem:
+- Scout
+- Harvester
+- Panzer
+- Belagerungsfahrzeug
+Verbesserungspunkte
+- kräftigere Silhouette
+- mehr Schatten
+- klarere Front/Heck-Erkennung
+- deutlichere Turm-/Waffenformen
+- stärkere Teamfarbakzente
+- mehr Materialität
+- robustere Panzerplatten
+- Sensoren / Antennen / Leuchten
+- bessere Einbettung ins Terrain
+Harvester
+Der Harvester soll wie ein strategisch wichtiges Schwerfahrzeug wirken:
+- breiter
+- schwerer
+- träger
+- sichtbarer Laderaum
+- klarer Abbaucharakter
+Panzer
+Der Panzer muss sich klar von Scout und Harvester absetzen:
+- kampforientiert
+- markanter Turm
+- Waffe dominant
+- Rückstoß / Feuerkraft sichtbar
+9. BEWEGUNGSEFFEKTE MASSIV VERBESSERN
+Einheiten dürfen nicht „einfach nur fahren“.
+Jede Bewegung braucht sichtbares Feedback.
+Fahrzeuge allgemein
+- Staubspur
+- leichte Schwingung / Body motion
+- Räder/Kettenbewegung andeuten
+- kurze Bremsstaubwolke
+- Anfahrreaktion
+- Fahrgeräusch
+- klarere Schattenbewegung
+Scout
+- schnellere, leichtere Staubspur
+- agile Bewegung
+- klar erkennbare Richtungswechsel
+Harvester
+- schwerer Staub
+- langsameres, massives Anfahren
+- beladen/unbeladen visuell unterschiedlich möglich
+Panzer / schwere Fahrzeuge
+- kräftigere Staubfahne
+- massivere Bodenwirkung
+- stärkere Präsenz
+10. KAMPF MUSS VIEL SPEKTAKULÄRER WERDEN
+Das ist einer der wichtigsten Punkte.
+Aktuelle Gefechte sollen deutlich mehr Wucht bekommen.
+Pflicht bei jeder Schussabgabe
+- klar lesbares Mündungsfeuer
+- kurzer Lichtblitz
+- Projektilspur oder Energietrail
+- Sound
+- kleine Rückstoßreaktion
+- Zielrichtung klar erkennbar
+Beim Treffer
+- Impact-Flash
+- Funken
+- Staub
+- kleine Explosion oder Energiestoß
+- Damage-Reaktion
+- optional kurzer Screen Impulse bei schweren Waffen
+Schwere Waffen
+- größerer Muzzle Flash
+- kräftigerer Rauch
+- sichtbarer Rückstoß
+- stärkerer Einschlag
+- deutlicheres Trefferfeedback
+WICHTIG:
+Auch kleine Gefechte müssen „knallen“.
+11. PROJEKTILE AUFWERTEN
+Projektile sollen nicht unscheinbar sein.
+Kinetische Waffen
+- sichtbare helle Projektile / Tracer
+- kurze Staub-/Luftspur
+Raketen
+- Rauchspur
+- Flamme
+- stärkere Explosion
+Energiewaffen
+- leuchtende Spur
+- kurzer Nachglanz
+- Impact-Lichtblitz
+Belagerungswaffen
+- schwerer, auffälliger Flug
+- große Einschlagswolke
+- Schockwirkung
+12. EINSCHLAGSEFFEKTE UND EXPLOSIONEN STARK AUSBAUEN
+Explosionen sollen sehr viel spektakulärer sein als aktuell.
+Kleine Treffer
+- Funken
+- kleiner Flash
+- Staub
+- Materialsplitter
+Fahrzeugzerstörung
+- kurze Explosion
+- Rauchstoß
+- Funken
+- Schrottteile / Fragmente
+- optional Wrack
+Gebäudezerstörung
+- mehrstufige Zerstörung
+- größere Explosion
+- Staubwolke
+- dunkler Rauch
+- Feuer
+- Trümmer / Ruine
+- Schockwelle / Druckring optional
+- kurzer Kameraimpuls
+Farben
+- Gelb
+- Orange
+- Rot
+- dunkler Rauch
+- Staubbraun
+Nicht kühl.
+Zerstörung soll heiß wirken.
+13. SPEKTAKULÄRERE EFFEKTE – ABER LESBAR
+Effekte sollen deutlich größer und aufregender werden, aber nie die Spielbarkeit zerstören.
+Grundregel
+Effekte dürfen:
+- beeindrucken
+- dramatisieren
+- belohnen
+Effekte dürfen nicht:
+- Units verdecken
+- Ziele unlesbar machen
+- Minimap unnötig stören
+- permanent alles überstrahlen
+Effektstufen
+Baue Effektgrößen bewusst nach Waffentyp:
+- Light
+- Medium
+- Heavy
+- Siege
+- Building Destruction
+- Special
+Große Effekte nur dort, wo es sich lohnt.
+14. DUST, SMOKE, HEAT – MEHR ATMOSPHÄRE
+Die Wüste muss leben.
+Ambient-Effekte
+- subtile Staubbewegung
+- Hitzeflimmern
+- leichte Sandverwehungen
+- trockene Luft
+- Bodenpartikel
+- atmosphärische Wärme
+Situations-Effekte
+- Fahrzeuge wirbeln Staub auf
+- Explosionen erzeugen Staub und Rauch
+- Gebäude stoßen Wärme, Rauch oder Dampf aus
+- Raffinerien wirken aktiv und industriell
+Heat Haze
+Besonders geeignet für:
+- Kraftwerke
+- Raffinerien
+- heiße Bodenzonen
+- schwere Fabriken
+- große Explosionen
+Im Retro-Modus:
+- grobpixelige Flimmeranimation
+- kein moderner Blur-Look nötig
+15. FOG OF WAR DRAMATISCHER UND SCHÖNER
+Fog of War darf nicht nur „abdunkeln“.
+Ziel
+- geheimnisvoll
+- heiß
+- bedrohlich
+- atmosphärisch
+Unknown
+- tiefes warmes Dunkelbraun / Schwarzbraun
+Explored
+- entsättigte, staubige, warme Restansicht
+Visible
+- volle Farbwelt
+Zusätzliche Wirkung
+- leichte weiche Randverläufe
+- staubiger Nebelcharakter
+- kein reiner kalter Overlay-Look
+16. MINIMAP KLARER UND AKTIVER MACHEN
+Die Minimap soll noch wichtiger aussehen.
+Gewünscht
+- markanter Rahmen
+- Scanner-/Radar-Anmutung
+- klar sichtbare Teamfarben
+- kräftige Markierungen
+- Ressourcen lesbar
+- Kameraausschnitt klar
+- Pings / Alerts gut sichtbar
+Gegner und Spieler
+- Spieler: Cyan
+- Feind: Rot/Orange
+- sehr klarer Kontrast
+17. UI-EFFEKTE UND FEEDBACK DEUTLICH AUFWERTEN
+Die UI darf nicht tot wirken.
+Buttons
+- klare Hover-Zustände
+- deutlicher Klickzustand
+- bessere Highlight-Reaktion
+- aktiver Selected-State
+Produktionspanel
+- Baufortschritt besser lesbar
+- queue sichtbarer
+- aktive Produktion klarer
+- gesperrte Elemente eindeutiger
+- Tooltip wertiger
+Alerts
+Bei:
+- Unit Under Attack
+- Base Under Attack
+- Construction Complete
+- Low Power
+- Unit Ready
+- Building Destroyed
+immer Kombination aus:
+- Text
+- Minimap-Ping
+- Audio
+- UI-Flash oder Highlight
+18. SPEZIELL: MULTIPLAYER-LESBARKEIT MITDENKEN
+Das Spiel wird auf Multiplayer vorbereitet.
+Darum müssen alle visuellen Identifikationssysteme auch mit mehreren Spielern funktionieren.
+Teamfarben-System vorbereiten
+Nicht fest in Assets einbacken.
+Stattdessen:
+- neutrale Basis-Sprites
+- Team-Color-Masken
+- dynamische Färbung im Renderer / Materialsystem
+Später vorbereitbare Farben
+- Cyan
+- Rot
+- Orange
+- Gelb
+- Blau
+- Grün
+- Violett
+- Weiß
+Aber für den aktuellen Singleplayer
+- Player = Cyan
+- Enemy = Rot/Orange
+19. VFX ARCHITEKTUR MULTIPLAYER-READY
+Effekte dürfen Gameplay nicht steuern.
+Regel
+Gameplay-relevant:
+- Damage
+- Position
+- Command
+- Health
+- Target
+- Production State
+Nur visual:
+- Rauch
+- Staub
+- Funken
+- Hitzeflimmern
+- Screen Shake
+- Partikelvariation
+- kleine Trümmerstücke
+Effekte werden aus Gameplay-Events abgeleitet, nicht umgekehrt.
+20. SCREEN SHAKE UND CAMERA IMPACT EINBAUEN
+Für stärkere Spektakelwirkung:
+Screen Shake nur bei:
+- schwere Waffen
+- größere Explosionen
+- Gebäudefertigstellung optional leicht
+- Basiszerstörung
+- Belagerungstreffer
+Stufen
+- OFF
+- LOW
+- NORMAL
+Nicht permanent verwenden.
+Nur gezielt für Wucht.
+21. AUDIO + EFFEKTE KOPPELN
+Jeder spektakuläre Effekt soll auch akustisch unterstützt werden.
+Beispiele
+- Schuss → Muzzle Flash + Schusssound
+- Treffer → Flash + Impact-Sound
+- Explosion → Licht + Rauch + Explosionssound
+- Bauabschluss → Lichtimpuls + Fertigstellungs-Sound
+- Base Under Attack → UI-Ping + Warnsound + Highlight
+Sound und Bild müssen sich gegenseitig verstärken.
+22. RETRO-MODUS DARF NICHT ABGESPECKT WIRKEN
+Im Classic-Retro-Modus sollen dieselben Dinge weiterhin sichtbar sein:
+- Mündungsfeuer
+- Explosionen
+- Staub
+- Rauch
+- Teamfarben
+- Auswahlringe
+- Minimap-Kontraste
+- Gebäudedetails
+- Bauanimationen
+Nur in:
+- gröberen Pixeln
+- reduzierterer Schattierung
+- niedrigeren Auflösung
+- vereinfachterem Partikelstil
+Retro-Modus bedeutet:
+dieselbe spektakuläre Welt in Pixelästhetik
+Nicht:
+die langweiligere Version
+23. PRIORITÄTEN DIESES PASSES
+Höchste Priorität
+1. Freund-/Feind-Lesbarkeit
+2. spektakulärere Kampf-Effekte
+3. spektakulärere Zerstörung
+4. eindrucksvollere Bau-Effekte
+5. stärkere Gebäude-Silhouetten
+6. massivere Einheiten
+7. mehr Staub / Rauch / Hitze
+8. bessere UI-/Minimap-Rückmeldung
+24. KONKRETE SOFORT-REIHENFOLGE
+Arbeite in dieser Reihenfolge:
+PHASE A – Lesbarkeit
+1. Gegner konsequent rot/orange markieren
+2. Spieler konsequent cyan markieren
+3. Auswahlringe verbessern
+4. Teamfarben auf der Minimap verbessern
+5. Gebäude-Farbbereiche vergrößern
+6. gegnerische Formsprache aggressiver machen
+PHASE B – Einheiten und Gebäude
+7. Panzer massiver machen
+8. Harvester schwerer und wichtiger wirken lassen
+9. Scout klarer definieren
+10. Gebäudesilhouetten stärker unterscheiden
+11. Gebäudedetails ergänzen
+12. Idle-Animationen ergänzen
+PHASE C – Spektakuläre Effekte
+13. Muzzle Flashes deutlich ausbauen
+14. Projektilspuren ausbauen
+15. Treffer-VFX ausbauen
+16. Explosionen groß überarbeiten
+17. Rauch/Staub-System ausbauen
+18. Bau-VFX ausbauen
+19. Zerstörungs-VFX ausbauen
+20. Screen Shake / Camera Impacts hinzufügen
+PHASE D – Atmosphäre
+21. Fog of War aufwerten
+22. Hitzeflimmern ergänzen
+23. Wüstenpartikel ergänzen
+24. Raffinerie-/Industrieaktivität erhöhen
+PHASE E – UI / Minimap
+25. Alerts klarer machen
+26. Produktionsfeedback ausbauen
+27. Minimap stärker hervorheben
+28. Tooltips wertiger machen
+25. QUALITY GATE – EFFEKTE
+Ein Effekt gilt nur dann als gut, wenn er:
+- klar sichtbar ist
+- spielerisch sinnvoll ist
+- belohnend wirkt
+- zur Größe des Ereignisses passt
+- das RTS-Gefühl verstärkt
+- nicht zu steril ist
+- nicht zu schwach ist
+- nicht Lesbarkeit zerstört
+Wenn ein Treffer sich noch „harmlos“ anfühlt, ist der Effekt nicht fertig.
+26. QUALITY GATE – FREUND UND FEIND
+Ein Screenshot gilt nur dann als gelungen, wenn ohne Lesen der UI sofort klar ist:
+- was dem Spieler gehört
+- was dem Gegner gehört
+- was die Ressource ist
+- was das Hauptgebäude ist
+- was kämpfende Einheiten sind
+Wenn man noch nachdenken muss, wem eine Einheit gehört, ist die Arbeit nicht fertig.
+27. QUALITY GATE – SPECTACLE
+Ein Kampf- oder Bauscreenshot soll den Eindruck vermitteln:
+- Hitze
+- Staub
+- Wucht
+- Technik
+- Gefahr
+- Aktivität
+Wenn das Bild nur „ordentlich“ aussieht, aber nicht aufregend, ist es noch nicht genug.
+28. ENDZIEL
+ASHLINE soll nicht wie ein sauberer Prototyp aussehen.
+ASHLINE soll aussehen wie ein:
+- atmosphärisches
+- detailreiches
+- warmes
+- spektakuläres
+- lesbares
+- eigenständiges
+- Dune-artiges Retro-RTS
+mit:
+- klarer Fraktionslesbarkeit
+- massiven Fahrzeugen
+- eindrucksvollen Gebäuden
+- spektakulären Effekten
+- staubiger Wüstenatmosphäre
+- hochwertigem Gameplay-Feedback
+29. ABSCHLUSSREGEL
+Füge nicht zuerst neue große Gameplay-Systeme hinzu, solange der bestehende Kern nicht visuell kraftvoll genug wirkt.
+Zuerst fertigstellen:
+- Lesbarkeit
+- VFX
+- Spectacle
+- Fraktionsidentität
+- Bau- und Kampfgefühl
+Danach erst wieder neue Inhalte.
+
+UMSETZUNGSSTAND 0.10 / STYLE CONSOLIDATION
+Die bestehende Richtung wird durch docs/STYLE_CONSOLIDATION.txt und den dokumentierten Stand in README.md, ROADMAP.md und QA.md konsistent ergänzt. Warme Welt, dynamische Teamfarben, gemeinsame Modern-/Classic-Art, typeigene Ruinen und kosmetische Ereignis-VFX bleiben verbindlich. Lokale Command-Grenze und Entity-Identitätsfelder jetzt umgesetzt; fertiger Netzwerk-Mehrspielermodus wird nicht behauptet.

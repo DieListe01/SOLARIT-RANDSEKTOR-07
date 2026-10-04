@@ -1,0 +1,1483 @@
+Gern. Diesen Prompt würde ich **jetzt nach dem Combat-VFX-Pass 0.9** geben. Er soll ausdrücklich **nicht wieder alles umbauen**, sondern den bestehenden Stand gezielt auf ein deutlich höheres visuelles Qualitätsniveau bringen.
+
+Dabei stütze ich ihn auf den aktuellen Stand: Die vorhandene Spezifikation fordert bereits ein eigenständiges klassisches RTS mit Modern-Retro- und Classic-Retro-Modus, klar lesbaren Einheiten und späterer Multiplayer-Tauglichkeit. SPECIFICATION Die aktuelle QA beschreibt Version 0.9 bereits mit Combat-VFX, Ruinen, Kratern, Damage-Grenzen und eigenem Baukern-Blast. QA
+
+---
+
+# PROMPT – ASHLINE  
+## Warcraft-3 Readability & Persistent Destruction Pass  
+### Ziel: stärkere Silhouetten, mehr räumliche Tiefe, dauerhafte Schlachtspuren, hochwertigeres RTS-Gefühl
+
+Du arbeitest am bestehenden Projekt:
+
+**ASHLINE**
+
+Der aktuelle Stand ist funktional weit fortgeschritten.  
+Die bestehenden Systeme für:
+
+- Basisbau
+- Ressourcen
+- Produktion
+- Fahrzeuge
+- Kampf
+- Fog of War
+- Minimap
+- Musik
+- Combat-VFX
+- Explosionen
+- Damage States
+- Ruinen
+- Krater
+- Modern Retro
+- Classic Retro
+
+existieren bereits und sollen **nicht neu erfunden oder grundlegend ersetzt** werden.
+
+Dieser Pass ist ein **visueller Qualitäts-, Lesbarkeits- und Persistenz-Pass**.
+
+Das Ziel ist nicht mehr „Feature hinzufügen“, sondern:
+
+> **Vorhandene Systeme so veredeln, dass ASHLINE wie ein hochwertig produziertes klassisches RTS wirkt und nicht wie ein fortgeschrittener Prototyp.**
+
+---
+
+# 1. HAUPTZIEL
+
+Der nächste große visuelle Sprung soll durch drei Dinge entstehen:
+
+1. **Warcraft-3-artige Lesbarkeit**
+2. **stärkere räumliche Tiefe**
+3. **sichtbare, dauerhafte Folgen von Kampf und Zerstörung**
+
+WICHTIG:
+
+„Warcraft-3-artige Lesbarkeit“ bedeutet NICHT, Warcraft 3 zu kopieren.
+
+Gemeint sind ausschließlich Designprinzipien:
+
+- starke Silhouetten
+- klar erkennbare Einheitentypen
+- funktional lesbare Gebäudeformen
+- deutliche Fraktionsidentität
+- gute Trennung von Einheit, Gebäude und Terrain
+- starke visuelle Hierarchie
+- klar lesbare Kämpfe
+
+Die Welt von ASHLINE bleibt:
+
+- Sci-Fi
+- Wüste
+- Industrie
+- Retro
+- eigene Fraktionen
+- eigene Formen
+- eigene Assets
+- eigene Identität
+
+---
+
+# 2. WICHTIGE REGEL: NICHT NOCH EINMAL ALLES UMBRUCHEN
+
+Der bestehende visuelle Stil bleibt grundsätzlich erhalten.
+
+Nicht erneut vollständig ändern:
+
+- Farbpalette
+- UI-Grundlayout
+- Teamfarblogik
+- Terrain-Grundsystem
+- Combat-VFX-Architektur
+- Audioarchitektur
+- Gameplaywerte
+- Simulation
+- Damage
+- Waffenbalance
+- Movement
+- AI
+
+Dieser Pass soll **auf dem bestehenden Stand aufbauen**.
+
+---
+
+# 3. AKTUELLER VISUELLER SCHWERPUNKT
+
+Die Farbwelt ist inzwischen grundsätzlich richtig:
+
+- warme Welt
+- Ocker
+- Braun
+- Sand
+- Orange
+- Spieler Cyan/Türkis
+- Gegner Rot/Orange
+- Ressource Aquamarin
+
+Diese Logik beibehalten.
+
+Die bestehende Friend/Foe-Regel verlangt, dass Freund und Feind innerhalb von weniger als einer Sekunde unterscheidbar sind und nicht nur über Healthbars erkannt werden. COLOR_AND_IDENTITY
+
+Daran nichts verwässern.
+
+---
+
+# 4. WARCRAFT-3-PRINZIP: SILHOUETTEN
+
+Das größte Ziel dieses Passes ist:
+
+> Einheiten und Gebäude müssen schon allein über ihre Form verständlich sein.
+
+Nicht erst über:
+
+- Tooltip
+- Name
+- Healthbar
+- Icon
+
+## Jede Einheit braucht:
+- eindeutige Grundform
+- eindeutige Front
+- eindeutiges Heck
+- eindeutige Waffenposition
+- eindeutige Masse
+- eindeutige Fahrzeugrolle
+
+## Jede Gebäudeklasse braucht:
+- eigene Grundsilhouette
+- eigene Höhe
+- eigene Dachstruktur
+- funktional sichtbare Komponenten
+- erkennbare technische Aufgabe
+
+---
+
+# 5. GEBÄUDE DEUTLICH STÄRKER DIFFERENZIEREN
+
+Der aktuelle Stand darf nicht dazu führen, dass mehrere Gebäude nur wie unterschiedliche quadratische Plattformen wirken.
+
+Jedes Gebäude braucht eine klar eigene Architektur.
+
+---
+
+## 5.1 BAUKERN / CONSTRUCTION CORE
+
+Soll wirken wie:
+
+- Kommandozentrum
+- schweres zentrales Industriegebäude
+- wichtigstes Basisobjekt
+
+Visuelle Merkmale:
+- größer als Standardgebäude
+- hoch aufragender Kern
+- zentrale Antennen-/Energieeinheit
+- mehrere technische Ebenen
+- schwere Fundamentierung
+- starke Fraktionsflächen
+- hohe vertikale Silhouette
+
+---
+
+## 5.2 IMPULSWERK / POWER PLANT
+
+Soll sofort wie Energieproduktion aussehen.
+
+Elemente:
+- zwei oder mehrere Energietürme
+- sichtbare Kühleinheiten
+- große Lüfter
+- pulsierende Energiekerne
+- Kabel
+- Leitungen
+- Wärmeabgabe
+- Hitzeflimmern
+- warme Auslasslichter
+
+Mehr vertikale Struktur als bisher.
+
+---
+
+## 5.3 SOLARIT-RAFFINERIE
+
+Soll wie echte Verarbeitungstechnik wirken.
+
+Elemente:
+- Einfahrt
+- Entladezone
+- Tanks
+- Rohrsysteme
+- Fördermechanik
+- sichtbare Verarbeitung
+- Staub
+- Materialfluss
+- Pumpen
+- Ventile
+
+Harvester-Interaktion muss visuell plausibel sein.
+
+---
+
+## 5.4 FAHRZEUGWERFT
+
+Deutlich andere Silhouette.
+
+Elemente:
+- breite Halle
+- großes Tor
+- Schienen oder Produktionsrampe
+- mechanische Greifer
+- Wartungsbeleuchtung
+- Innenraumtiefe
+- sichtbare Produktionszone
+
+Produziertes Fahrzeug soll sichtbar ausfahren.
+
+---
+
+## 5.5 SIGNALSTATION / RADAR
+
+Klar technisch.
+
+Elemente:
+- hoher Mast
+- Scanner
+- rotierendes Element
+- pulsierende Signale
+- Radar-Emitter
+- sichtbare Funkaktivität
+
+---
+
+## 5.6 SERVICEHANGAR
+
+Soll nach Wartung aussehen.
+
+Elemente:
+- offene Plattform
+- Reparaturarme
+- Kran
+- Werkzeuge
+- Diagnosemodule
+- Reparaturbeleuchtung
+- Servicefläche
+
+---
+
+# 6. MEHR VERTIKALE TIEFE
+
+ASHLINE ist weiterhin 2D.
+
+Aber Gebäude und Fahrzeuge dürfen stärker nach Höhe aussehen.
+
+Nutze:
+
+- größere Höhenstaffelung
+- mehr sichtbare Ober- und Seitenflächen
+- stärkere Schatten
+- unterschiedlich hohe Aufbauten
+- Antennen
+- Türme
+- Rohre
+- Dachmodule
+- überhängende Elemente
+
+Ziel:
+
+Objekte sollen nicht wie flache Aufkleber auf dem Terrain wirken.
+
+---
+
+# 7. SCHATTEN VERBESSERN
+
+Alle wichtigen Objekte benötigen klarere Bodenschatten.
+
+## Gebäude
+- größere Schatten
+- abhängig von Silhouette
+- nicht nur rechteckige dunkle Fläche
+
+## Fahrzeuge
+- klarer Schatten unter Chassis
+- Turm darf eigenen kleinen Schattenanteil beitragen
+
+## Ressourcen
+- Kristalle brauchen markante kleine Schatten
+
+WICHTIG:
+
+Schatten sollen Tiefe geben, nicht alles abdunkeln.
+
+---
+
+# 8. EINHEITEN MASSIVER MACHEN
+
+Vor allem:
+
+- Panzer
+- Harvester
+- Belagerungsfahrzeuge
+
+sollen schwerer wirken.
+
+Nicht zwangsläufig drastisch größer skalieren.
+
+Stattdessen:
+
+- breitere Silhouette
+- klarere Panzerplatten
+- größere Waffe
+- stärkere Ketten-/Fahrwerksdarstellung
+- größere Schatten
+- bessere Oberflächenstruktur
+- mehr Gewicht durch Bewegung
+
+---
+
+# 9. PANZER
+
+Panzer braucht:
+
+- klaren Turm
+- klar erkennbares Rohr
+- massives Chassis
+- sichtbares Ketten-/Fahrwerk
+- große Fraktionsfläche
+- robuste Frontpanzerung
+- stärkeres Heckprofil
+
+Beim Fahren:
+- Staub
+- leichte Federbewegung
+- Turm unabhängig vom Chassis
+
+Beim Schießen:
+- Rückstoß
+- Muzzle Flash
+- Bodeneffekt
+- kurzer visueller Impact
+
+---
+
+# 10. HARVESTER
+
+Der Harvester ist strategisch wichtig.
+
+Er soll deutlich größer und schwerer wirken als Scout.
+
+Visuell:
+- breite Form
+- große Sammelmechanik
+- Fördertechnik
+- sichtbarer Laderaum
+- Materialtanks
+- schwere Fahrwerksdetails
+
+Beim Sammeln:
+- Förderarme
+- Kristallpartikel
+- Staub
+- Energieeffekt
+- sichtbare Ladung
+
+Beim Transport:
+- optional beladener Zustand sichtbar
+
+---
+
+# 11. SCOUT
+
+Scout muss bewusst leichter wirken.
+
+- kleiner
+- schneller
+- agiler
+- schmaler
+- stärkere Sensorik
+- Antenne
+- weniger Panzerung
+
+Klare optische Trennung zu Tank und Harvester.
+
+---
+
+# 12. TERRAIN NICHT MIT NOCH MEHR KLEINSTEINEN FÜLLEN
+
+Die Mikrodetails sind inzwischen ausreichend.
+
+Der nächste Schritt ist:
+
+## MAKRODETAILS
+
+Mehr:
+
+- größere Felsbereiche
+- Krater
+- Sandverwehungen
+- Ruinenzonen
+- alte Industriefragmente
+- Rinnen
+- Felsrücken
+- Engstellen
+- Plateauformen
+- große Bodenverfärbungen
+
+Die visuelle Richtlinie fordert bereits, dass Terrain neben Mikrodetails auch klare Makroformen und strategische Bereiche besitzt. VISUAL_DIRECTION
+
+---
+
+# 13. KARTENBEREICHE BRAUCHEN CHARAKTER
+
+Eine Karte sollte unterschiedliche Regionen haben.
+
+Beispiel:
+
+## Region A
+Startbasis
+
+## Region B
+Ressourcenbecken
+
+## Region C
+enger Felspass
+
+## Region D
+alter Industriekomplex
+
+## Region E
+offene Wüste
+
+## Region F
+feindliches Hochplateau
+
+Dadurch fühlt sich die Karte weniger wie eine durchgehende Fläche an.
+
+---
+
+# 14. PERSISTENT DESTRUCTION WIRD VERBINDLICH
+
+Sehr wichtig:
+
+Zerstörung darf nicht nur ein kurzzeitiger VFX-Moment sein.
+
+Sie soll die Karte sichtbar verändern.
+
+Ab jetzt gilt:
+
+> Größere zerstörte Fahrzeuge und alle Gebäude hinterlassen einen sichtbaren Nachzustand.
+
+Nicht optional.
+
+---
+
+# 15. FAHRZEUGZERSTÖRUNG
+
+Ein Fahrzeug darf nicht einfach verschwinden.
+
+Ablauf:
+
+1. Final Hit
+2. heller Trefferblitz
+3. Hauptdetonation
+4. Rauchstoß
+5. Funken
+6. Metallfragmente
+7. kleiner Brand
+8. Wrack bleibt zurück
+9. dunkle Bodenmarkierung
+
+---
+
+# 16. FAHRZEUGWRACK
+
+Wrack soll:
+
+- eindeutig erkennbar
+- dunkler als lebendes Fahrzeug
+- teilweise verbrannt
+- beschädigt
+- deformiert
+- still
+- nicht mehr teamfarbdominant
+
+sein.
+
+Optional:
+- kleiner Rauch
+- Glut
+- Funken kurz nach Tod
+
+---
+
+# 17. WRACK-LEBENSZYKLUS
+
+Empfehlung:
+
+0–5 Sekunden:
+- Feuer
+- Rauch
+- Glut
+
+5–20 Sekunden:
+- Rauch
+- leichte Glut
+
+20–60 Sekunden:
+- leichter Rauch
+
+danach:
+- statisches Wrack
+
+Für wichtige Fahrzeuge darf Wrack bis Missionsende bleiben.
+
+---
+
+# 18. WRACKS UND MULTIPLAYER
+
+Standardmäßig:
+
+Wracks sind **rein visuell**.
+
+Sie dürfen:
+
+- Pathfinding nicht verändern
+- Kollisionslogik nicht verändern
+- Simulation nicht verändern
+
+Warum:
+
+Die vorhandene Multiplayer-Vorbereitung trennt visuelle Effekte ausdrücklich vom Game State. ART_AND_ARCHITECTURE
+
+Soll später echtes blockierendes Wrack-Gameplay entstehen, muss dies separat datengetrieben implementiert werden.
+
+---
+
+# 19. GEBÄUDEZERSTÖRUNG MUSS DAUERHAFT SICHTBAR BLEIBEN
+
+Gebäude dürfen nie einfach:
+
+Explosion → weg
+
+machen.
+
+Stattdessen:
+
+## Stufe 1
+Healthy
+
+## Stufe 2
+Damaged
+
+## Stufe 3
+Critical
+
+## Stufe 4
+Severe
+
+## Stufe 5
+Destroyed / Ruin
+
+---
+
+# 20. HEALTHY
+
+- normale Animation
+- Statuslichter
+- aktive Maschinen
+
+---
+
+# 21. DAMAGED
+
+Ca. 70–40 % HP:
+
+- kleiner Rauch
+- erste beschädigte Panels
+- kaputte Lampe
+- gelegentliche Funken
+- leichte Verschmutzung
+
+---
+
+# 22. CRITICAL
+
+Ca. 40–15 % HP:
+
+- mehr Rauch
+- kleine Flammen
+- Warnlichter
+- Funken
+- sichtbare Schäden
+- teilweise ausgefallene Animationen
+
+---
+
+# 23. SEVERE
+
+Ca. 15–1 % HP:
+
+- starker Rauch
+- mehrere beschädigte Bereiche
+- Feuer
+- elektrische Störungen
+- flackernde Beleuchtung
+- instabile Energieeffekte
+
+---
+
+# 24. DESTROYED
+
+Bei 0 HP:
+
+1. interne Explosion
+2. mehrere kleine Vor-Explosionen
+3. Hauptblitz
+4. Hauptdetonation
+5. Gebäudeteile brechen weg
+6. Staubring
+7. Rauch
+8. Folgeexplosion
+9. Gebäudestruktur kollabiert
+10. Ruine bleibt zurück
+
+Die Combat-VFX-Spezifikation fordert bereits eine mehrphasige Gebäudezerstörung mit zurückbleibender Ruine. combat-vfx-request
+
+---
+
+# 25. RUINEN SIND VERBINDLICH
+
+Jedes zerstörte Gebäude hinterlässt eine Ruine.
+
+Ruine zeigt:
+
+- Fundament
+- zerstörte Metallplatten
+- verbrannte Teile
+- eingestürzte Module
+- dunkle Oberflächen
+- zerstörte Kabel
+- Schutt
+- Brandspuren
+
+Man muss sehen:
+
+> Hier stand einmal ein Gebäude.
+
+---
+
+# 26. RUINEN DÜRFEN GEBÄUDETYP ERKENNBAR LASSEN
+
+Noch besser:
+
+Die Ruine sollte grob erkennen lassen, was zerstört wurde.
+
+Beispiel:
+
+Power Plant:
+- zerstörter Energiekern
+- umgefallene Kühleinheit
+
+Refinery:
+- beschädigte Tanks
+- zerstörte Rohrleitungen
+
+Factory:
+- eingestürztes Tor
+- Hallentrümmer
+
+Radar:
+- gebrochener Antennenmast
+
+Dadurch erzählt die Karte Geschichte.
+
+---
+
+# 27. RUINENRAUCH
+
+Zeitlicher Verlauf:
+
+0–10 Sek:
+- Feuer
+- dichter Rauch
+
+10–30 Sek:
+- Rauch
+- Glut
+
+30–90 Sek:
+- leichter Rauch
+
+danach:
+- kalte Ruine
+
+Optional konfigurierbar über FX Quality.
+
+---
+
+# 28. BRANDSPUREN AUF DEM BODEN
+
+Große Explosionen dürfen Boden-Decals erzeugen:
+
+- dunkle Brandstellen
+- Explosionsringe
+- Krater
+- Staubverfärbung
+
+Diese dürfen länger bestehen bleiben.
+
+Dadurch sieht die Karte nach einer Schlacht anders aus als vorher.
+
+---
+
+# 29. BATTLEFIELD MEMORY
+
+Ein Hauptziel dieses Passes:
+
+Die Karte soll Kampfgeschichte speichern.
+
+Nach einer Schlacht sollen sichtbar sein:
+
+- Wracks
+- Ruinen
+- Krater
+- Brandstellen
+- verbrannte Erde
+- zerstörte Basen
+
+Der Spieler soll später vorbeifahren und sehen:
+
+> Hier fand der Kampf statt.
+
+---
+
+# 30. KRATER
+
+Schwere Waffen:
+- Artillerie
+- Siege
+- große Explosionen
+
+dürfen Krater erzeugen.
+
+Krater sind rein visuell, solange nicht anders definiert.
+
+Nicht jeder kleine Schuss erzeugt Krater.
+
+---
+
+# 31. TRÜMMER
+
+Trümmer sollen vielfältiger werden.
+
+Mögliche Fragmente:
+
+- Metallplatten
+- Turmteile
+- Rohrsegmente
+- Antennen
+- kleine Panzerteile
+- Gehäusefragmente
+
+Aber:
+
+kein übertriebenes Physikchaos.
+
+---
+
+# 32. ZERSTÖRUNG MUSS SKALIEREN
+
+Visuelle Hierarchie:
+
+Small Unit
+<
+Scout
+<
+Tank
+<
+Heavy Tank
+<
+Siege Unit
+<
+Small Building
+<
+Large Building
+<
+Construction Core
+
+Jede Stufe braucht sichtbar mehr Wucht.
+
+---
+
+# 33. CONSTRUCTION CORE DESTRUCTION
+
+Das wichtigste Gebäude darf besonders spektakulär sterben.
+
+Ablauf:
+
+- Alarm
+- flackernde Systeme
+- interne Explosionen
+- Energieüberladung
+- mehrere Vor-Explosionen
+- massiver Hauptflash
+- Hauptdetonation
+- Staubring
+- große Rauchwolke
+- Trümmer
+- langlebige Ruine
+
+Aber:
+
+kein Nuklearwaffen-Look.
+
+---
+
+# 34. EXPLOSIONEN NICHT NUR GRÖSSER, SONDERN MEHRLAGIG
+
+Jede größere Explosion aus Ebenen zusammensetzen:
+
+Layer 1:
+weißer Kern
+
+Layer 2:
+gelber Flash
+
+Layer 3:
+orange Feuerball
+
+Layer 4:
+Staub
+
+Layer 5:
+Rauch
+
+Layer 6:
+Funken
+
+Layer 7:
+Trümmer
+
+Layer 8:
+Schockring optional
+
+Damit entsteht mehr Tiefe.
+
+---
+
+# 35. HITZE UND LICHT
+
+Große Explosionen dürfen kurz die Umgebung aufhellen.
+
+Sehr kurze Dauer.
+
+Keine dauerhafte Bloom-Orgie.
+
+Zusätzlich:
+- Hitzeflimmern
+- Staub
+- Rauch
+
+---
+
+# 36. CAMERA IMPACT
+
+Camera Impact gezielt nutzen.
+
+Nicht permanent.
+
+## kleine Waffen
+kein Shake
+
+## schwere Kanone
+kleiner Impuls
+
+## Artillerie
+deutlicher Impuls
+
+## Gebäudezerstörung
+kräftiger kurzer Impuls
+
+## Baukern
+größter normaler Camera Impact
+
+Bestehende Screen-Shake-Optionen respektieren.
+
+---
+
+# 37. VFX-DRAW-ORDER
+
+Wichtig für Lesbarkeit:
+
+1. Terrain
+2. Ground Decals
+3. Wracks/Ruinen
+4. Units / Buildings
+5. Projectiles
+6. Muzzle / Impacts
+7. Smoke / Dust
+8. Selection Rings
+9. World UI
+10. HUD
+
+Selection muss trotz Explosion sichtbar bleiben.
+
+---
+
+# 38. UNIT- UND BUILDING-STATUS BLEIBT LESBAR
+
+Auch bei großen Effekten müssen sichtbar bleiben:
+
+- Health
+- Teamzugehörigkeit
+- Selection
+- wichtige Alerts
+- Zielzustand
+
+Effekte dürfen nicht minutenlang alles verdecken.
+
+---
+
+# 39. MODERN RETRO
+
+Modern Retro bekommt:
+
+- feinere Rauchschichten
+- weichere Partikel
+- feinere Schatten
+- mehr Trümmerdetails
+- bessere Ruinentexturen
+- komplexere Brandspuren
+- feinere Hitzeflimmer-Effekte
+
+---
+
+# 40. CLASSIC RETRO
+
+Classic Retro bekommt dieselbe logische Zerstörung.
+
+Nicht weniger.
+
+Sondern:
+
+- grobe Pixel-Flammen
+- pixelige Rauchcluster
+- grobe Krater
+- vereinfachte Ruinen
+- klare Sprite-Trümmer
+- harte Lichtblitze
+- gröbere Schatten
+
+Der bestehende Grundsatz lautet ausdrücklich, dass Classic dieselbe Welt und dieselben Effekte behalten soll und nur gröber dargestellt wird. ART_AND_ARCHITECTURE
+
+---
+
+# 41. CLASSIC RETRO – RUINEN
+
+Auch im Classic-Modus:
+
+- Fahrzeugwrack sichtbar
+- Gebäuderuine sichtbar
+- Brandstelle sichtbar
+- Krater sichtbar
+
+Nicht einfach löschen.
+
+---
+
+# 42. PERFORMANCE-BUDGET
+
+Persistent Destruction darf Performance nicht ruinieren.
+
+Deshalb:
+
+## Wracks
+Pool / Limit prüfen.
+
+## Ruinen
+statische Renderobjekte bevorzugen.
+
+## Rauch
+nach Zeit reduzieren.
+
+## Trümmer
+nach kurzer Zeit entfernen.
+
+## Boden-Decals
+Limit / Recycling verwenden.
+
+Die QA dokumentiert bereits begrenzte Effektspeicher und Ruinenbudgets; diese Budgetierung beibehalten und bei Bedarf sauber erweitern, statt unbegrenzt Effekte anzusammeln. QA
+
+---
+
+# 43. PERSISTENCE-PRIORITÄT
+
+Langfristig sichtbar:
+- Ruine
+- Wrack
+- Krater
+- Brandstelle
+
+Kurzlebig:
+- Funken
+- Partikel
+- kleine Fragmente
+- Feuerball
+
+Mittellang:
+- Rauch
+- Feuer
+- Glut
+
+---
+
+# 44. SAVEGAME-VORBEREITUNG
+
+Wenn Ruinen und Wracks missionslang bestehen:
+
+Speicherlogik prüfen.
+
+Wenn sie ausschließlich kosmetisch sind:
+
+- deterministisch rekonstruierbar
+oder
+- als visuelle Persistenz speicherbar
+
+Aber:
+
+bestehendes Savegame-System nicht unnötig brechen.
+
+---
+
+# 45. MULTIPLAYER-VORBEREITUNG
+
+Weiterhin gilt:
+
+Gameplay State
+≠
+Visual State.
+
+Zerstörung entsteht aus:
+
+ENTITY_DESTROYED
+
+oder
+
+BUILDING_DESTROYED
+
+Danach erzeugt Client:
+
+- Explosion
+- Rauch
+- Ruine
+- Wrack
+- Decal
+
+Gameplay darf nicht von VFX abhängig sein.
+
+---
+
+# 46. TEAMFARBEN BEI WRACKS
+
+Wracks sollen nicht mehr wie aktive Einheiten wirken.
+
+Daher:
+
+Teamfarbe stark reduzieren.
+
+Beispiel:
+- Cyan-Fahrzeug wird verbrannt grau/braun
+- kleine Reste der ursprünglichen Lackierung dürfen bleiben
+
+Dadurch sofort klar:
+
+nicht mehr aktiv.
+
+---
+
+# 47. FRIEND / FOE BLEIBT WICHTIG
+
+Aktive Einheiten:
+
+starke Teamfarbe.
+
+Wracks:
+
+entsättigt.
+
+Gegner aktiv:
+
+Rot/Orange.
+
+Gegner zerstört:
+
+dunkel, verbrannt, keine dominante rote Teamfarbe mehr.
+
+---
+
+# 48. UI-STATUS BEI ZERSTÖRUNG
+
+Beim zerstörten ausgewählten Objekt:
+
+Selection entfernen.
+
+Kurzer Hinweis möglich:
+
+UNIT LOST
+
+STRUCTURE DESTROYED
+
+Bei wichtigen Strukturen:
+- Minimap Ping
+- Warnsound
+- UI Alert
+
+---
+
+# 49. MAP DESIGN MIT RUINEN BEREICHERN
+
+Spätere Karten dürfen auch bereits vorhandene alte Ruinen enthalten.
+
+Diese müssen aber klar unterscheidbar sein von:
+
+frisch zerstörten Spieler-/Feindgebäuden.
+
+Alte Ruinen:
+- staubiger
+- stärker verwittert
+- keine Glut
+- keine frischen Brandstellen
+
+---
+
+# 50. SCHLACHTFELD NACH 15 MINUTEN
+
+Quality Gate:
+
+Eine Karte nach 15 Minuten Kampf darf nicht genauso sauber aussehen wie bei Spielstart.
+
+Man sollte sehen:
+
+- Gefechtszonen
+- beschädigte Bereiche
+- Ruinen
+- Wracks
+- Krater
+- Brandspuren
+
+---
+
+# 51. WARCRAFT-3-READABILITY-QUALITY-GATE
+
+Ein Objekt gilt erst als fertig, wenn:
+
+## Unit
+- Rolle auf einen Blick erkennbar
+- Team auf einen Blick erkennbar
+- Größe/Masse plausibel
+- klare Silhouette
+- klare Waffe
+
+## Building
+- Funktion auf einen Blick erkennbar
+- eigene Silhouette
+- klare Höhe
+- Team erkennbar
+- Animation vorhanden
+
+---
+
+# 52. DESTRUCTION QUALITY GATE
+
+Ein zerstörtes Objekt gilt erst als fertig, wenn:
+
+- Zerstörung sichtbar war
+- Explosion zur Größe passt
+- Nachzustand sichtbar bleibt
+- Karte danach verändert aussieht
+- kein abruptes Verschwinden erfolgt
+- Ruine/Wrack eindeutig nicht aktiv ist
+
+---
+
+# 53. TERRAIN QUALITY GATE
+
+Terrain gilt erst als fertig, wenn:
+
+- Mikrodetails vorhanden
+- Makrodetails vorhanden
+- Bereiche unterschiedliche Identität besitzen
+- keine endlose gleichförmige Fläche entsteht
+- Ressourcenbereiche klar lesbar bleiben
+
+---
+
+# 54. SCREENSHOT QUALITY GATE
+
+Ein Screenshot soll ohne UI-Erklärung vermitteln können:
+
+- warme Wüstenwelt
+- aktive Basis
+- Ressourcen
+- eigene Fraktion
+- Gegner
+- räumliche Tiefe
+- Kampfschäden
+- Ruinen
+- militärische Aktivität
+
+---
+
+# 55. BATTLE SCREENSHOT QUALITY GATE
+
+Ein Screenshot nach einem Gefecht soll zeigen:
+
+- wo gekämpft wurde
+- wer verloren hat
+- was zerstört wurde
+- wo Einschläge waren
+- welche Gebäude noch beschädigt sind
+- welche Fahrzeuge zerstört wurden
+
+---
+
+# 56. PRIORITÄTEN
+
+Ab jetzt:
+
+PRIORITÄT 1  
+Gebäudesilhouetten
+
+PRIORITÄT 2  
+Einheitenmasse / Lesbarkeit
+
+PRIORITÄT 3  
+Persistent Destruction
+
+PRIORITÄT 4  
+Ruinen / Wracks / Krater
+
+PRIORITÄT 5  
+größere Terrain-Makroformen
+
+PRIORITÄT 6  
+Schatten / vertikale Tiefe
+
+PRIORITÄT 7  
+Animation / Industrieaktivität
+
+PRIORITÄT 8  
+weiteres Feintuning
+
+---
+
+# 57. KONKRETE UMSETZUNGSREIHENFOLGE
+
+Arbeite in genau dieser Reihenfolge:
+
+1. Gebäude-Silhouetten analysieren
+2. mindestens die wichtigsten Gebäudetypen stärker differenzieren
+3. Einheiten-Silhouetten prüfen
+4. Tank und Harvester massiver machen
+5. Schatten verbessern
+6. vertikale Objektwirkung erhöhen
+7. Fahrzeug-Wrack-State verbindlich implementieren
+8. Gebäude-Ruinen-State verbindlich implementieren
+9. Ruinen je Gebäudetyp variieren
+10. Wrack-/Ruinenrauch zeitlich staffeln
+11. Brandstellen / Krater aufwerten
+12. Battlefield-Memory prüfen
+13. Terrain-Makrodetails ergänzen
+14. Modern Retro prüfen
+15. Classic Retro prüfen
+16. Performance prüfen
+17. Savegame-Verhalten prüfen
+18. Multiplayer-Trennung prüfen
+19. Screenshots erzeugen
+20. QA aktualisieren
+
+---
+
+# 58. TESTSZENARIO 1 – TANKZERSTÖRUNG
+
+Erzeuge Test:
+
+Tank A schießt auf Tank B.
+
+Tank B:
+
+- nimmt sichtbaren Schaden
+- beginnt kritisch zu rauchen
+- wird final getroffen
+- explodiert
+- hinterlässt Wrack
+- hinterlässt dunklen Boden
+- Rauch klingt langsam ab
+
+Nach 60 Sekunden muss Wrack weiterhin sichtbar sein.
+
+---
+
+# 59. TESTSZENARIO 2 – GEBÄUDEZERSTÖRUNG
+
+Ein Fahrzeugwerk wird zerstört.
+
+Prüfe:
+
+- Damage States
+- Flackerlichter
+- Rauch
+- Feuer
+- mehrere Vor-Explosionen
+- Hauptdetonation
+- Trümmer
+- Einsturz
+- Ruine
+- langfristiger Nachzustand
+
+---
+
+# 60. TESTSZENARIO 3 – CONSTRUCTION CORE
+
+Baukern-Zerstörung muss:
+
+- spektakulär
+- klar lesbar
+- größer als normale Gebäudexplosion
+
+sein.
+
+Anschließend:
+
+deutlich erkennbare Baukern-Ruine.
+
+---
+
+# 61. TESTSZENARIO 4 – 20 VS 20
+
+20 Fahrzeuge gegen 20 Fahrzeuge.
+
+Nach Kampf prüfen:
+
+- Performance
+- Lesbarkeit
+- Effektbudget
+- Zahl der Wracks
+- Rauchmengen
+- keine übermäßige Überdeckung
+
+---
+
+# 62. TESTSZENARIO 5 – CLASSIC RETRO
+
+Gleiche Szene in Classic Retro.
+
+Prüfen:
+
+- Wracks sichtbar
+- Ruinen sichtbar
+- Teamfarben lesbar
+- Explosionen kräftig
+- Pixel nicht verschwommen
+- keine wichtige visuelle Information fehlt
+
+---
+
+# 63. DOKUMENTATION
+
+Nach Umsetzung aktualisieren:
+
+- `QA.md`
+- `ROADMAP.md`
+- relevante Visual-/Art-Dokumente
+- relevante Combat-/VFX-Dokumentation
+
+Dokumentiere:
+
+- neue Wracklogik
+- Ruinenpersistenz
+- Performance-Limits
+- Classic-Retro-Verhalten
+- Savegame-Verhalten
+- Multiplayer-Relevanz
+
+---
+
+# 64. NICHT TUN
+
+Nicht:
+
+- komplette UI neu bauen
+- Palette erneut austauschen
+- neue Fraktion beginnen
+- Multiplayer-Lobby bauen
+- neue Kampagne starten
+- Gameplaywerte verändern, nur damit VFX besser aussehen
+- Wracks plötzlich Kollisionsobjekte machen
+- alle Partikel permanent speichern
+- jede kleine Explosion riesig machen
+
+---
+
+# 65. BESTEHENDE MULTIPLAYER-VORBEREITUNG NICHT BESCHÄDIGEN
+
+Die bestehende Architektur fordert, dass Multiplayer später über player-/team-basierte Systeme, Commands und getrennten Visual State vorbereitet wird. ART_AND_ARCHITECTURE
+
+Dieser Pass muss damit kompatibel bleiben.
+
+Insbesondere:
+
+- Wrack-VFX lokal
+- Ruinen-VFX lokal
+- Rauch lokal
+- Partikel lokal
+- Camera Shake lokal
+- Damage bleibt Simulation
+- Tod bleibt Simulation
+- Visuals folgen bestätigten Events
+
+---
+
+# 66. DEFINITION OF DONE
+
+Dieser Pass gilt erst als abgeschlossen, wenn:
+
+- Gebäude deutlich unterschiedlich aussehen
+- Gebäude mehr räumliche Höhe besitzen
+- Tank/Harvester mehr Masse besitzen
+- Schatten deutlich besser sind
+- Einheiten und Gebäude leichter lesbar sind
+- Fahrzeugtod niemals nur „verschwindet“
+- Gebäudezerstörung immer Ruine hinterlässt
+- Wracks sichtbar bleiben
+- Brandspuren/Krater Schlachten sichtbar machen
+- Karte nach Kampf Spuren trägt
+- Modern Retro überzeugend aussieht
+- Classic Retro dieselbe Logik erhält
+- Multiplayer-Vorbereitung erhalten bleibt
+- keine Gameplaywerte unbeabsichtigt verändert wurden
+- Performance-Budget eingehalten wird
+- Tests und QA aktualisiert wurden
+
+---
+
+# 67. ENDBILD
+
+ASHLINE soll nach diesem Pass nicht nur während eines Kampfes spektakulär wirken.
+
+Es soll auch **danach** interessant aussehen.
+
+Eine Schlacht soll Spuren hinterlassen.
+
+Eine zerstörte Basis soll tatsächlich zerstört aussehen.
+
+Ein verlorener Panzer soll als Wrack auf dem Schlachtfeld liegen.
+
+Die Welt soll Geschichte erzählen.
+
+Das visuelle Ziel lautet:
+
+> **Warcraft-3-artige Lesbarkeit + warme Sci-Fi-Wüstenwelt + schwere industrielle Einheiten + hochwertige Retro-Art + dauerhaft sichtbare Schlachtfolgen.**
+
+Kein Neustart.
+
+Kein Prototyp-Pass.
+
+Dies ist ein gezielter Qualitäts-Pass auf dem bestehenden ASHLINE-Stand.

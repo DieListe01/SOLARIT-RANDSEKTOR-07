@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "id": "dry_vein",
+  "name": "02 / Die trockene Ader",
+  "display_name": "Die trockene Ader",
+  "short_name": "TROCKENE ADER",
+  "width": 64,
+  "height": 64,
+  "seed": 90317,
+  "briefing": "Die erste Ader unter dem Landefeld ist fast erschöpft. Jenseits des Khepri-Rückens liegen reichere Vorkommen, doch der Wanderpakt schickt schnelle Jagdgruppen gegen jede Förderroute. Errichte eine zweite Raffinerie, liefere 8.000 Solarit und schalte die feindliche Raffinerie aus.",
+  "briefing_hint": "WIRTSCHAFTSMISSION  ·  Zweite Raffinerie erforderlich  ·  Sammler gegen Überfälle sichern",
+  "hud_hint": "TROCKENE ADER / FÖRDERNETZ\nKleine Startader → Zentralfeld → Nordader\nSammler mit mobilen Einheiten sichern.",
+  "start_message": "Die Startader reicht nicht aus. Sichere weitere Solaritfelder und errichte eine zweite Raffinerie.",
+  "victory_title": "Förderkorridor gesichert",
+  "defeat_title": "Versorgung zusammengebrochen",
+  "credits": [3200, 1600],
+  "player_starts": [[9, 51], [52, 10]],
+  "terrain_regions": [
+    {"type":"rock","rect":[3,45,20,16]},
+    {"type":"rock","rect":[44,4,17,18]},
+    {"type":"cliff","rect":[30,0,4,20]},
+    {"type":"cliff","rect":[30,29,4,35]},
+    {"type":"dunes","rect":[18,34,9,18]},
+    {"type":"dunes","rect":[36,12,7,19]},
+    {"type":"crater","rect":[22,8,7,6]},
+    {"type":"crater","rect":[38,42,8,7]},
+    {"type":"rock","rect":[9,12,11,8]},
+    {"type":"rock","rect":[46,34,10,8]}
+  ],
+  "resources": [
+    {"cell":[15,50],"radius":2,"amount":1200},
+    {"cell":[25,25],"radius":3,"amount":4300},
+    {"cell":[40,24],"radius":2,"amount":3000},
+    {"cell":[47,17],"radius":3,"amount":5200},
+    {"cell":[13,17],"radius":2,"amount":2400},
+    {"cell":[50,48],"radius":2,"amount":2600}
+  ],
+  "structures": [
+    {"kind":"core","owner":0,"cell":[8,50]},
+    {"kind":"core","owner":1,"cell":[52,9]},
+    {"kind":"power","owner":1,"cell":[56,10]},
+    {"kind":"refinery","owner":1,"cell":[46,15]},
+    {"kind":"factory","owner":1,"cell":[52,16]},
+    {"kind":"radar","owner":1,"cell":[57,15]}
+  ],
+  "units": [
+    {"kind":"scout","owner":0,"cell":[12,53]},
+    {"kind":"scout","owner":0,"cell":[13,52]},
+    {"kind":"harvester","owner":1,"cell":[45,20]},
+    {"kind":"scout","owner":1,"cell":[44,22]},
+    {"kind":"scout","owner":1,"cell":[48,23]},
+    {"kind":"tank","owner":1,"cell":[50,21]}
+  ],
+  "objectives": [
+    {"id":"harvest_8000","type":"harvest_amount","amount":8000,"primary":true,"text":"Liefere 8.000 Solarit.","hud":"SOLARIT LIEFERN"},
+    {"id":"second_refinery","type":"build_structure","owner":0,"kind":"refinery","count":2,"primary":true,"text":"Betreibe zwei Raffinerien.","hud":"ZWEITE RAFFINERIE"},
+    {"id":"enemy_refinery","type":"destroy_target","owner":1,"kind":"refinery","primary":true,"text":"Zerstöre die feindliche Raffinerie.","hud":"FEINDLICHE RAFFINERIE ZERSTÖREN"},
+    {"id":"home_core","type":"protect","owner":0,"kind":"core","text":"Erhalte deinen Baukern."}
+  ],
+  "ruins": [
+    {"kind":"factory","cell":[23,12],"rotation":1,"variant":1},
+    {"kind":"tank","cell":[27,27],"rotation":0,"variant":2},
+    {"kind":"harvester","cell":[39,44],"rotation":2,"variant":0}
+  ],
+  "craters": [
+    {"cell":[26,13],"radius":46},
+    {"cell":[41,43],"radius":34},
+    {"cell":[35,24],"radius":28}
+  ]
+}

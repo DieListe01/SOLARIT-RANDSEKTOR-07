@@ -1,0 +1,4573 @@
+Du bist Lead Game Developer, Gameplay Programmer, AI Engineer, RTS Designer, UI/UX Designer, Pixel Artist, Technical Artist, Audio Designer, QA Engineer und Software-Architekt.
+
+Deine Aufgabe ist es, ein vollständig spielbares, eigenständiges Echtzeitstrategiespiel zu entwickeln, das sich spielerisch an frühen klassischen Basisbau-RTS-Spielen der frühen 1990er-Jahre orientiert.
+
+Als wichtigste historische Designreferenz dient das Grundprinzip von Dune II:
+
+- Basis errichten
+- Energieversorgung aufbauen
+- Ressourcen abbauen
+- Produktionsgebäude errichten
+- Fahrzeuge und Infanterie produzieren
+- Karte erkunden
+- gegnerische Basis angreifen
+- Mission erfüllen
+
+Das Spiel soll jedoch KEIN Dune-II-Remake und KEINE 1:1-Kopie werden.
+
+Es benötigt:
+
+- eigene Welt
+- eigene Fraktionen
+- eigene Einheiten
+- eigene Gebäude
+- eigene Ressource
+- eigene Story
+- eigene Namen
+- eigene Musik
+- eigene Sounds
+- eigene Grafiken
+- eigene Missionen
+
+Keine geschützten:
+
+- Namen
+- Fraktionen
+- Logos
+- Charaktere
+- Einheiten
+- Gebäude
+- Melodien
+- Sounds
+- Karten
+- Texte
+- Storyelemente
+
+aus bestehenden Spielen übernehmen.
+
+Ziel ist:
+
+KLASSISCHES RTS-SPIELGEFÜHL
++
+MODERNE STEUERUNG
++
+MODERNE KI
++
+MODERNE QUALITY-OF-LIFE-FUNKTIONEN
++
+FULL-HD-DARSTELLUNG
++
+OPTIONALER ECHTER RETRO-PIXEL-MODUS
++
+STARKE DYNAMISCHE MUSIK
+
+============================================================
+1. DESIGNPHILOSOPHIE
+============================================================
+
+Das Spiel soll sich anfühlen wie ein hochwertiges RTS, das theoretisch Anfang der 1990er hätte erscheinen können, wenn damals bereits moderne Bedienkonzepte und aktuelle Hardware verfügbar gewesen wären.
+
+Nicht:
+
+„modernes RTS mit Retro-Skin“
+
+sondern:
+
+„klassisches RTS mit moderner Technik“.
+
+Das bedeutet:
+
+- überschaubare Einheitenzahlen
+- klar erkennbare Einheiten
+- überschaubare Produktionsketten
+- starke Bedeutung von Basisbau
+- starke Bedeutung der Ressourcenwirtschaft
+- taktisch lesbare Kämpfe
+- kein extrem hektisches APM-Gameplay
+- keine unnötig komplexen Skill-Trees
+- keine hunderten Einheitentypen
+- kein unnötiger Micromanagement-Zwang
+
+Das Spiel soll leicht zu verstehen, aber schwer zu meistern sein.
+
+============================================================
+2. TECHNISCHE BASIS
+============================================================
+
+Engine:
+
+aktuelle stabile Godot-4.x-Version.
+
+Keine:
+
+- Dev-Version
+- Alpha
+- Beta
+- Nightly-Version
+
+Programmiersprache:
+
+GDScript.
+
+Primärplattform:
+
+Windows 10 / Windows 11.
+
+Architektur von Anfang an grundsätzlich kompatibel halten mit:
+
+- Linux
+- Steam Deck
+- eventuell Web
+- später weiteren Desktop-Plattformen
+
+Keine externen Plugins verwenden, wenn Godot die benötigte Funktion bereits zuverlässig selbst bereitstellt.
+
+Keine unnötigen Abhängigkeiten.
+
+Ein frischer Checkout des Projektes muss mit der dokumentierten stabilen Godot-Version direkt startbar sein.
+
+============================================================
+3. FULL-HD ALS STANDARD
+============================================================
+
+Das Spiel läuft standardmäßig in:
+
+1920 × 1080
+
+16:9.
+
+Unterstützen:
+
+1280 × 720
+
+1600 × 900
+
+1920 × 1080
+
+2560 × 1440
+
+3840 × 2160
+
+Display-Modi:
+
+WINDOWED
+
+BORDERLESS
+
+FULLSCREEN
+
+UI muss auf allen unterstützten Auflösungen korrekt skalieren.
+
+============================================================
+4. ZWEI GRAFIKMODI
+============================================================
+
+Das Spiel besitzt zwei vollständig unterstützte Darstellungsmodi.
+
+A)
+
+MODERN RETRO
+
+Standard.
+
+Full-HD-Darstellung.
+
+Eigenschaften:
+
+- klassische 2D-/Pixelästhetik
+- detailliertere Sprites
+- flüssigere Animationen
+- mehr sichtbare Kartendetails
+- feinere UI
+- dezente Partikeleffekte
+- dezente Beleuchtung
+- moderne Lesbarkeit
+
+Keine:
+
+- fotorealistischen Grafiken
+- realistischen 3D-Modelle
+- übertriebenen Shader
+- visuelle Effektüberladung
+
+B)
+
+CLASSIC RETRO
+
+echter Retro-Modus.
+
+Nicht einfach Full-HD-Bild verpixeln.
+
+Stattdessen niedrige interne Renderauflösung.
+
+Empfehlung:
+
+640 × 360
+
+oder:
+
+480 × 270
+
+Danach:
+
+Nearest Neighbor
+
+Integer Scaling
+
+Keine bilineare Filterung.
+
+Keine unscharfen Pixel.
+
+============================================================
+5. GRAFIKMODUS UMSCHALTEN
+============================================================
+
+OPTIONS
+
+→ VIDEO
+
+→ DISPLAY STYLE
+
+MODERN RETRO
+
+CLASSIC RETRO
+
+Das Umschalten darf niemals Gameplaywerte verändern.
+
+Identisch bleiben:
+
+- Positionen
+- Bewegung
+- Kollision
+- Pathfinding
+- Einheitengeschwindigkeit
+- Projektilgeschwindigkeit
+- Sichtweiten
+- KI
+- Ressourcen
+- Produktionszeiten
+- Damage
+- Missionslogik
+
+Nur Darstellung verändert sich.
+
+Gameplay-Simulation und Rendering müssen sauber getrennt sein.
+
+============================================================
+6. OPTIONALER CRT-MODUS
+============================================================
+
+Nur im CLASSIC-RETRO-Modus optional:
+
+CRT:
+
+OFF
+
+LIGHT
+
+STRONG
+
+Mögliche Effekte:
+
+- Scanlines
+- dezentes Bloom
+- leichte Bildschirmkrümmung
+- subtile Phosphorwirkung
+
+Nicht übertreiben.
+
+Standard:
+
+CRT OFF.
+
+============================================================
+7. SPIELWELT
+============================================================
+
+Eigene Science-Fiction-Welt entwickeln.
+
+Setting:
+
+karger fremder Planet mit wertvollen mineralischen bzw. energetischen Ressourcen.
+
+Keine Dune-Bezeichnungen übernehmen.
+
+Beispielhafte eigene Ressource:
+
+SOLARITE
+
+Alternativen:
+
+CRYSALITE
+
+AETHERIUM
+
+HELION
+
+Die endgültige Benennung soll innerhalb des Projektes konsistent erfolgen.
+
+============================================================
+8. FRAKTIONEN
+============================================================
+
+Mindestens drei spielbare Fraktionen vorbereiten.
+
+Alle Fraktionen müssen spielerisch unterschiedlich sein.
+
+Beispiel:
+
+FACTION A
+
+INDUSTRIAL
+
+Eigenschaften:
+
+- schwere Panzerung
+- hohe Lebenspunkte
+- starke Fahrzeuge
+- langsam
+- teuer
+- hoher Energiebedarf
+
+FACTION B
+
+MOBILE
+
+Eigenschaften:
+
+- schnelle Einheiten
+- günstige Fahrzeuge
+- Hit-and-Run
+- geringere Panzerung
+- schnelle Expansion
+
+FACTION C
+
+TECHNOLOGY
+
+Eigenschaften:
+
+- teuer
+- Spezialwaffen
+- Drohnen
+- Sensoren
+- Stealth
+- elektronische Kriegsführung
+
+Keine bloßen Farbvarianten.
+
+============================================================
+9. STRATEGISCHE IDENTITÄT
+============================================================
+
+Jede Fraktion benötigt:
+
+- eigene Bauweise
+- eigene Einheitenschwerpunkte
+- eigene Spezialfähigkeiten
+- eigene Musikvariation
+- eigene Farbpalette
+- eigene UI-Akzente
+- eigene Einheiten-Silhouetten
+
+Fraktionen müssen bereits an ihrer Form erkennbar sein.
+
+Nicht ausschließlich über Farbe unterscheiden.
+
+============================================================
+10. KARTENSYSTEM
+============================================================
+
+Karten basieren intern auf einem Grid.
+
+Beispiel:
+
+96 × 96
+
+128 × 128
+
+oder vergleichbar.
+
+Terrainarten:
+
+SAND
+
+ROCK
+
+DUNES
+
+RESOURCE
+
+HARD_GROUND
+
+CRATER
+
+CLIFF
+
+SPECIAL
+
+Jeder Terrain-Typ kann Eigenschaften besitzen.
+
+Beispiel:
+
+movement_cost
+
+buildable
+
+harvestable
+
+vision_modifier
+
+vehicle_modifier
+
+============================================================
+11. TERRAIN
+============================================================
+
+SAND:
+
+normal befahrbar.
+
+ROCK:
+
+für Gebäude besonders geeignet.
+
+DUNES:
+
+langsamer für schwere Fahrzeuge.
+
+RESOURCE:
+
+abbaufähig.
+
+CLIFF:
+
+nicht passierbar.
+
+HARD_GROUND:
+
+ideal für Basisbau.
+
+Spezielle Karten dürfen weitere Terrains hinzufügen.
+
+============================================================
+12. RESSOURCENSYSTEM
+============================================================
+
+Ein zentraler Ressourcenzyklus.
+
+RESOURCE FIELD
+
+↓
+
+HARVESTER
+
+↓
+
+REFINERY
+
+↓
+
+CREDITS
+
+Der Sammler fährt selbstständig zu Ressourcengebieten.
+
+Er sammelt.
+
+Kehrt zurück.
+
+Entlädt.
+
+Fährt erneut los.
+
+Der gesamte Prozess muss sichtbar sein.
+
+============================================================
+13. HARVESTER
+============================================================
+
+Harvester-Zustände:
+
+IDLE
+
+SEARCH_RESOURCE
+
+MOVE_TO_RESOURCE
+
+HARVEST
+
+RETURN_TO_BASE
+
+UNLOAD
+
+EVADE
+
+DEAD
+
+Harvester muss intelligent reagieren.
+
+Beispiele:
+
+Ressourcenfeld erschöpft:
+
+nächstes sinnvolles Feld suchen.
+
+Refinery zerstört:
+
+alternative Refinery suchen.
+
+Weg blockiert:
+
+neu berechnen.
+
+Unter Beschuss:
+
+je nach Einstellung weiterarbeiten oder fliehen.
+
+============================================================
+14. RESOURCE FIELD
+============================================================
+
+Ressourcenfelder besitzen:
+
+current_amount
+
+maximum_amount
+
+richness
+
+Regeneration optional.
+
+Map-Designer muss konfigurieren können:
+
+- statische Ressource
+- langsam regenerierende Ressource
+- begrenztes Feld
+- besonders ergiebiges Feld
+
+============================================================
+15. BASISBAU
+============================================================
+
+Basisbau ist ein Kernsystem.
+
+Gebäude werden über ein Bau-Menü produziert.
+
+Klassischer Ablauf:
+
+CONSTRUCTION CORE
+
+↓
+
+POWER
+
+↓
+
+REFINERY
+
+↓
+
+BARRACKS
+
+↓
+
+FACTORY
+
+↓
+
+ADVANCED STRUCTURES
+
+Tech-Tree muss datengetrieben sein.
+
+============================================================
+16. CONSTRUCTION CORE
+============================================================
+
+Startgebäude.
+
+Ermöglicht grundlegende Konstruktionen.
+
+Besitzt:
+
+- Build Radius
+- Baugeschwindigkeit
+- Basis-Integrität
+
+Wird es zerstört, muss der Spieler weiterhin eine Chance haben, sofern alternative Konstruktionstechnologie existiert.
+
+============================================================
+17. ENERGIESYSTEM
+============================================================
+
+Gebäude benötigen Energie.
+
+Power Plants erzeugen:
+
+power_output.
+
+Andere Gebäude benötigen:
+
+power_usage.
+
+Anzeige:
+
+POWER
+
+125 / 180
+
+Bei Energieknappheit:
+
+- Produktion langsamer
+- Radar kann ausfallen
+- bestimmte Spezialgebäude deaktiviert
+
+Keine sofortige Komplettlähmung der Basis.
+
+============================================================
+18. BAUFLÄCHEN
+============================================================
+
+Gebäude benötigen geeigneten Untergrund.
+
+Klassisches Fundamentprinzip modernisieren.
+
+FOUNDATION ist optional, aber sinnvoll.
+
+Vorteile:
+
+- mehr Gebäude-Lebenspunkte
+- schnellere Bauzeit
+- bessere Energieeffizienz
+- geringere Reparaturkosten
+
+Gebäude dürfen auch ohne Foundation gebaut werden, wenn Terrain geeignet ist.
+
+Dabei eventuell leichte Nachteile.
+
+============================================================
+19. BAURADIUS
+============================================================
+
+Neue Gebäude können nur in der Nähe bestehender Basisinfrastruktur gebaut werden.
+
+Beispiel:
+
+construction_radius.
+
+Dadurch entsteht organisches Basiswachstum.
+
+Debug-Modus muss den Radius anzeigen können.
+
+============================================================
+20. GEBÄUDEPLATZIERUNG
+============================================================
+
+Gebäude-Vorschau:
+
+GRÜN
+
+gültig.
+
+ROT
+
+ungültig.
+
+Anzeige möglicher Gründe:
+
+BLOCKED
+
+INVALID TERRAIN
+
+OUTSIDE BUILD RANGE
+
+INSUFFICIENT POWER
+
+TECH REQUIREMENT
+
+Gebäude darf nicht versehentlich unter UI platziert werden.
+
+============================================================
+21. GEBÄUDE
+============================================================
+
+Mindestens vorbereiten:
+
+CONSTRUCTION CORE
+
+POWER PLANT
+
+REFINERY
+
+BARRACKS
+
+VEHICLE FACTORY
+
+RADAR
+
+REPAIR FACILITY
+
+RESEARCH CENTER
+
+DEFENSE TOWER
+
+MISSILE DEFENSE / SPECIAL DEFENSE
+
+STORAGE
+
+FACTION SPECIAL STRUCTURE
+
+============================================================
+22. GEBÄUDEWERTE
+============================================================
+
+Datengetrieben.
+
+Beispiel:
+
+{
+    "id": "power_plant",
+    "health": 1200,
+    "cost": 600,
+    "build_time": 18,
+    "power_output": 120,
+    "footprint": [2,2]
+}
+
+Keine zentralen Balancingwerte in Scripts hardcoden.
+
+============================================================
+23. PRODUKTION
+============================================================
+
+Produktionsgebäude besitzen Warteschlangen.
+
+Beispiel:
+
+VEHICLE FACTORY
+
+LIGHT TANK
+12 sec
+
+SCOUT
+QUEUED
+
+HARVESTER
+QUEUED
+
+Links-Klick:
+
++1.
+
+Shift + Klick:
+
++5.
+
+Rechts-Klick:
+
+-1.
+
+============================================================
+24. RALLY POINTS
+============================================================
+
+Produktionsgebäude besitzen Rally Points.
+
+Neue Einheit:
+
+Factory
+
+↓
+
+Rally Point
+
+Einheiten fahren nach Fertigstellung automatisch zum Rally Point.
+
+============================================================
+25. INFANTERIE
+============================================================
+
+Grundtypen:
+
+SCOUT
+
+RIFLE SQUAD
+
+HEAVY INFANTRY
+
+ENGINEER
+
+SPECIALIST
+
+Infanterie ist:
+
+günstig
+
+klein
+
+gut gegen bestimmte Ziele
+
+verwundbar gegen Fahrzeuge
+
+============================================================
+26. FAHRZEUGE
+============================================================
+
+Grundtypen:
+
+SCOUT VEHICLE
+
+LIGHT TANK
+
+MEDIUM TANK
+
+HEAVY TANK
+
+MISSILE VEHICLE
+
+ARTILLERY
+
+HARVESTER
+
+REPAIR VEHICLE optional
+
+============================================================
+27. SPEZIALEINHEITEN
+============================================================
+
+Fraktionsabhängig:
+
+DRONE
+
+STEALTH VEHICLE
+
+SHIELD UNIT
+
+SENSOR VEHICLE
+
+SIEGE UNIT
+
+COMMAND UNIT
+
+============================================================
+28. EINHEITSDATEN
+============================================================
+
+Einheiten datengetrieben.
+
+Beispiel:
+
+{
+    "id": "light_tank",
+    "health": 420,
+    "armor": "medium",
+    "speed": 4.2,
+    "turn_speed": 2.1,
+    "vision_range": 8,
+    "weapon": "cannon_mk1"
+}
+
+============================================================
+29. WEAPON SYSTEM
+============================================================
+
+Waffen getrennt von Einheiten definieren.
+
+Beispiel:
+
+{
+    "id": "cannon_mk1",
+    "damage": 42,
+    "range": 6,
+    "reload": 1.4,
+    "projectile_speed": 12,
+    "damage_type": "kinetic"
+}
+
+Dadurch:
+
+Balancing unabhängig.
+
+============================================================
+30. ARMOR SYSTEM
+============================================================
+
+Armor Types:
+
+LIGHT
+
+MEDIUM
+
+HEAVY
+
+STRUCTURE
+
+AIR optional
+
+Waffen können unterschiedliche Effektivität besitzen.
+
+Keine unnötig komplizierten Formeln.
+
+============================================================
+31. DAMAGE TYPES
+============================================================
+
+Beispiel:
+
+KINETIC
+
+EXPLOSIVE
+
+ENERGY
+
+ANTI_INFANTRY
+
+SIEGE
+
+Balance über Modifier.
+
+============================================================
+32. MODERNE EINHEITENAUSWAHL
+============================================================
+
+Linksklick:
+
+Einheit auswählen.
+
+Drag Box:
+
+mehrere Einheiten auswählen.
+
+SHIFT:
+
+Auswahl ergänzen.
+
+CTRL + Klick:
+
+gleiche Einheitentypen auswählen.
+
+Doppelklick:
+
+sichtbare Einheiten desselben Typs auswählen.
+
+============================================================
+33. MODERNE RTS-BEFEHLE
+============================================================
+
+Rechtsklick auf Boden:
+
+MOVE.
+
+Rechtsklick auf Gegner:
+
+ATTACK.
+
+Rechtsklick auf eigene beschädigte Einheit mit Reparatureinheit:
+
+REPAIR.
+
+Rechtsklick auf Ressource mit Harvester:
+
+HARVEST.
+
+============================================================
+34. HOTKEYS
+============================================================
+
+Standard:
+
+A
+
+Attack Move.
+
+S
+
+Stop.
+
+H
+
+Hold Position.
+
+G
+
+Guard.
+
+R
+
+Repair, kontextabhängig.
+
+CTRL + 1–9
+
+Control Group setzen.
+
+1–9
+
+Control Group auswählen.
+
+Doppelt 1–9:
+
+Kamera zur Gruppe.
+
+SPACE:
+
+letzte Warnung / letztes Ereignis.
+
+HOME:
+
+eigene Hauptbasis.
+
+============================================================
+35. CONTROL GROUPS
+============================================================
+
+Control Groups müssen gespeichert werden.
+
+Einheiten können mehreren Gruppen zugeordnet werden, sofern technisch sinnvoll.
+
+Tote Einheiten automatisch entfernen.
+
+============================================================
+36. KAMERA
+============================================================
+
+Kamerabewegung:
+
+WASD
+
+Pfeiltasten optional
+
+Maus an Bildschirmrand
+
+Middle Mouse Drag
+
+Mouse Wheel Zoom.
+
+Zoomstufen beispielsweise:
+
+75 %
+
+100 %
+
+125 %
+
+150 %
+
+Nicht stufenlos nötig.
+
+============================================================
+37. CAMERA BOOKMARKS
+============================================================
+
+Optional vorbereiten:
+
+SHIFT + F1-F4
+
+Position speichern.
+
+F1-F4
+
+Position anspringen.
+
+============================================================
+38. PATHFINDING
+============================================================
+
+Pathfinding ist eines der wichtigsten Systeme.
+
+Architektur:
+
+HIGH LEVEL GRID
+
+↓
+
+A* / NAVIGATION
+
+↓
+
+LOCAL AVOIDANCE
+
+↓
+
+FORMATION OFFSET
+
+Einheiten dürfen sich nicht ständig gegenseitig blockieren.
+
+============================================================
+39. PATHFINDING-ZIELE
+============================================================
+
+Vermeiden:
+
+lange Fahrzeugschlangen.
+
+Vermeiden:
+
+Einheiten drehen sich endlos umeinander.
+
+Vermeiden:
+
+Units bleiben an Gebäudeecken hängen.
+
+Vermeiden:
+
+große Gruppen wählen unmögliche Engstellen.
+
+============================================================
+40. FORMATIONEN
+============================================================
+
+Bei Gruppenbewegungen automatisch Formation Offsets vergeben.
+
+Keine militärisch komplexe Formationssteuerung nötig.
+
+Ziel:
+
+Einheiten bewegen sich als Gruppe.
+
+Beispiel:
+
+    TANK    TANK
+
+TANK    TANK    TANK
+
+    TANK    TANK
+
+============================================================
+41. FAHRZEUGBEWEGUNG
+============================================================
+
+Fahrzeuge müssen sichtbar drehen.
+
+Nicht einfach Sprite sofort auf Zielrichtung springen lassen.
+
+Parameter:
+
+turn_speed
+
+acceleration
+
+max_speed
+
+braking.
+
+Aber:
+
+Keine realistische Fahrzeugphysik.
+
+Spielbarkeit vor Simulation.
+
+============================================================
+42. UNIT COLLISION
+============================================================
+
+Einheiten dürfen einander nicht permanent blockieren.
+
+Soft Collision / Local Avoidance verwenden.
+
+Aber:
+
+Einheiten sollen sich auch nicht geisterhaft vollständig überlappen.
+
+============================================================
+43. ANGRIFF
+============================================================
+
+Einheiten besitzen:
+
+target
+
+attack_range
+
+reload_timer
+
+weapon
+
+turret_rotation optional.
+
+Waffenfeuer soll klar lesbar sein.
+
+============================================================
+44. PROJEKTILE
+============================================================
+
+Projectile Types:
+
+DIRECT
+
+BALLISTIC
+
+MISSILE
+
+BEAM optional.
+
+Bei Projektilen:
+
+trajectory
+
+speed
+
+impact
+
+damage
+
+splash_radius
+
+datengetrieben.
+
+============================================================
+45. FRIENDLY FIRE
+============================================================
+
+Standard:
+
+kein Friendly Fire bei normalen Waffen.
+
+Optional:
+
+bestimmte Spezialwaffen mit Friendly Fire.
+
+============================================================
+46. ATTACK MOVE
+============================================================
+
+Attack Move:
+
+Einheit bewegt sich Richtung Ziel.
+
+Entdeckt sie einen gültigen Gegner innerhalb eines sinnvollen Radius:
+
+angreifen.
+
+Danach Bewegung fortsetzen.
+
+============================================================
+47. HOLD POSITION
+============================================================
+
+Einheit verfolgt Gegner nicht über definierte Position hinaus.
+
+============================================================
+48. GUARD
+============================================================
+
+Einheit schützt:
+
+- Einheit
+- Gebäude
+- Position
+
+============================================================
+49. REPAIR
+============================================================
+
+Gebäude können repariert werden.
+
+Kosten pro repariertem Lebenspunkt.
+
+Keine kostenlose Sofortheilung.
+
+Repair Facility:
+
+Fahrzeuge hinein / daneben.
+
+Automatische Reparatur gegen Kosten.
+
+============================================================
+50. FOG OF WAR
+============================================================
+
+Drei Zustände:
+
+UNKNOWN
+
+EXPLORED
+
+VISIBLE
+
+UNKNOWN:
+
+komplett verborgen.
+
+EXPLORED:
+
+Terrain sichtbar, aktuelle Einheiten nicht.
+
+VISIBLE:
+
+aktuelle Informationen.
+
+============================================================
+51. SICHTWEITE
+============================================================
+
+Einheiten und Gebäude besitzen:
+
+vision_range.
+
+Optional:
+
+radar_range.
+
+Fog-of-War-Berechnung muss performant sein.
+
+============================================================
+52. RADAR
+============================================================
+
+Radar-Gebäude ermöglicht vollständige Minimap.
+
+Bei Strommangel:
+
+Radar kann zeitweise deaktiviert werden.
+
+============================================================
+53. MINIMAP
+============================================================
+
+Minimap zeigt:
+
+Terrain
+
+eigene Gebäude
+
+eigene Einheiten
+
+sichtbare Gegner
+
+bekannte Ressourcen
+
+Kameraausschnitt
+
+Warnungen.
+
+Klick auf Minimap:
+
+Kamera springen.
+
+============================================================
+54. PINGS
+============================================================
+
+Später vorbereiten:
+
+Map Ping.
+
+Auch für zukünftigen Multiplayer nützlich.
+
+============================================================
+55. KI-ARCHITEKTUR
+============================================================
+
+Die Gegner-KI darf nicht bloß aus gescripteten Angriffswellen bestehen.
+
+AI Director:
+
+ECONOMY
+
+EXPAND
+
+SCOUT
+
+DEFEND
+
+HARASS
+
+ATTACK
+
+RETREAT
+
+REBUILD
+
+============================================================
+56. KI-SUBSYSTEME
+============================================================
+
+Economic AI
+
+Production AI
+
+Base AI
+
+Military AI
+
+Scouting AI
+
+Threat Analysis
+
+Target Selection
+
+============================================================
+57. KI-WISSEN
+============================================================
+
+KI darf nicht automatisch vollständige Kenntnis der Karte besitzen.
+
+Sie soll grundsätzlich nur wissen:
+
+was sie gesehen hat
+
+was sie erkundet hat
+
+was durch Missionsskripte bekannt ist.
+
+Schwierigkeitsgrade dürfen Wahrnehmungs- oder Reaktionsparameter verändern.
+
+Kein unfairer Allwissenheits-Cheat als Standard.
+
+============================================================
+58. KI-WIRTSCHAFT
+============================================================
+
+KI muss tatsächlich:
+
+- Ressourcen abbauen
+- Gebäude bauen
+- Einheiten produzieren
+- Energie beachten
+- verlorene Sammler ersetzen
+
+Keine kostenlosen versteckten Einheiten als normale Mechanik.
+
+============================================================
+59. KI-ANGRIFFE
+============================================================
+
+KI bewertet:
+
+own_strength
+
+enemy_strength
+
+base_threat
+
+resource_income
+
+known_enemy_positions
+
+unit_mix
+
+available_production
+
+Angriffe entstehen aus diesen Daten.
+
+============================================================
+60. KI-ANGRIFFSGRUPPEN
+============================================================
+
+KI stellt Gruppen zusammen.
+
+Beispiel:
+
+SCOUTS
+
+TANKS
+
+SUPPORT
+
+ARTILLERY
+
+Dann Sammelpunkt.
+
+Danach Angriff.
+
+Keine Einheit einzeln stumpf losschicken, außer bei Harassment.
+
+============================================================
+61. KI-RÜCKZUG
+============================================================
+
+KI darf Rückzug verwenden.
+
+Beispiel:
+
+Gruppe verliert 70 % Kampfstärke.
+
+Dann:
+
+RETREAT
+
+REPAIR
+
+REGROUP.
+
+============================================================
+62. SCHWIERIGKEITSGRADE
+============================================================
+
+Mindestens:
+
+EASY
+
+NORMAL
+
+HARD
+
+Keine simplen:
+
+200 % Gegnerleben.
+
+Besser:
+
+EASY:
+
+langsamere Reaktion
+
+weniger aggressive Expansion
+
+kleinere Angriffstrupps
+
+NORMAL:
+
+Standard.
+
+HARD:
+
+bessere Kombinationen
+
+schnellere Reaktion
+
+bessere Wirtschaft
+
+bessere Zielwahl.
+
+============================================================
+63. KEINE CHEAT-KI
+============================================================
+
+Schwierigkeitsgrad soll hauptsächlich Verhalten verändern.
+
+Nicht permanent:
+
+unendliches Geld
+
+sofortige Produktion
+
+Radar durch Fog of War
+
+extreme Damage-Multiplikatoren.
+
+============================================================
+64. UI-GRUNDAUFBAU
+============================================================
+
+Modern Retro:
+
+obere Leiste:
+
+CREDITS
+
+POWER
+
+UNIT COUNT optional
+
+OBJECTIVE
+
+rechte oder linke Seitenleiste:
+
+BUILDINGS
+
+UNITS
+
+MINIMAP
+
+COMMANDS
+
+============================================================
+65. CLASSIC-RETRO-UI
+============================================================
+
+Retro-Modus darf stärker an alte Seitenleisten-RTS erinnern.
+
+Beispiel:
+
+┌─────────────────────────────────────────────┬─────────────┐
+│                                             │ CREDITS     │
+│                                             │ POWER       │
+│                 MAP                         │             │
+│                                             │ MINIMAP     │
+│                                             │             │
+│                                             │ BUILD       │
+│                                             │             │
+└─────────────────────────────────────────────┴─────────────┘
+
+Keine bestehende UI 1:1 kopieren.
+
+============================================================
+66. INFORMATION PANEL
+============================================================
+
+Ausgewählte Einheit zeigt:
+
+Name
+
+Health
+
+Armor
+
+Weapon
+
+Veterancy optional
+
+Current Order.
+
+Gebäude:
+
+Health
+
+Power
+
+Production
+
+Queue.
+
+============================================================
+67. HEALTH BARS
+============================================================
+
+Optionen:
+
+ALWAYS
+
+DAMAGED
+
+SELECTED
+
+OFF.
+
+Standard:
+
+DAMAGED.
+
+============================================================
+68. BUILD MENU
+============================================================
+
+Kategorien:
+
+BASE
+
+DEFENSE
+
+INFANTRY
+
+VEHICLES
+
+SPECIAL
+
+Jedes Element zeigt:
+
+Icon
+
+Name
+
+Cost
+
+Build Time
+
+Power
+
+Hotkey optional.
+
+============================================================
+69. TOOLTIP
+============================================================
+
+Tooltip:
+
+Name
+
+Kurzbeschreibung
+
+Cost
+
+Power
+
+Prerequisites
+
+Rolle.
+
+Keine Romanlänge.
+
+============================================================
+70. TECH TREE
+============================================================
+
+Tech Tree vollständig datengetrieben.
+
+Beispiel:
+
+POWER_PLANT
+
+required_by:
+
+REFINERY
+
+BARRACKS.
+
+RESEARCH_CENTER
+
+required_by:
+
+ADVANCED_FACTORY.
+
+============================================================
+71. TECH-TREE-VISUALISIERUNG
+============================================================
+
+Später optional eigenes Menü:
+
+TECH TREE.
+
+Spieler kann sehen:
+
+welches Gebäude was freischaltet.
+
+============================================================
+72. MISSIONSSYSTEM
+============================================================
+
+Missionen datengetrieben.
+
+Objective Types:
+
+DESTROY_ALL
+
+DESTROY_TARGET
+
+SURVIVE
+
+HARVEST_AMOUNT
+
+ESCORT
+
+CAPTURE
+
+DEFEND
+
+REACH_LOCATION
+
+BUILD_STRUCTURE
+
+PROTECT_UNIT.
+
+============================================================
+73. MEHRERE MISSIONSZIELE
+============================================================
+
+Mission kann enthalten:
+
+PRIMARY
+
+SECONDARY
+
+OPTIONAL.
+
+Beispiel:
+
+PRIMARY
+
+Destroy enemy command base.
+
+SECONDARY
+
+Keep refinery alive.
+
+OPTIONAL
+
+Finish under 20 minutes.
+
+============================================================
+74. TRIGGER-SYSTEM
+============================================================
+
+Map Trigger:
+
+ON_TIME
+
+ON_UNIT_ENTER
+
+ON_STRUCTURE_DESTROYED
+
+ON_RESOURCE_AMOUNT
+
+ON_PLAYER_DISCOVERY
+
+ON_OBJECTIVE_COMPLETE
+
+ON_UNIT_COUNT
+
+ON_BUILDING_COMPLETE.
+
+============================================================
+75. KAMPAGNE
+============================================================
+
+Architektur vorbereiten für:
+
+FACTION A CAMPAIGN
+
+FACTION B CAMPAIGN
+
+FACTION C CAMPAIGN.
+
+Nicht alles sofort entwickeln.
+
+Erster Vertical Slice benötigt nur eine kleine Testmission.
+
+============================================================
+76. KAMPAGNENKARTE
+============================================================
+
+Später:
+
+strategische Übersichtskarte.
+
+Spieler wählt nächsten Einsatz.
+
+Keine bestehende Dune-Karte kopieren.
+
+Eigener Planet.
+
+============================================================
+77. STORY
+============================================================
+
+Story bewusst einfach und funktional halten.
+
+Keine langen Zwischensequenzen am Anfang erforderlich.
+
+Retro-typische Missionsbriefings.
+
+Beispiel:
+
+Commander,
+
+enemy forces have occupied the Helion basin.
+
+Establish a forward base.
+
+Secure the resource fields.
+
+Destroy enemy production.
+
+============================================================
+78. MISSION BRIEFING
+============================================================
+
+Vor Mission:
+
+Mission Name
+
+Location
+
+Primary Objective
+
+Secondary Objective
+
+Intel
+
+Start.
+
+Optional:
+
+Voiceover später.
+
+============================================================
+79. MISSION DEBRIEFING
+============================================================
+
+Nach Mission:
+
+Mission Complete
+
+Time
+
+Resources harvested
+
+Units lost
+
+Enemy units destroyed
+
+Buildings destroyed
+
+Score.
+
+============================================================
+80. SCORE
+============================================================
+
+Score basiert auf:
+
+Mission Time
+
+Units lost
+
+Resources harvested
+
+Objectives
+
+Optional Objectives
+
+Efficiency.
+
+Kein zwingender Highscore-Fokus wie Arcade-Spiel.
+
+============================================================
+81. VETERANCY
+============================================================
+
+Optional vorbereitet.
+
+Einheiten erhalten Erfahrung.
+
+Stufen beispielsweise:
+
+ROOKIE
+
+VETERAN
+
+ELITE.
+
+Effekte moderat:
+
+Accuracy
+
+Reload
+
+Vision
+
+Kein übertriebenes RPG-System.
+
+============================================================
+82. AUDIO IST KERNBESTANDTEIL
+============================================================
+
+Musik darf NICHT erst am Ende hinzugefügt werden.
+
+Musik ist wichtiger Bestandteil von:
+
+Atmosphäre
+
+Bedrohungsgefühl
+
+Fraktionsidentität
+
+Kampfintensität
+
+Spieltempo.
+
+Ein Vertical Slice mit beliebiger Platzhaltermusik gilt NICHT als vollständig.
+
+============================================================
+83. MUSIKSTIL
+============================================================
+
+Eigene Science-Fiction-Retro-Musik.
+
+Inspiration:
+
+frühe PC-/Amiga-/16-Bit-Ästhetik
+
+Tracker
+
+FM-Synthese
+
+digitale Percussion
+
+Synth Pads
+
+Arpeggios
+
+dunkle Basslinien
+
+industrielle Elemente.
+
+Keine Originalmelodien bestehender Spiele übernehmen.
+
+============================================================
+84. MUSIK MUSS EINPRÄGSAM SEIN
+============================================================
+
+Keine generische Cinematic-Ambient-Schleife.
+
+Tracks benötigen:
+
+erkennbare Motive
+
+Melodien
+
+Rhythmen
+
+Fraktionscharakter.
+
+Der Spieler soll Musikstücke wiedererkennen können.
+
+============================================================
+85. MUSIC DIRECTOR
+============================================================
+
+Implementiere einen MusicDirector.
+
+States:
+
+BASE_CALM
+
+ECONOMY
+
+EXPLORATION
+
+ENEMY_CONTACT
+
+SKIRMISH
+
+BATTLE
+
+MAJOR_BATTLE
+
+BASE_UNDER_ATTACK
+
+VICTORY
+
+DEFEAT.
+
+============================================================
+86. DYNAMISCHE MUSIK
+============================================================
+
+Musik wird in Layer zerlegt.
+
+Beispiel:
+
+CALM
+
+Pad
+
+Bass
+
+dezente Percussion.
+
+CONTACT
+
++ rhythmischer Synth.
+
+SKIRMISH
+
++ zusätzliche Percussion.
+
+BATTLE
+
++ Lead
+
++ schwere Drums.
+
+MAJOR BATTLE
+
++ vollständiges Arrangement.
+
+============================================================
+87. INTENSITY VALUE
+============================================================
+
+MusicDirector berechnet:
+
+music_intensity
+
+0.0 bis 1.0.
+
+Einfluss:
+
+visible_enemy_count
+
+friendly_units_in_combat
+
+base_under_attack
+
+damage_rate
+
+enemy_army_strength
+
+recent_explosions.
+
+Nicht jeder einzelne Schuss darf Musikstatus wechseln.
+
+Hysterese / Mindestdauer verwenden.
+
+============================================================
+88. MUSIK-TRANSITIONEN
+============================================================
+
+Transitions möglichst:
+
+taktgenau
+
+pattern-genau
+
+musikalisch sinnvoll.
+
+Keine abrupten:
+
+STOP mp3
+
+START mp3.
+
+============================================================
+89. FRAKTIONSMUSIK
+============================================================
+
+Jede Fraktion bekommt eigene musikalische Identität.
+
+INDUSTRIAL:
+
+schwere Percussion
+
+tiefe Synths.
+
+MOBILE:
+
+schnellere Sequenzen
+
+leichtere rhythmische Elemente.
+
+TECH:
+
+digitale Arpeggios
+
+ungewöhnliche Synths.
+
+============================================================
+90. MUSIK-JINGLES
+============================================================
+
+Eigene Jingles:
+
+MISSION START
+
+OBJECTIVE COMPLETE
+
+NEW TECHNOLOGY
+
+BASE UNDER ATTACK optional Signal
+
+VICTORY
+
+DEFEAT.
+
+============================================================
+91. SOUND DESIGN
+============================================================
+
+Eigene Sounds für:
+
+Unit Select
+
+Move Confirm
+
+Attack Confirm
+
+Construction Complete
+
+Unit Ready
+
+Power Low
+
+Credits
+
+Weapon Fire
+
+Projectile Impact
+
+Explosion
+
+Building Damage
+
+Harvester
+
+Refinery
+
+Radar
+
+UI.
+
+============================================================
+92. UNIT VOICES
+============================================================
+
+Optional später.
+
+Kurze eigene Sprachzeilen:
+
+Ready.
+
+Moving.
+
+Target acquired.
+
+Under attack.
+
+Keine bekannten Originalzitate bestehender Spiele kopieren.
+
+============================================================
+93. AUDIO MIXER
+============================================================
+
+Buses:
+
+MASTER
+
+MUSIC
+
+SFX
+
+UI
+
+VOICE
+
+AMBIENCE.
+
+Separate Lautstärkeregler.
+
+============================================================
+94. SOUND TEST
+============================================================
+
+Optionales Menü:
+
+MUSIC
+
+SFX
+
+VOICE
+
+JINGLES.
+
+Gerade für Retro-Charakter erwünscht.
+
+============================================================
+95. AUDIO DEBUG
+============================================================
+
+Anzeige:
+
+Track
+
+Current Music State
+
+Intensity
+
+Active Layers
+
+BPM
+
+Current Pattern
+
+Transition Queue.
+
+============================================================
+96. MAP EDITOR VORBEREITEN
+============================================================
+
+Maps niemals hart codieren.
+
+Map-Datei enthält:
+
+width
+
+height
+
+terrain
+
+resources
+
+player_starts
+
+buildings
+
+units
+
+triggers
+
+objectives
+
+metadata.
+
+============================================================
+97. MAP FORMAT
+============================================================
+
+Beispiel:
+
+{
+    "id": "desert_01",
+    "width": 96,
+    "height": 96,
+    "players": [],
+    "terrain": [],
+    "resources": [],
+    "structures": [],
+    "units": [],
+    "triggers": [],
+    "objectives": []
+}
+
+============================================================
+98. SPÄTERER MAP EDITOR
+============================================================
+
+Editor-Kategorien:
+
+TERRAIN
+
+RESOURCES
+
+BUILDINGS
+
+UNITS
+
+PLAYER START
+
+TRIGGERS
+
+OBJECTIVES
+
+DECORATION.
+
+============================================================
+99. DEBUG-MODUS
+============================================================
+
+Zuschaltbarer Debug-Modus.
+
+Anzeige:
+
+FPS
+
+Frame Time
+
+Unit Count
+
+Projectile Count
+
+Path Requests
+
+AI State
+
+Selected Unit State
+
+Fog Cells
+
+Music State
+
+Resource Income
+
+Power Balance.
+
+============================================================
+100. PATHFINDING DEBUG
+============================================================
+
+Darstellbar:
+
+current path
+
+blocked cells
+
+destination
+
+formation target
+
+avoidance vectors.
+
+============================================================
+101. AI DEBUG
+============================================================
+
+Anzeige:
+
+Current Strategy
+
+Threat Level
+
+Resource Income
+
+Army Value
+
+Attack Target
+
+Production Priorities.
+
+============================================================
+102. ECONOMY DEBUG
+============================================================
+
+Anzeige:
+
+Credits
+
+Income/min
+
+Harvesters
+
+Average Trip Time
+
+Resource Remaining.
+
+============================================================
+103. PERFORMANCE
+============================================================
+
+Ziel:
+
+60 FPS.
+
+Spiel muss bei normaler Karte und typischer Armee stabil laufen.
+
+Erstes Ziel:
+
+ca. 100–200 aktive Einheiten insgesamt problemlos.
+
+Nicht sofort für 5.000 Einheiten optimieren.
+
+============================================================
+104. OBJECT POOLING
+============================================================
+
+Für häufige Objekte prüfen:
+
+Projectiles
+
+Explosions
+
+Particles
+
+Floating Text.
+
+Pooling nutzen, wenn es messbaren Nutzen bringt.
+
+Keine Premature Optimization.
+
+============================================================
+105. GAME SPEED
+============================================================
+
+Unterstützen:
+
+PAUSE
+
+NORMAL
+
+FAST optional.
+
+Singleplayer darf Pause erlauben.
+
+============================================================
+106. SAVEGAME
+============================================================
+
+Unterstützen:
+
+Manual Save
+
+Quick Save
+
+Auto Save.
+
+Speichern:
+
+Mission State
+
+Units
+
+Buildings
+
+Resources
+
+Fog
+
+AI
+
+Objectives
+
+Music State optional rekonstruierbar.
+
+============================================================
+107. QUICK SAVE
+============================================================
+
+F5:
+
+Quick Save.
+
+F9:
+
+Quick Load.
+
+Nur wenn nicht durch Plattformkonvention problematisch.
+
+Remapping möglich.
+
+============================================================
+108. AUTOSAVE
+============================================================
+
+Autosave:
+
+Mission Start
+
+wichtige Objectives
+
+optional alle X Minuten.
+
+Konfigurierbar.
+
+============================================================
+109. OPTIONS
+============================================================
+
+GRAPHICS
+
+AUDIO
+
+GAMEPLAY
+
+CONTROLS
+
+ACCESSIBILITY.
+
+============================================================
+110. GRAPHICS OPTIONS
+============================================================
+
+Resolution
+
+Fullscreen Mode
+
+VSync
+
+FPS Limit
+
+Display Style
+
+UI Scale
+
+CRT Filter
+
+Screen Shake
+
+Particle Density.
+
+============================================================
+111. GAMEPLAY OPTIONS
+============================================================
+
+Game Speed
+
+Edge Scrolling
+
+Edge Scroll Speed
+
+Selection Behavior
+
+Health Bars
+
+Autosave
+
+Pause on Focus Loss.
+
+============================================================
+112. CONTROL OPTIONS
+============================================================
+
+Alle wichtigen Hotkeys remappbar.
+
+Keine festen Hardcodes, soweit vermeidbar.
+
+============================================================
+113. ACCESSIBILITY
+============================================================
+
+Mindestens:
+
+UI Scale
+
+Colorblind-freundliche Fraktionsmarker
+
+Screen Shake OFF
+
+Flashes reduzieren
+
+Subtitles für Voice
+
+Key Remapping.
+
+============================================================
+114. FULL-HD UI SCALE
+============================================================
+
+UI darf auf 4K nicht winzig werden.
+
+Skalierungsstufen:
+
+80 %
+
+100 %
+
+125 %
+
+150 %
+
+200 %.
+
+============================================================
+115. RETRO UI
+============================================================
+
+Classic Retro darf eigene größere Pixelfonts verwenden.
+
+Aber:
+
+Lesbarkeit geht vor historische Authentizität.
+
+============================================================
+116. CURSOR SYSTEM
+============================================================
+
+Kontextabhängiger Cursor:
+
+SELECT
+
+MOVE
+
+ATTACK
+
+REPAIR
+
+HARVEST
+
+INVALID
+
+BUILD.
+
+============================================================
+117. NOTIFICATIONS
+============================================================
+
+Nachrichten:
+
+UNIT READY
+
+CONSTRUCTION COMPLETE
+
+INSUFFICIENT FUNDS
+
+LOW POWER
+
+BASE UNDER ATTACK
+
+OBJECTIVE UPDATED.
+
+Nicht zuspammen.
+
+Cooldowns und Prioritäten.
+
+============================================================
+118. EVENT SYSTEM
+============================================================
+
+Zentrales Event-/Signal-System.
+
+Beispiele:
+
+unit_created
+
+unit_destroyed
+
+building_created
+
+building_destroyed
+
+resource_changed
+
+power_changed
+
+objective_completed
+
+enemy_spotted.
+
+Keine unnötig starke Kopplung der Systeme.
+
+============================================================
+119. ZEITMODELL
+============================================================
+
+Gameplay darf nicht von FPS abhängig sein.
+
+Simulation:
+
+delta-basiert bzw. Fixed-Step, wo erforderlich.
+
+Keine:
+
+movement += 1 pro Frame.
+
+============================================================
+120. DETERMINISMUS
+============================================================
+
+Nicht zwingend vollständig lockstep-deterministisch für erste Version.
+
+Aber:
+
+Gameplay soll reproduzierbar und sauber testbar sein.
+
+Zufallszahlen über zentral kontrollierte RNG-Systeme.
+
+Seed für Tests möglich.
+
+============================================================
+121. PROJEKTSTRUKTUR
+============================================================
+
+Empfehlung:
+
+/assets
+    /audio
+    /fonts
+    /sprites
+    /tiles
+    /effects
+    /ui
+
+/data
+    /units
+    /buildings
+    /weapons
+    /factions
+    /maps
+    /missions
+    /music
+
+/scenes
+    /game
+    /units
+    /buildings
+    /projectiles
+    /ui
+    /menus
+
+/scripts
+    /ai
+    /audio
+    /camera
+    /economy
+    /fog
+    /gameplay
+    /input
+    /map
+    /pathfinding
+    /production
+    /rendering
+    /save
+    /systems
+    /ui
+
+/tests
+
+/docs
+
+============================================================
+122. CODE-REGELN
+============================================================
+
+Klare Benennung.
+
+Keine gigantischen God Classes.
+
+Kein Script mit Verantwortung für:
+
+UI + AI + Economy + Rendering.
+
+Single Responsibility soweit sinnvoll.
+
+Keine übertriebene Enterprise-Architektur.
+
+============================================================
+123. DATA-DRIVEN DESIGN
+============================================================
+
+Balancewerte nicht im Code verteilen.
+
+Datengetrieben:
+
+Units
+
+Buildings
+
+Weapons
+
+Factions
+
+Missions
+
+Maps
+
+Tech Tree.
+
+============================================================
+124. ERSTER VERTICAL SLICE
+============================================================
+
+NICHT sofort drei Fraktionen und Kampagne bauen.
+
+Zuerst ein komplett spielbares Mini-RTS.
+
+Enthalten:
+
+1 Map
+
+1 Player Faction
+
+1 Enemy Faction
+
+1 Construction Core
+
+1 Power Plant
+
+1 Refinery
+
+1 Vehicle Factory
+
+1 Harvester
+
+1 Scout Vehicle
+
+1 Tank
+
+1 Defense Tower
+
+1 Resource Field
+
+1 Enemy Base
+
+Fog of War
+
+Minimap
+
+Building
+
+Production
+
+Unit Selection
+
+Multi Selection
+
+Right Click Movement
+
+Attack
+
+Attack Move
+
+Control Groups
+
+Pathfinding
+
+Enemy AI
+
+Victory
+
+Defeat
+
+Music
+
+SFX
+
+Modern Retro Mode
+
+Classic Retro Mode.
+
+============================================================
+125. VERTICAL-SLICE-KARTE
+============================================================
+
+Die erste Karte soll klein sein.
+
+Beispielsweise:
+
+64 × 64
+
+oder:
+
+80 × 80.
+
+Spieler startet mit:
+
+Construction Core
+
+kleinem Startkapital.
+
+Ziel:
+
+Basis errichten.
+
+Ressourcen fördern.
+
+Panzer produzieren.
+
+Enemy Base zerstören.
+
+============================================================
+126. VERTICAL-SLICE-WIRTSCHAFT
+============================================================
+
+Spieler muss tatsächlich:
+
+Power Plant bauen.
+
+Refinery bauen.
+
+Harvester nutzen.
+
+Factory bauen.
+
+Tank produzieren.
+
+Keine kostenlosen Test-Buttons.
+
+============================================================
+127. VERTICAL-SLICE-KI
+============================================================
+
+Gegner:
+
+besitzt kleine Basis.
+
+baut Ressourcen ab.
+
+produziert Einheiten.
+
+verteidigt sich.
+
+greift gelegentlich an.
+
+Kann besiegt werden.
+
+============================================================
+128. VERTICAL-SLICE-MUSIK
+============================================================
+
+Bereits enthalten:
+
+CALM Layer
+
+ENEMY CONTACT Layer
+
+BATTLE Layer
+
+BASE UNDER ATTACK Layer
+
+VICTORY Jingle
+
+DEFEAT Jingle.
+
+Keine generische Platzhalter-Musik als Finalzustand.
+
+============================================================
+129. VERTICAL-SLICE DEFINITION OF DONE
+============================================================
+
+Vertical Slice gilt nur als fertig, wenn:
+
+Spiel startet.
+
+Main Menu funktioniert.
+
+Mission startet.
+
+Kamera funktioniert.
+
+Auswahl funktioniert.
+
+Multi-Selection funktioniert.
+
+Rechtsklick funktioniert.
+
+Control Groups funktionieren.
+
+Basisbau funktioniert.
+
+Power funktioniert.
+
+Resource Harvesting funktioniert.
+
+Production funktioniert.
+
+Rally Point funktioniert.
+
+Combat funktioniert.
+
+Pathfinding funktioniert.
+
+Fog of War funktioniert.
+
+Minimap funktioniert.
+
+AI funktioniert.
+
+Victory funktioniert.
+
+Defeat funktioniert.
+
+Save/Load funktioniert mindestens grundlegend.
+
+Musik reagiert dynamisch.
+
+SFX funktionieren.
+
+Full HD funktioniert.
+
+Classic Retro funktioniert.
+
+Keine bekannten Game-Breaking-Bugs vorhanden.
+
+============================================================
+130. PHASE 2
+============================================================
+
+Nach stabilem Vertical Slice:
+
+Infantry
+
+weitere Vehicles
+
+Repair
+
+Radar
+
+mehr Buildings
+
+mehr Weapons
+
+mehr AI Behaviors
+
+weitere Maps
+
+Objectives.
+
+============================================================
+131. PHASE 3
+============================================================
+
+Zweite und dritte Fraktion.
+
+Fraktionsspezifische Einheiten.
+
+Fraktionsmusik.
+
+Tech Tree.
+
+Mehr Missionen.
+
+============================================================
+132. PHASE 4
+============================================================
+
+Kampagne.
+
+Strategische Karte.
+
+Mission Briefings.
+
+Mission Debriefings.
+
+Map Editor.
+
+============================================================
+133. PHASE 5
+============================================================
+
+Polishing.
+
+Balance.
+
+Performance.
+
+Accessibility.
+
+Steam-Integration optional.
+
+Achievements optional.
+
+============================================================
+134. KEIN MULTIPLAYER ZUERST
+============================================================
+
+Multiplayer NICHT vor stabilem Singleplayer entwickeln.
+
+Architektur darf späteren Multiplayer nicht unnötig verhindern.
+
+Aber:
+
+Singleplayer zuerst vollständig.
+
+============================================================
+135. TESTS
+============================================================
+
+Automatisierte Tests soweit sinnvoll.
+
+Besonders:
+
+Economy
+
+Power
+
+Production
+
+Tech Prerequisites
+
+Unit Damage
+
+Weapon Range
+
+Resource Collection
+
+Mission Objectives
+
+Save Data.
+
+============================================================
+136. GAMEPLAY-TESTS
+============================================================
+
+Manuell testen:
+
+100 Einheiten bewegen.
+
+Engstellen.
+
+Einheiten um Gebäude.
+
+Mehrere Gruppen kreuzen sich.
+
+Harvester mit blockierter Refinery.
+
+Factory komplett umstellt.
+
+Ziel stirbt während Projektil unterwegs.
+
+Building wird während Produktion zerstört.
+
+Power fällt während Radar aktiv.
+
+============================================================
+137. FOG-TESTS
+============================================================
+
+Prüfen:
+
+Enemy verlässt Sichtbereich.
+
+Enemy Building im explored Bereich.
+
+Enemy Building zerstört, während unsichtbar.
+
+Radar aus.
+
+Radar wieder an.
+
+============================================================
+138. SAVE/LOAD-TESTS
+============================================================
+
+Speichern während:
+
+Kampf.
+
+Produktion.
+
+Harvesterfahrt.
+
+Building Placement.
+
+Objective Trigger.
+
+Load muss konsistent sein.
+
+============================================================
+139. AUDIO-TESTS
+============================================================
+
+Music State Wechsel.
+
+Layer Transitions.
+
+Victory während Battle.
+
+Defeat während Base Attack.
+
+Pause.
+
+Save/Load.
+
+Lautstärkeänderung.
+
+============================================================
+140. DISPLAY-TESTS
+============================================================
+
+Testen:
+
+1280×720
+
+1920×1080
+
+2560×1440
+
+3840×2160
+
+Classic Retro
+
+Windowed
+
+Borderless
+
+Fullscreen.
+
+============================================================
+141. DOKUMENTATION
+============================================================
+
+Erstellen:
+
+README.md
+
+GAME_DESIGN.md
+
+ARCHITECTURE.md
+
+RTS_SYSTEMS.md
+
+FACTIONS.md
+
+UNITS.md
+
+BUILDINGS.md
+
+WEAPONS.md
+
+ECONOMY.md
+
+AI_DESIGN.md
+
+PATHFINDING.md
+
+AUDIO_DESIGN.md
+
+DISPLAY_MODES.md
+
+MAP_FORMAT.md
+
+MISSION_FORMAT.md
+
+CONTROLS.md
+
+TESTING.md
+
+ROADMAP.md
+
+CHANGELOG.md.
+
+============================================================
+142. AI_DESIGN.MD
+============================================================
+
+Dokumentieren:
+
+AI Director
+
+States
+
+Economy Logic
+
+Production Logic
+
+Attack Logic
+
+Threat Analysis
+
+Difficulty Differences.
+
+============================================================
+143. AUDIO_DESIGN.MD
+============================================================
+
+Dokumentieren:
+
+Fraktionsstil
+
+Tracks
+
+BPM
+
+Tonarten
+
+Instrumente
+
+Layers
+
+Intensity
+
+Transitions
+
+Jingles
+
+SFX
+
+Mixing.
+
+============================================================
+144. MAP_FORMAT.MD
+============================================================
+
+Dokumentieren:
+
+Terrain
+
+Resources
+
+Player Starts
+
+Units
+
+Buildings
+
+Triggers
+
+Objectives
+
+Versioning.
+
+============================================================
+145. CHANGELOG
+============================================================
+
+Bei jeder funktionalen Änderung aktualisieren.
+
+Beispiel:
+
+0.1.0
+
+Initial Vertical Slice.
+
+0.1.1
+
+Improved vehicle pathfinding.
+
+============================================================
+146. DEBUG CHEATS
+============================================================
+
+Nur Debug-Build:
+
+Add Credits
+
+Reveal Map
+
+Instant Build
+
+Spawn Unit
+
+Kill Selected
+
+Toggle AI
+
+Toggle Fog
+
+Set Music Intensity.
+
+Nicht in normalen Release-Menüs sichtbar.
+
+============================================================
+147. DESIGN-REGEL – WENIGER IST MEHR
+============================================================
+
+Nicht sofort 50 Einheiten bauen.
+
+Lieber:
+
+10 gut unterscheidbare Einheiten
+
+als:
+
+50 ähnliche.
+
+Jede Einheit braucht eine erkennbare Rolle.
+
+============================================================
+148. DESIGN-REGEL – LESBARKEIT
+============================================================
+
+Auf einen Blick muss erkennbar sein:
+
+Infantry
+
+Tank
+
+Artillery
+
+Harvester
+
+Building
+
+Enemy
+
+Resource.
+
+Silhouetten sind wichtiger als winzige Details.
+
+============================================================
+149. DESIGN-REGEL – MODERNE STEUERUNG
+============================================================
+
+Historische Bedienungsprobleme NICHT künstlich reproduzieren.
+
+Modernisieren:
+
+Multi Selection
+
+Right Click
+
+Control Groups
+
+Attack Move
+
+Rally Points
+
+Production Queues
+
+Hotkeys.
+
+============================================================
+150. DESIGN-REGEL – RETRO-CHARAKTER
+============================================================
+
+Trotz moderner Steuerung erhalten:
+
+langsameres taktisches Tempo.
+
+überschaubare Armeen.
+
+bedeutungsvolle Basis.
+
+sichtbare Wirtschaft.
+
+klare Frontlinien.
+
+charakteristische Musik.
+
+============================================================
+151. DESIGN-REGEL – KEIN STARCRAFT-KLON
+============================================================
+
+Das Spiel soll kein extrem schnelles kompetitives RTS werden.
+
+Nicht optimieren auf:
+
+300 APM
+
+Frame-perfect Build Orders
+
+extremes Worker Micromanagement.
+
+Schwerpunkt:
+
+Strategie
+
+Basis
+
+Positionierung
+
+Wirtschaft
+
+Einheitenmix.
+
+============================================================
+152. VISUELLE IDENTITÄT
+============================================================
+
+Entwickle eine eigene visuelle Sprache.
+
+Beispiel:
+
+planetare Kolonie
+
+harte geometrische Gebäude
+
+Retro-Futurismus
+
+Industrie
+
+große Maschinen
+
+leuchtende Energieelemente.
+
+Keine Designs bestehender Sci-Fi-Marken nachbauen.
+
+============================================================
+153. MODERN-RETRO-GRAFIK
+============================================================
+
+Full HD darf mehr Details zeigen:
+
+Sandpartikel
+
+Fahrspuren
+
+leichte Schatten
+
+Gebäudelichter
+
+Antennen
+
+Rauch
+
+Explosionen.
+
+Aber:
+
+Spielbarkeit zuerst.
+
+============================================================
+154. RETRO-GRAFIK
+============================================================
+
+Classic Retro:
+
+reduzierte Farben.
+
+gröbere Pixel.
+
+vereinfachte Effekte.
+
+Pixel Fonts.
+
+Integer Scaling.
+
+Gameplay identisch.
+
+============================================================
+155. FAHRSPUREN
+============================================================
+
+Optional:
+
+Fahrzeuge erzeugen temporäre Spuren.
+
+Nur visuell.
+
+Keine Gameplay-Auswirkung.
+
+Performance beachten.
+
+============================================================
+156. DESTRUCTION
+============================================================
+
+Gebäudezerstörung:
+
+Damage Stages.
+
+Smoke.
+
+Fire.
+
+Explosion.
+
+Ruin optional.
+
+Keine überlangen Animationen.
+
+============================================================
+157. DAMAGE STATES
+============================================================
+
+Gebäude:
+
+100–70 %
+
+normal.
+
+70–40 %
+
+leichte Schäden.
+
+40–1 %
+
+Rauch / Feuer.
+
+0 %
+
+destroyed.
+
+============================================================
+158. EXPLOSIONS
+============================================================
+
+Retro-lesbar.
+
+Keine minutenlangen Partikeleffekte.
+
+Starke Sounds.
+
+Kurzer Screen Shake optional.
+
+============================================================
+159. SCREEN SHAKE
+============================================================
+
+Nur bei:
+
+großen Explosionen
+
+schweren Waffen
+
+wichtigen Ereignissen.
+
+Option:
+
+OFF
+
+LOW
+
+NORMAL.
+
+============================================================
+160. GAME FEEL
+============================================================
+
+Klick auf Einheit:
+
+sofortige Rückmeldung.
+
+Befehl:
+
+Sound + Cursorfeedback.
+
+Treffer:
+
+sichtbarer Impact.
+
+Gebäude fertig:
+
+Sound + Meldung.
+
+Basis angegriffen:
+
+klarer Alarm.
+
+============================================================
+161. RESPONSIVENESS
+============================================================
+
+UI muss sofort reagieren.
+
+Keine langen künstlichen Animationen in Menüs.
+
+RTS-Befehle dürfen sich nie träge anfühlen.
+
+============================================================
+162. PAUSE
+============================================================
+
+ESC:
+
+Pause Menu.
+
+Singleplayer Simulation stoppt vollständig.
+
+Menü:
+
+Resume
+
+Save
+
+Load
+
+Options
+
+Restart Mission
+
+Quit.
+
+============================================================
+163. MAIN MENU
+============================================================
+
+CAMPAIGN
+
+SKIRMISH
+
+TUTORIAL
+
+LOAD GAME
+
+OPTIONS
+
+SOUND TEST
+
+CREDITS
+
+QUIT.
+
+Nicht alle Modi müssen im ersten Build verfügbar sein.
+
+Keine sichtbaren nicht funktionierenden Buttons.
+
+============================================================
+164. SKIRMISH
+============================================================
+
+Später:
+
+Map
+
+Faction
+
+Enemy Faction
+
+Difficulty
+
+Starting Credits
+
+Game Speed.
+
+============================================================
+165. TUTORIAL
+============================================================
+
+Kein riesiger Textblock.
+
+Interaktiv lehren:
+
+Select Unit
+
+Move Unit
+
+Build Power
+
+Build Refinery
+
+Harvest Resource
+
+Build Factory
+
+Create Tank
+
+Attack Enemy.
+
+============================================================
+166. FEEDBACK
+============================================================
+
+Jeder Tutorial-Schritt:
+
+kurzer Text.
+
+visuelle Markierung.
+
+Weiter automatisch nach Erfolg.
+
+============================================================
+167. FEHLERBEHANDLUNG
+============================================================
+
+Keine stillen Fehler.
+
+Fehler loggen.
+
+Missing data files:
+
+klare Fehlermeldung.
+
+Ungültige Map:
+
+Validierungsfehler.
+
+============================================================
+168. DATENVALIDIERUNG
+============================================================
+
+Beim Start bzw. Debug-Build prüfen:
+
+duplicate IDs
+
+unknown weapons
+
+unknown prerequisites
+
+invalid building footprints
+
+invalid mission objectives.
+
+============================================================
+169. VERSIONIERUNG VON DATEN
+============================================================
+
+Map- und Save-Dateien erhalten:
+
+format_version.
+
+Migration später ermöglichen.
+
+============================================================
+170. LOGGING
+============================================================
+
+Debug:
+
+INFO
+
+WARNING
+
+ERROR.
+
+Nicht pro Frame unnötig loggen.
+
+============================================================
+171. PROFILER
+============================================================
+
+Frühzeitig Performance messen bei:
+
+Fog of War
+
+Pathfinding
+
+AI
+
+Unit Updates
+
+Projectiles.
+
+============================================================
+172. UPDATE-FREQUENZEN
+============================================================
+
+Nicht jede KI muss jede Frame komplett denken.
+
+Beispiel:
+
+strategische KI:
+
+mehrmals pro Sekunde oder seltener.
+
+Unit Movement:
+
+häufiger.
+
+Pathfinding:
+
+ereignisgetrieben.
+
+============================================================
+173. PATH REQUEST QUEUE
+============================================================
+
+Bei vielen Einheiten Pathfinding-Requests verteilen.
+
+Keine 100 teuren Recalculations im selben Frame.
+
+============================================================
+174. FOG UPDATE
+============================================================
+
+Fog-of-War effizient aktualisieren.
+
+Nur notwendige Regionen bzw. Dirty Areas neu berechnen, sofern sinnvoll.
+
+============================================================
+175. MINIMAP PERFORMANCE
+============================================================
+
+Minimap nicht aufwendig komplett jede Frame neu rendern, wenn nicht nötig.
+
+============================================================
+176. SAVE FORMAT
+============================================================
+
+Savegames sollten nicht direkt von SceneTree-Strukturen abhängig sein.
+
+Eigene serialisierbare Datenmodelle.
+
+============================================================
+177. PROJECTILE HIT VALIDATION
+============================================================
+
+Ziel kann sterben, bevor Projektil eintrifft.
+
+System muss korrekt reagieren.
+
+Je nach Waffenart:
+
+Projektile fliegt zur letzten Position
+
+oder verliert Ziel.
+
+============================================================
+178. UNIT DEATH
+============================================================
+
+Bei Tod:
+
+aus Selection entfernen.
+
+aus Control Groups entfernen.
+
+AI informieren.
+
+Objective System informieren.
+
+Occupancy freigeben.
+
+============================================================
+179. BUILDING DEATH
+============================================================
+
+Bei Gebäudeverlust:
+
+Tech Tree aktualisieren.
+
+Power aktualisieren.
+
+Production stoppen bzw. Queue behandeln.
+
+Fog aktualisieren.
+
+AI informieren.
+
+============================================================
+180. PRODUCTION CANCEL
+============================================================
+
+Spieler kann Produktion abbrechen.
+
+Teilweise Rückerstattung.
+
+Beispiel:
+
+75 % oder abhängig vom Fortschritt.
+
+Balancing später.
+
+============================================================
+181. SELL BUILDING
+============================================================
+
+Optional später.
+
+Gebäude verkaufen.
+
+Teilweise Credits zurück.
+
+============================================================
+182. LOW POWER
+============================================================
+
+Niedrige Energie muss sichtbar sein.
+
+Power-Anzeige beispielsweise:
+
+180 / 150
+
+→ LOW POWER.
+
+============================================================
+183. ECONOMY BALANCE
+============================================================
+
+Ressourcen sollen wichtig sein, aber nicht extreme Wartezeiten erzeugen.
+
+Spieler soll regelmäßig sinnvolle Entscheidungen treffen:
+
+Tank jetzt?
+
+zweiter Harvester?
+
+neue Factory?
+
+Defense?
+
+============================================================
+184. BASE ATTACKS
+============================================================
+
+Verteidigung soll relevant sein.
+
+Defense Towers dürfen nicht allein komplette Armeen vernichten.
+
+============================================================
+185. ARTILLERY
+============================================================
+
+Stark auf Distanz.
+
+Schwach bei Nahkampf.
+
+Langsame Feuerrate.
+
+Gute Positionswahl wichtig.
+
+============================================================
+186. SCOUTS
+============================================================
+
+Schnell.
+
+Große Sichtweite.
+
+Schwach im Kampf.
+
+============================================================
+187. HARVESTER VALUE
+============================================================
+
+Harvester ist strategisch wertvoll.
+
+Verlust tut weh.
+
+Aber:
+
+Spieler darf dadurch nicht automatisch komplett verloren haben.
+
+============================================================
+188. COMEBACK-MECHANISMEN
+============================================================
+
+Kein künstliches Mario-Kart-Rubberbanding.
+
+Aber:
+
+Construction Core und Economy sollten ermöglichen, sich nach Rückschlag zu erholen.
+
+============================================================
+189. VICTORY
+============================================================
+
+Mission endet erst, wenn Objective-System Sieg meldet.
+
+Nicht hardcoded:
+
+all enemies dead.
+
+============================================================
+190. DEFEAT
+============================================================
+
+Beispiele:
+
+Construction capability lost + keine Wiederherstellung.
+
+Objective failed.
+
+Protected unit destroyed.
+
+Aber missionsabhängig.
+
+============================================================
+191. END SCREEN
+============================================================
+
+Victory / Defeat.
+
+Statistik.
+
+Retry.
+
+Continue.
+
+Main Menu.
+
+============================================================
+192. STATISTIK
+============================================================
+
+Zeigen:
+
+Mission Time
+
+Credits Gathered
+
+Units Produced
+
+Units Lost
+
+Enemies Destroyed
+
+Buildings Built
+
+Buildings Lost.
+
+============================================================
+193. REPLAY-WERT
+============================================================
+
+Später:
+
+Missionsmedaillen.
+
+Optional Objectives.
+
+verschiedene Fraktionen.
+
+Skirmish.
+
+Map Editor.
+
+============================================================
+194. MODDING-VORBEREITUNG
+============================================================
+
+Datengetriebene Architektur ermöglicht später:
+
+Custom Units
+
+Custom Maps
+
+Custom Missions.
+
+Nicht sofort öffentliche Modding-API bauen.
+
+============================================================
+195. MUSIC-FIRST-REGEL
+============================================================
+
+Bei diesem Projekt gilt ausdrücklich:
+
+MUSIK IST KEIN HINTERGRUND-NACHTRAG.
+
+Sie ist Teil der Wahrnehmung des strategischen Zustandes.
+
+Ein großer Kampf muss sich allein durch:
+
+Sound
+
+Musik
+
+visuelle Reaktion
+
+anders anfühlen als friedlicher Basisbau.
+
+============================================================
+196. PRIORITÄTEN
+============================================================
+
+PRIORITÄT 1
+
+Spielgefühl inklusive Audio.
+
+PRIORITÄT 2
+
+moderne, präzise RTS-Steuerung.
+
+PRIORITÄT 3
+
+Pathfinding.
+
+PRIORITÄT 4
+
+KI.
+
+PRIORITÄT 5
+
+Economy und Base Building.
+
+PRIORITÄT 6
+
+Level-/Mission-Design.
+
+PRIORITÄT 7
+
+Grafik-Polish.
+
+PRIORITÄT 8
+
+Zusatzfeatures.
+
+============================================================
+197. WAS NICHT GEMACHT WERDEN SOLL
+============================================================
+
+Nicht:
+
+ein 3D-RTS bauen.
+
+Nicht:
+
+fotorealistisch werden.
+
+Nicht:
+
+Dune Assets kopieren.
+
+Nicht:
+
+Originalmusik imitieren.
+
+Nicht:
+
+hundert Features gleichzeitig anfangen.
+
+Nicht:
+
+Multiplayer zuerst bauen.
+
+Nicht:
+
+KI cheaten lassen, um sie kompetent erscheinen zu lassen.
+
+Nicht:
+
+Pathfinding auf später verschieben.
+
+Nicht:
+
+Audio auf später verschieben.
+
+============================================================
+198. ENTWICKLUNGSREIHENFOLGE
+============================================================
+
+1.
+
+Godot-Projekt.
+
+2.
+
+Projektstruktur.
+
+3.
+
+Full-HD-Rendering.
+
+4.
+
+Classic-Retro-Rendering.
+
+5.
+
+Kamera.
+
+6.
+
+Map/Grid.
+
+7.
+
+Terrain.
+
+8.
+
+Unit Selection.
+
+9.
+
+Unit Movement.
+
+10.
+
+Pathfinding.
+
+11.
+
+Multi Selection.
+
+12.
+
+Right Click Commands.
+
+13.
+
+Control Groups.
+
+14.
+
+Fog of War.
+
+15.
+
+Resource Fields.
+
+16.
+
+Harvester.
+
+17.
+
+Refinery.
+
+18.
+
+Credits.
+
+19.
+
+Construction Core.
+
+20.
+
+Building Placement.
+
+21.
+
+Power.
+
+22.
+
+Factory.
+
+23.
+
+Production Queue.
+
+24.
+
+Rally Points.
+
+25.
+
+Combat Unit.
+
+26.
+
+Weapons.
+
+27.
+
+Damage.
+
+28.
+
+Enemy Base.
+
+29.
+
+Enemy AI.
+
+30.
+
+Minimap.
+
+31.
+
+Objectives.
+
+32.
+
+Victory / Defeat.
+
+33.
+
+Music Director.
+
+34.
+
+Dynamic Music.
+
+35.
+
+SFX.
+
+36.
+
+Save / Load.
+
+37.
+
+Options.
+
+38.
+
+Debugging.
+
+39.
+
+Polishing.
+
+============================================================
+199. NACH JEDEM GRÖSSEREN SCHRITT
+============================================================
+
+Projekt starten.
+
+Feature testen.
+
+Regressionen prüfen.
+
+Fehler beheben.
+
+Erst danach weiter.
+
+Das Projekt muss zu jedem Zeitpunkt lauffähig bleiben.
+
+============================================================
+200. KEINE SCHEINIMPLEMENTIERUNG
+============================================================
+
+Keine Fake-Buttons.
+
+Keine UI-Elemente, die nichts tun.
+
+Keine sichtbaren TODO-Funktionen.
+
+Keine Dummy-KI als vermeintlich fertiges System.
+
+Wenn Feature sichtbar ist:
+
+muss es funktionieren.
+
+============================================================
+201. ERSTER MEILENSTEIN
+============================================================
+
+Das erste große Ziel ist NICHT:
+
+„Engine funktioniert“.
+
+Das Ziel ist:
+
+„Eine komplette kleine RTS-Partie kann von Anfang bis Ende gespielt werden.“
+
+Spieler kann:
+
+Basis bauen.
+
+Ressourcen sammeln.
+
+Einheiten produzieren.
+
+Gegner bekämpfen.
+
+Mission gewinnen oder verlieren.
+
+============================================================
+202. QUALITÄTSZIEL
+============================================================
+
+Wenn ein Spieler das Spiel startet, soll der erste Gedanke sein:
+
+„Das fühlt sich wie ein verlorener RTS-Klassiker an.“
+
+Nach kurzer Zeit:
+
+„Aber die Bedienung ist viel angenehmer.“
+
+============================================================
+203. MODERNISIERUNG OHNE CHARAKTERVERLUST
+============================================================
+
+Modernisieren:
+
+Selection
+
+Pathfinding
+
+AI
+
+UI
+
+Audio
+
+Savegames
+
+Resolution
+
+Controller/Hotkeys soweit sinnvoll.
+
+Nicht modernisieren bis der klassische Charakter verschwindet.
+
+============================================================
+204. ZIELBILD
+============================================================
+
+Das fertige Spiel soll sein:
+
+übersichtlich.
+
+strategisch.
+
+atmosphärisch.
+
+musikalisch einprägsam.
+
+technisch stabil.
+
+schnell bedienbar.
+
+leicht verständlich.
+
+taktisch tief.
+
+visuell retro.
+
+standardmäßig Full HD.
+
+optional echter Pixelmodus.
+
+============================================================
+205. JETZT BEGINNEN
+============================================================
+
+Beginne jetzt mit der tatsächlichen Implementierung.
+
+Nicht zuerst wochenlang Dokumentation erzeugen.
+
+Zuerst:
+
+- Projekt lauffähig machen
+- Rendering-Modi anlegen
+- Grid/Map erzeugen
+- Kamera
+- eine Einheit
+- Auswahl
+- Bewegung
+- Pathfinding
+
+Danach sofort:
+
+- Resource Field
+- Harvester
+- Refinery
+- Credits
+- erstes Gebäude
+- Produktion
+
+Dann:
+
+- Combat
+- Enemy AI
+- Victory
+- Audio
+
+Bereits sehr früh muss ein spielbarer Zustand entstehen.
+
+Dokumentation parallel aktualisieren.
+
+============================================================
+206. ABSCHLUSSREGEL
+============================================================
+
+Kein Arbeitspaket gilt als abgeschlossen, nur weil Code geschrieben wurde.
+
+Es gilt erst als abgeschlossen, wenn:
+
+- es kompiliert bzw. startet
+- es praktisch getestet wurde
+- es mit bestehenden Systemen funktioniert
+- keine offensichtlichen Regressionen erzeugt
+- Dokumentation bei Bedarf aktualisiert ist
+
+Das Endziel ist kein Framework.
+
+Das Endziel ist kein Prototyp.
+
+Das Endziel ist kein Tech-Demo-Projekt.
+
+Das Endziel ist ein vollständig spielbares modernes Retro-RTS mit eigener Identität.

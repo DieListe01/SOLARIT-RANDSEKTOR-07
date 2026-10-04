@@ -1,0 +1,813 @@
+VISUELLE KORREKTUR – FARBWELT UND FRIEND/FOE-LESBARKEIT
+
+Der aktuelle Look ist zu kühl, zu grau, zu cyanlastig und zu wenig wüstenartig.
+
+Ziel ist eine deutlich wärmere, staubigere, mineralischere und gefährlichere Atmosphäre.
+
+Die Welt soll sofort vermitteln:
+
+- Hitze
+- trockene Luft
+- Sand
+- mineralischer Staub
+- verbrannte Erde
+- sonnenbeschienene Metallflächen
+- militärische Industrie
+- harsche fremde Umwelt
+
+============================================================
+1. GRUNDPALETTE DEUTLICH WÄRMER
+============================================================
+
+Die aktuelle dominante Grau-/Petrol-Farbwelt reduzieren.
+
+Neue Grundrichtung:
+
+SAND:
+- Ocker
+- Bernstein
+- Kupfer
+- Rost
+- Terrakotta
+- Goldbraun
+- verbranntes Orange
+
+ROCK:
+- warmes Grau
+- Braun-Grau
+- staubiges Oliv
+- dunkles Umbra
+
+SHADOW:
+- dunkles Braun
+- warmes Anthrazit
+- rötliches Schwarz
+
+HIGHLIGHTS:
+- Sandgelb
+- Gold
+- warmes Creme
+- Sonnenorange
+
+Wichtig:
+
+Kein kaltes Stahlgrau als dominante Weltfarbe.
+
+Metall darf grau sein, muss aber warm beleuchtet und mit Staub, Rost und Sandabrieb eingebettet werden.
+
+============================================================
+2. WÜSTENLICHT
+============================================================
+
+Die Beleuchtung soll wie starkes, warmes Sonnenlicht wirken.
+
+Lichtfarbe:
+
+warm.
+
+Schatten:
+
+nicht neutral schwarz, sondern leicht braun-violett bzw. dunkelwarm.
+
+Objektoberseiten:
+
+warm aufgehellt.
+
+Objektunterseiten:
+
+deutlich schattiert.
+
+Dadurch entsteht mehr Volumen.
+
+============================================================
+3. ATMOSPHÄRISCHE FARBE
+============================================================
+
+Lege einen warmen atmosphärischen Gesamtton über die Welt.
+
+Beispiel:
+
+leichter goldener Farbcast.
+
+Nicht so stark, dass UI oder Teamfarben unlesbar werden.
+
+Die Spielwelt darf nicht aussehen wie:
+
+kaltes Labor
+oder
+graue Mondoberfläche.
+
+Sie soll aussehen wie:
+
+heißer, mineralischer Wüstenplanet.
+
+============================================================
+4. TERRAIN-FARBPALETTE
+============================================================
+
+Aktuell zu viel gleichmäßiges Grau.
+
+Terrain stärker variieren.
+
+Beispiele:
+
+SAND:
+#B9783A
+#C88A43
+#D49B54
+#A9612E
+
+ROCK:
+#6B6257
+#746A5D
+#83725F
+#5B534A
+
+DEEP SHADOW:
+#2C2420
+#342924
+
+HIGHLIGHT:
+#E7B96B
+#F0C67A
+
+Nicht exakt auf diese Hexwerte festlegen, aber diese Richtung verwenden.
+
+============================================================
+5. BAUFLÄCHEN NICHT KALTGRAU
+============================================================
+
+Baubereiche und felsiger Untergrund sollen nicht wie Betonplatte oder graue Testfläche wirken.
+
+Stattdessen:
+
+- warmgrauer Fels
+- Staubeinlagerungen
+- sandfarbene Fugen
+- dunklere mineralische Adern
+- leichte Rost-/Ockerspuren
+
+============================================================
+6. RESSOURCENFARBE
+============================================================
+
+Die Kristalle dürfen weiterhin kühl kontrastieren.
+
+Das ist sogar gut.
+
+Empfehlung:
+
+- Cyan
+- Türkis
+- Aquamarin
+
+Aber:
+
+sie sollen bewusst als Kontrast zur warmen Umgebung funktionieren.
+
+Je wärmer das Terrain wird, desto hochwertiger wirken die Ressourcen automatisch.
+
+============================================================
+7. FRIEND-FOE-IDENTITÄT – ZWINGEND
+============================================================
+
+Freund und Feind müssen innerhalb von weniger als einer Sekunde erkennbar sein.
+
+Das darf NICHT nur über kleine Healthbars funktionieren.
+
+Jede Fraktion benötigt eine eindeutige Teamfarbe.
+
+Beispiel:
+
+PLAYER / KOBALT:
+kräftiges Türkis / Cyan
+
+ENEMY / WANDERPAKT:
+kräftiges Rot / Orange
+
+THIRD FACTION / PRISMA:
+Violett / Magenta
+
+Diese Farben müssen auf:
+
+- Einheiten
+- Gebäuden
+- Auswahlringen
+- Healthbars
+- Minimap
+- Bauicons
+- Statusanzeigen
+
+konsistent verwendet werden.
+
+============================================================
+8. TEAMFARBEN NICHT NUR ALS KLEINE DETAILS
+============================================================
+
+Aktuell sind Fraktionsfarben zu subtil.
+
+Mindestens 15–25 % der lesbaren Fahrzeug-/Gebäudefläche sollte Fraktionsakzent besitzen.
+
+Beispiele:
+
+- Panzerplatten
+- Seitenstreifen
+- Turmsegment
+- Dachmarkierung
+- Warnfeld
+- Leuchtleisten
+- Antennenbasis
+- Gebäudeecken
+
+Nicht:
+
+ein winziger Punkt irgendwo am Objekt.
+
+============================================================
+9. FREUND-/FEIND-SILHOUETTEN
+============================================================
+
+Nicht nur Farbe unterscheiden.
+
+Fraktionen sollen auch unterschiedliche Formsprache bekommen.
+
+PLAYER:
+- robuste rechteckige Formen
+- schwere Industrie
+- stabile Geometrie
+
+ENEMY:
+- aggressivere schräge Formen
+- längere Spitzen
+- asymmetrische Panzerung
+
+TECH-FACTION:
+- glattere Formen
+- leuchtende Module
+- klarere High-Tech-Silhouette
+
+Damit bleibt Freund/Feind auch bei Farbenblindheit erkennbar.
+
+============================================================
+10. HEALTHBAR-FARBLOGIK
+============================================================
+
+Die Healthbar darf nicht die Fraktionsfarbe ersetzen.
+
+Healthbar:
+
+GRÜN = gesund
+GELB = beschädigt
+ROT = kritisch
+
+Fraktionskennung separat.
+
+Beispiel:
+
+kleiner Teamfarbrand / Marker / Unterstrich.
+
+============================================================
+11. AUSWAHLRINGE
+============================================================
+
+Friendly Selected:
+
+kräftiger eigener Teamfarbring.
+
+Enemy Selected:
+
+roter bzw. feindlicher Ring.
+
+Neutral:
+
+gelb / neutral.
+
+Ringe müssen auch im Kampf gut sichtbar bleiben.
+
+============================================================
+12. MINIMAP
+============================================================
+
+Minimap muss Fraktionen glasklar zeigen.
+
+Beispiel:
+
+PLAYER:
+Cyan.
+
+ENEMY:
+Rot.
+
+ALLY:
+Blaugrün oder Hellblau.
+
+NEUTRAL:
+Gelb.
+
+RESOURCE:
+Türkisweiß.
+
+Keine zu ähnlichen Farbtöne.
+
+============================================================
+13. FRAGEN NACH FRIEND/FOE DÜRFEN NICHT ENTSTEHEN
+============================================================
+
+Spieler darf niemals überlegen müssen:
+
+„Ist das meiner oder ein Gegner?“
+
+Wenn das passiert, ist die Fraktionslesbarkeit unzureichend.
+
+============================================================
+14. GEBÄUDE-FRAKTIONSFARBE
+============================================================
+
+Gebäude deutlich markieren.
+
+Beispiel:
+
+- Dachpanel
+- Seitenplatten
+- Beleuchtungsleiste
+- Rahmen
+- Flag/Marker
+- Energieelemente
+
+Nicht vollständig einfärben.
+
+Metall bleibt Metall.
+
+Teamfarbe wird als starke Sekundärfarbe benutzt.
+
+============================================================
+15. FAHRZEUG-FRAKTIONSFARBE
+============================================================
+
+Bei Fahrzeugen:
+
+- Turm
+- Seitenpanzer
+- Frontleiste
+- Heck
+- Dachpanel
+
+klar teamfarbig akzentuieren.
+
+============================================================
+16. ENEMY RED / PLAYER CYAN
+============================================================
+
+Für erste Version klar definieren:
+
+PLAYER:
+Cyan / Türkis
+
+ENEMY:
+Rot / Orange
+
+Nicht:
+
+beide türkis
+oder
+beide grau.
+
+Diese klare Kontrastregel hat Vorrang vor subtiler Ästhetik.
+
+============================================================
+17. FOG-OF-WAR
+============================================================
+
+Fog of War darf nicht einfach alles kalt blau-schwarz färben.
+
+Unexplored:
+
+dunkles warmes Braun/Schwarz.
+
+Explored:
+
+entsättigte warme Variante.
+
+Visible:
+
+volle warme Palette.
+
+Damit bleibt die Wüstenatmosphäre auch im Nebel erhalten.
+
+============================================================
+18. UI WÄRMER ABSTIMMEN
+============================================================
+
+Die UI kann dunkel bleiben.
+
+Aber Akzentfarben wärmer machen.
+
+Statt nur:
+
+dunkelblau + Cyan
+
+mehr:
+
+- dunkles Braun-Schwarz
+- Petrol nur sekundär
+- Gold
+- Bernstein
+- Rost
+- Sandgelb
+
+Cyan bleibt für:
+
+Spielerstatus
+Technologie
+Ressourcen
+positive Interaktionen.
+
+Gold/Orange:
+
+wichtige Menüs
+Objectives
+Warnings
+Progress.
+
+============================================================
+19. MENÜFARBEN
+============================================================
+
+ASHLINE-Titel:
+
+warmgold.
+
+Hintergrund:
+
+dunkle Wüste / Nachthimmel / Staub.
+
+Panel:
+
+dunkles warmes Anthrazit.
+
+Highlights:
+
+Gold + Teamfarbe.
+
+Das aktuelle Menü ist grundsätzlich brauchbar, aber zu kühl.
+
+============================================================
+20. BASE BUILDING SOLL HEISS WIRKEN
+============================================================
+
+Gebäude brauchen:
+
+- glühende Auslässe
+- Hitzeschimmer
+- Staub
+- warme Lichter
+- orange Warnlichter
+- heiße Metallkanten
+
+Dadurch mehr Industriegefühl.
+
+============================================================
+21. EXPLOSIONEN
+============================================================
+
+Explosionsfarben:
+
+- Gelb
+- Orange
+- Rot
+- dunkler Rauch
+- Staubbraun
+
+Nicht primär Cyan.
+
+============================================================
+22. LASER UND ENERGIEWAFFEN
+============================================================
+
+Nur Energie-/Technologiewaffen dürfen bewusst kühler leuchten.
+
+Dadurch entsteht starker Kontrast zur Welt.
+
+============================================================
+23. WÄRME DURCH STAUB
+============================================================
+
+Staub ist wichtig für Atmosphäre.
+
+Fahrzeuge erzeugen:
+
+- warmbraune Staubwolken
+- kurze Spuren
+
+Explosionen:
+
+- Sandstoß
+- Staubring
+- dunkler Rauch
+
+============================================================
+24. GEBÄUDE IN DEN BODEN EINBETTEN
+============================================================
+
+Aktuell wirken Gebäude teilweise aufgesetzt.
+
+Verbessern durch:
+
+- Staub am Sockel
+- Bodenschatten
+- Fundamentplatten
+- Verschmutzung
+- kleine Geröllansammlungen
+
+============================================================
+25. HARVESTER
+============================================================
+
+Harvester soll visuell massiv wirken.
+
+Deutlich größer und schwerer als Scout.
+
+Beim Sammeln:
+
+- Förderarme
+- Materialpartikel
+- leuchtender Ressourcenstrom
+- Staub
+- Beladungsanzeige
+
+============================================================
+26. PANZER
+============================================================
+
+Panzer müssen kräftiger wirken.
+
+Mehr:
+
+- Masse
+- Schatten
+- Turm
+- Ketten
+- Panzerplatten
+- Fraktionsfarbe
+- Mündungsfeuer
+- Rückstoß
+- Staub
+
+============================================================
+27. SCOUT
+============================================================
+
+Scout:
+
+- klein
+- schnell
+- klare Front
+- größere Antenne / Sensor
+- Fraktionsfarbe gut sichtbar
+
+============================================================
+28. FEIND-ART-DIRECTION
+============================================================
+
+Feindliche Einheiten müssen aggressiver wirken.
+
+Beispielsweise:
+
+- spitzere Front
+- kantigere Panzerung
+- rote/orange Statuslichter
+- asymmetrische Form
+- dunkleres Metall
+
+============================================================
+29. PLAYER-ART-DIRECTION
+============================================================
+
+Spielereinheiten:
+
+- stabil
+- industriell
+- breite Grundformen
+- Cyan/Türkis-Akzente
+- robuste Silhouetten
+
+============================================================
+30. WARM/COLD-CONTRAST
+============================================================
+
+Ganz wichtig:
+
+WELT = warm.
+
+RESSOURCE = kühl.
+
+PLAYER TECH = kühl.
+
+ENEMY = heiß.
+
+Dadurch entsteht automatisch visuelle Ordnung.
+
+Beispiel:
+
+Terrain:
+Ocker/Braun.
+
+Player:
+Cyan.
+
+Enemy:
+Rot/Orange.
+
+Resource:
+helles Türkis.
+
+============================================================
+31. RETRO-MODUS
+============================================================
+
+Diese Farbregeln gelten genauso im Retro-Modus.
+
+Nicht:
+
+Farben reduzieren bis Freund/Feind wieder unklar wird.
+
+Teamfarben bleiben kräftig.
+
+============================================================
+32. COLORBLIND-SAFE
+============================================================
+
+Zusätzlich zu Farbe:
+
+- Symbol
+- Outline
+- Silhouette
+- Auswahlring
+- Minimap-Symbol
+
+verwenden.
+
+============================================================
+33. MULTIPLAYER-LESBARKEIT
+============================================================
+
+Da Multiplayer vorbereitet wird:
+
+bis zu mindestens 8 eindeutig unterscheidbare Teamfarben vorbereiten.
+
+Beispiel:
+
+Cyan
+Rot
+Gelb
+Violett
+Blau
+Grün
+Orange
+Weiß
+
+Keine Farbe als einzige Identität benutzen.
+
+============================================================
+34. TEAM COLOR SYSTEM
+============================================================
+
+Teamfarbe nicht direkt in Assets backen.
+
+Assets besitzen neutrale Team-Masken.
+
+Renderer färbt Teamflächen dynamisch anhand von:
+
+player_id
+
+team_color
+
+Dadurch Multiplayer-tauglich.
+
+============================================================
+35. TEAM COLOR MASK
+============================================================
+
+Sprites benötigen separaten Team-Color-Bereich.
+
+Beispiel:
+
+Base Sprite:
+Metall neutral.
+
+Team Mask:
+weiß / maskiert.
+
+Shader / Material:
+Teamfarbe einsetzen.
+
+Das erlaubt:
+
+gleiche Unit
+
+verschiedene Playerfarben.
+
+============================================================
+36. MINIMAP TEAM COLORS
+============================================================
+
+Minimap verwendet dieselben Teamfarben aus dem Player-System.
+
+Nicht hardcoden:
+
+player = cyan
+enemy = red
+
+sondern:
+
+player.team_color
+
+Aber:
+
+Singleplayer Standard:
+
+Player = Cyan
+
+Enemy = Rot/Orange.
+
+============================================================
+37. UI TEAM COLOR
+============================================================
+
+Ausgewählte Unit / Building:
+
+UI übernimmt Teamfarbe als Akzent.
+
+Enemy Selected:
+
+deutlich andere Farbe.
+
+============================================================
+38. PRIORITÄT DER FRÜHEN UMRÜSTUNG
+============================================================
+
+SOFORT umsetzen:
+
+1. Weltpalette wärmer machen.
+2. grauen Felsboden deutlich wärmer abstimmen.
+3. Sand kräftiger Ocker/Orange.
+4. Gebäudebeleuchtung wärmer.
+5. Player Teamfarbe deutlich sichtbarer.
+6. Enemy Teamfarbe deutlich sichtbarer.
+7. Unit-Silhouetten überprüfen.
+8. Minimap-Teamfarben verbessern.
+9. Selection-Ringe verbessern.
+10. Fog-Farbgebung wärmer gestalten.
+
+============================================================
+39. QUALITY GATE – FARBEN
+============================================================
+
+Eine Karte gilt erst als visuell fertig, wenn:
+
+- Welt klar warm wirkt
+- Sand deutlich von Fels getrennt ist
+- Ressourcen stark herausstechen
+- Freund innerhalb einer Sekunde erkennbar
+- Feind innerhalb einer Sekunde erkennbar
+- Einheiten nicht nur anhand von Healthbars unterschieden werden
+- Minimap klar lesbar ist
+- Fog of War die Wärme nicht zerstört
+
+============================================================
+40. QUALITY GATE – SCREENSHOT
+============================================================
+
+Ein Screenshot ohne UI-Erklärung muss sofort vermitteln:
+
+- heiße Wüstenwelt
+- wertvolle Ressource
+- eigene Basis
+- eigene Einheiten
+- feindliche Einheiten
+- militärische Spannung
+
+Wenn Freund und Feind erst durch genaues Hinsehen erkannt werden, ist der Screenshot nicht fertig.
+
+============================================================
+41. KONKRETES ZIELBILD
+============================================================
+
+Der Spieler soll visuell denken:
+
+„Das ist heiß.“
+
+„Das ist staubig.“
+
+„Das ist wertvoll.“
+
+„Das ist meine Basis.“
+
+„Das dort ist der Feind.“
+
+„Da vorne liegt die Ressource.“
+
+Diese fünf Dinge müssen ohne Lesen der UI verständlich sein.
+
+UMSETZUNGSSTAND 0.10 / STYLE CONSOLIDATION
+Die bestehende Richtung wird durch docs/STYLE_CONSOLIDATION.txt und den dokumentierten Stand in README.md, ROADMAP.md und QA.md konsistent ergänzt. Warme Welt, dynamische Teamfarben, gemeinsame Modern-/Classic-Art, typeigene Ruinen und kosmetische Ereignis-VFX bleiben verbindlich. Lokale Command-Grenze und Entity-Identitätsfelder jetzt umgesetzt; fertiger Netzwerk-Mehrspielermodus wird nicht behauptet.

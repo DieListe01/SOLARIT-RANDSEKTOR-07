@@ -1,0 +1,83 @@
+{
+  "format_version": 1,
+  "id": "khepri_pass",
+  "name": "03 / Engpass Khepri",
+  "display_name": "Engpass Khepri",
+  "short_name": "ENGPASS KHEPRI",
+  "width": 64,
+  "height": 64,
+  "seed": 44021,
+  "briefing": "Der Wanderpakt stößt durch den Khepri-Pass nach Süden vor. Der Außenposten ist bereits ausgebaut, aber die Angriffsgruppen werden stärker. Halte den Baukern fünfzehn Minuten lang. Die Angriffswellen sind vollständig real: Fahrzeuge erscheinen im Norden, müssen den Pass durchqueren und können unterwegs abgefangen werden.",
+  "briefing_hint": "VERTEIDIGUNGSMISSION  ·  15 Minuten halten  ·  Wellen werden je Widerstandsstufe anders zusammengestellt",
+  "hud_hint": "KHEPRI / VERTEIDIGUNG\nEngstelle halten · beschädigte Fahrzeuge zurückziehen\nZwischen den Wellen reparieren und nachproduzieren.",
+  "start_message": "Khepri meldet Feindbewegung. Halte die Engstelle fünfzehn Minuten lang.",
+  "victory_title": "Khepri hält",
+  "defeat_title": "Engpass durchbrochen",
+  "credits": [4200, 0],
+  "ai_enabled": false,
+  "player_starts": [[30, 50], [30, 6]],
+  "terrain_regions": [
+    {"type":"rock","rect":[18,42,28,19]},
+    {"type":"rock","rect":[20,2,24,15]},
+    {"type":"cliff","rect":[0,27,26,7]},
+    {"type":"cliff","rect":[38,27,26,7]},
+    {"type":"rock","rect":[0,21,18,12]},
+    {"type":"rock","rect":[46,21,18,12]},
+    {"type":"dunes","rect":[5,5,10,14]},
+    {"type":"dunes","rect":[49,7,10,13]},
+    {"type":"crater","rect":[26,20,12,6]},
+    {"type":"crater","rect":[28,35,8,5]}
+  ],
+  "resources": [
+    {"cell":[23,51],"radius":3,"amount":7000},
+    {"cell":[42,49],"radius":3,"amount":6200},
+    {"cell":[31,18],"radius":2,"amount":2600}
+  ],
+  "structures": [
+    {"kind":"core","owner":0,"cell":[29,50]},
+    {"kind":"power","owner":0,"cell":[24,52]},
+    {"kind":"power","owner":0,"cell":[35,52]},
+    {"kind":"refinery","owner":0,"cell":[22,47]},
+    {"kind":"factory","owner":0,"cell":[35,47]},
+    {"kind":"tower","owner":0,"cell":[26,39]},
+    {"kind":"tower","owner":0,"cell":[36,39]},
+    {"kind":"radar","owner":0,"cell":[31,45]},
+    {"kind":"repair","owner":0,"cell":[39,53]},
+    {"kind":"core","owner":1,"cell":[30,5]},
+    {"kind":"power","owner":1,"cell":[25,7]},
+    {"kind":"factory","owner":1,"cell":[36,7]}
+  ],
+  "units": [
+    {"kind":"scout","owner":0,"cell":[29,42]},
+    {"kind":"tank","owner":0,"cell":[30,41]},
+    {"kind":"tank","owner":0,"cell":[33,41]},
+    {"kind":"tank","owner":0,"cell":[35,42]},
+    {"kind":"siege","owner":0,"cell":[32,44]},
+    {"kind":"harvester","owner":0,"cell":[23,50]}
+  ],
+  "objectives": [
+    {"id":"hold_15","type":"survive","seconds":900,"primary":true,"text":"Halte den Engpass 15 Minuten lang.","hud":"ENGPASS HALTEN"},
+    {"id":"home_core","type":"protect","owner":0,"kind":"core","text":"Der Baukern muss überleben."},
+    {"id":"harvest_bonus","type":"harvest_amount","amount":5000,"text":"Optional: Liefere 5.000 Solarit während der Verteidigung.","hud":"BONUS: 5.000 SOLARIT"}
+  ],
+  "waves": [
+    {"time":55,"spawn_cell":[29,15],"units":{"easy":["scout","scout"],"normal":["scout","scout","tank"],"hard":["scout","scout","tank","tank"]},"message":"WELLE 1 · Späher im Nordpass."},
+    {"time":150,"spawn_cell":[32,14],"units":{"easy":["tank","scout","scout"],"normal":["tank","tank","scout","scout"],"hard":["tank","tank","tank","scout","scout"]},"message":"WELLE 2 · Gepanzerter Vorstoß."},
+    {"time":270,"spawn_cell":[28,15],"units":{"easy":["tank","tank","scout"],"normal":["tank","tank","tank","scout"],"hard":["tank","tank","tank","tank","siege"]},"message":"WELLE 3 · Hauptkolonne nähert sich."},
+    {"time":420,"spawn_cell":[33,14],"units":{"easy":["tank","tank","siege"],"normal":["tank","tank","tank","siege"],"hard":["tank","tank","tank","siege","siege","scout"]},"message":"WELLE 4 · Belagerer im Anmarsch."},
+    {"time":600,"spawn_cell":[28,14],"units":{"easy":["tank","tank","tank","siege"],"normal":["tank","tank","tank","tank","siege","scout"],"hard":["tank","tank","tank","tank","siege","siege","scout"]},"message":"WELLE 5 · Massierter Angriff."},
+    {"time":780,"spawn_cell":[30,13],"units":{"easy":["tank","tank","tank","siege","siege"],"normal":["tank","tank","tank","tank","siege","siege","scout"],"hard":["tank","tank","tank","tank","tank","siege","siege","siege","scout"]},"message":"LETZTE WELLE · Alles auf die Engstelle."}
+  ],
+  "ruins": [
+    {"kind":"tank","cell":[27,31],"rotation":0,"variant":1},
+    {"kind":"tank","cell":[35,30],"rotation":2,"variant":3},
+    {"kind":"tower","cell":[24,35],"rotation":0,"variant":2},
+    {"kind":"scout","cell":[39,25],"rotation":1,"variant":0}
+  ],
+  "craters": [
+    {"cell":[29,29],"radius":42},
+    {"cell":[34,30],"radius":38},
+    {"cell":[31,36],"radius":30},
+    {"cell":[26,24],"radius":26}
+  ]
+}

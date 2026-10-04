@@ -1,0 +1,539 @@
+DU ARBEITEST JETZT AUSSCHLIESSLICH AM COMBAT-VFX-, IMPACT- UND DESTRUCTION-PASS VON ASHLINE.
+
+WICHTIG:
+
+Dieser Prompt wird ERST angewendet, nachdem der vorherige Visual-Polish-/Art-Direction-Prompt vollständig umgesetzt wurde.
+
+Die vorhandene:
+
+- Farbwelt
+- Fraktionsidentität
+- UI
+- Terrain-Art
+- Gebäude-Art
+- Einheitendesigns
+- Teamfarben
+- Multiplayer-Vorbereitung
+
+dürfen nicht wieder grundsätzlich umgebaut werden.
+
+Dieser Pass konzentriert sich ausschließlich auf:
+
+- Waffenwirkung
+- Projektilwirkung
+- Treffer
+- Explosionen
+- Rauch
+- Staub
+- Funken
+- Trümmer
+- Gebäudeschäden
+- Fahrzeugzerstörung
+- Screen Shake
+- Hit Feedback
+- visuelle Kampfdynamik
+
+ZIEL:
+
+Kämpfe sollen wesentlich spektakulärer wirken.
+
+ASHLINE soll im Gefecht nicht ruhig, steril oder technisch aussehen.
+
+Ein Feuergefecht soll sofort vermitteln:
+
+GEWICHT.
+HITZE.
+ENERGIE.
+STAUB.
+GEFAHR.
+ZERSTÖRUNG.
+
+============================================================
+1. GRUNDREGEL: JEDER SCHUSS MUSS SPÜRBAR SEIN
+============================================================
+
+Aktuell darf kein Waffentreffer visuell untergehen.
+
+Jeder Schuss braucht mindestens:
+
+- Feuer-/Energieabgabe
+- Projektil oder klaren Schussweg
+- Impact
+- Audio
+- sichtbare Reaktion
+
+Keine Waffenwirkung darf nur aus:
+
+Health verliert Punkte
+
+bestehen.
+
+============================================================
+2. WAFFENKLASSEN
+============================================================
+
+Definiere visuell unterschiedliche VFX-Familien.
+
+Mindestens:
+
+BALLISTIC_LIGHT
+
+BALLISTIC_HEAVY
+
+AUTOCANNON
+
+ARTILLERY
+
+MISSILE
+
+ENERGY
+
+SIEGE
+
+SPECIAL
+
+Jede Kategorie benötigt eigene:
+
+- Muzzle Flashes
+- Projectile Looks
+- Tracer
+- Impacts
+- Sounds
+- Destruction Feel
+
+============================================================
+3. LIGHT BALLISTIC
+============================================================
+
+Für leichte Waffen:
+
+Muzzle:
+- kurzer heller Blitz
+- kleine orange Flamme
+- wenig Rauch
+
+Projectile:
+- kleiner schneller Tracer
+
+Impact:
+- Funken
+- kleiner Staubstoß
+- kleiner Materialsplitter
+
+Ziel:
+
+schnell und präzise.
+
+============================================================
+4. HEAVY CANNON
+============================================================
+
+Für Panzerkanonen:
+
+Muzzle:
+- großer gelb-orangefarbener Flash
+- deutlicher Lichtimpuls
+- kurze Rauchwolke
+
+Fahrzeug:
+- sichtbarer Rückstoß
+- Turm reagiert leicht
+- Staubstoß an Ketten / Boden möglich
+
+Projectile:
+- gut sichtbares Geschoss / Tracer
+
+Impact:
+- große Staubwolke
+- Funken
+- Explosionskern
+- Schockring optional
+
+Ziel:
+
+Der Spieler muss sofort fühlen:
+
+DAS WAR EINE SCHWERE KANONE.
+
+============================================================
+5. ARTILLERY
+============================================================
+
+Artillerie muss besonders eindrucksvoll sein.
+
+Beim Schuss:
+
+- sehr großer Muzzle Flash
+- Rückstoß
+- Staubring
+- Rauch
+- kurzer Screen Shake
+
+Geschoss:
+
+- sichtbarer ballistischer Flug
+- Schatten optional
+- Rauchspur optional
+
+Impact:
+
+- große Explosion
+- kräftiger Staubstoß
+- aufsteigende Rauchwolke
+- Schutt
+- Bodenmarkierung / Krater
+- deutlicher Camera Impulse
+
+Artillerie muss visuell Angst machen.
+
+============================================================
+6. MISSILES
+============================================================
+
+Raketen:
+
+Launch:
+- heller Triebwerksblitz
+- Rauch
+- kleine Startbewegung
+
+Flight:
+- Rauchspur
+- Flamme
+- eventuell leichtes Schwanken
+
+Impact:
+- orange Explosion
+- größerer Rauch
+- Fragmente
+- Druckring
+
+Bei mehreren Raketen:
+
+keine exakt identischen Flugbahnen.
+
+Leichte Variation erlaubt.
+
+============================================================
+7. ENERGY WEAPONS
+============================================================
+
+Energiewaffen bewusst vom warmen Wüstenbild abheben.
+
+Farben:
+
+- Cyan
+- Weißblau
+- Violett optional je Fraktion
+
+Nicht jede Waffe cyan machen.
+
+Energy Shot:
+
+- kurzer Glow
+- Energieimpuls
+- Nachleuchten
+- Lichtblitz beim Treffer
+
+Bei starkem Energietreffer:
+
+- elektrische Entladung
+- kurze Arc-Effekte
+- Oberflächenflash
+
+============================================================
+8. SIEGE WEAPONS
+============================================================
+
+Belagerungswaffen müssen die stärksten regulären Effekte besitzen.
+
+Shot:
+- massiver Flash
+- Bodenstaub
+- deutlicher Screen Shake
+- starker Sound
+
+Projectile:
+- groß
+- langsam genug, um bewusst wahrgenommen zu werden
+
+Impact:
+- Mehrphasenexplosion
+- Kernblitz
+- Staubring
+- Rauch
+- Trümmer
+- Krater
+- kurzer Lichtimpuls über Umgebung
+
+Nicht bei jeder normalen Kanone verwenden.
+
+============================================================
+9. MUZZLE FLASH LIBRARY
+============================================================
+
+Erstelle mehrere Varianten.
+
+Nicht jede Einheit verwendet denselben Flash.
+
+Beispiel:
+
+muzzle_light_01
+muzzle_light_02
+
+muzzle_medium_01
+muzzle_medium_02
+
+muzzle_heavy_01
+muzzle_heavy_02
+
+muzzle_missile
+
+muzzle_energy
+
+muzzle_artillery
+
+VFX dürfen zufällig zwischen passenden Varianten wechseln.
+
+============================================================
+10. PROJEKTIL-LESBARKEIT
+============================================================
+
+Projektile dürfen nicht so schnell oder klein sein, dass sie unsichtbar wirken.
+
+Spieler soll zumindest kurz wahrnehmen:
+
+woher der Schuss kam
+
+wohin er ging.
+
+Aber:
+
+keine künstlich langsamen Geschosse, wenn Gameplay darunter leidet.
+
+============================================================
+11. HIT-REACTION
+============================================================
+
+Fahrzeuge müssen Treffer visuell beantworten.
+
+Mindestens:
+
+- kurzer Flash
+- kleiner Funkenstoß
+- Materialpartikel
+- sehr kurze Wackel-/Impact-Reaktion
+
+Bei schweren Treffern:
+
+- stärkerer Flash
+- Rauch
+- kleine Flammen
+- zusätzliche Funken
+
+============================================================
+12. ARMOR HIT VS HULL HIT
+============================================================
+
+Optional unterschiedliche Wirkung:
+
+ARMORED HIT:
+- Funken
+- Abpraller
+- Metallfragment
+
+HEAVY DAMAGE:
+- Rauch
+- Flamme
+- sichtbare Schäden
+
+Dadurch fühlt sich Panzerung physischer an.
+
+============================================================
+13. KRITISCH BESCHÄDIGTE FAHRZEUGE
+============================================================
+
+Unter definierter Health-Schwelle:
+
+z.B. < 35 %
+
+Fahrzeug zeigt:
+
+- Rauch
+- sporadische Funken
+- kleinere Flammen
+- möglicherweise verlangsamte visuelle Motorreaktion
+
+Gameplay-Nachteile nur falls explizit vorgesehen.
+
+VFX allein darf keine neue Balance erzeugen.
+
+============================================================
+14. FAHRZEUGZERSTÖRUNG
+============================================================
+
+Fahrzeuge dürfen nicht einfach verschwinden.
+
+Ablauf:
+
+1. Final Hit
+2. Bright Flash
+3. Primary Explosion
+4. Secondary Sparks
+5. Smoke
+6. Debris
+7. optional Wreck
+
+Dauer kurz halten.
+
+Kein zehnsekündiges Cinematic Event.
+
+============================================================
+15. FAHRZEUG-WRACKS
+============================================================
+
+Optional:
+
+zerstörte Fahrzeuge hinterlassen für kurze oder längere Zeit:
+
+- verbrannte Wracks
+- dunkle Bodenmarkierung
+- Rauch
+
+Wracks dürfen:
+
+- rein visuell sein
+
+oder später:
+- Navigation gering beeinflussen
+
+Für Multiplayer zunächst möglichst rein visuell halten, sofern nicht ausdrücklich Gameplay-relevant.
+
+============================================================
+16. GEBÄUDE-DAMAGE
+============================================================
+
+Gebäudeschäden deutlich sichtbar staffeln.
+
+100–70 %
+
+HEALTHY
+
+70–40 %
+
+DAMAGED:
+- leichter Rauch
+- kaputte Panels
+- gelegentliche Funken
+
+40–15 %
+
+CRITICAL:
+- stärkerer Rauch
+- kleine Flammen
+- Warnlichter
+- elektrische Störungen
+
+15–1 %
+
+SEVERE:
+- starke Schäden
+- brennende Bereiche
+- instabile Energieeffekte
+
+============================================================
+17. GEBÄUDEZERSTÖRUNG
+============================================================
+
+Gebäudezerstörung soll eines der stärksten visuellen Ereignisse im normalen Spiel sein.
+
+Mehrphasig:
+
+1. interne Explosion
+2. Lichtblitz
+3. Hauptdetonation
+4. Gebäudeteile brechen weg
+5. Staubwolke
+6. Rauch
+7. Sekundärfunken / kleine Folgeexplosionen
+8. Ruine bleibt zurück
+
+============================================================
+18. GROSSE GEBÄUDE
+============================================================
+
+Große Gebäude nicht mit derselben Explosion wie kleine Einheiten zerstören.
+
+Bei großen Strukturen:
+
+- mehrere Explosionspunkte
+- leicht zeitversetzt
+- stärkere Rauchentwicklung
+- mehr Trümmer
+- größerer Staubring
+
+============================================================
+19. CONSTRUCTION CORE DESTRUCTION
+============================================================
+
+Besonders wichtiges Gebäude.
+
+Zerstörung darf deutlich spektakulärer sein.
+
+Beispiel:
+
+- Alarm
+- Energieüberladung
+- mehrere kleine Explosionen
+- großer zentraler Flash
+- massive Hauptdetonation
+- Schockring
+- viel Staub
+- hoher Rauchpilz
+- längerer Ruinenrauch
+
+Kein Atompilz.
+
+Aber klar:
+
+DAS WAR WICHTIG.
+
+============================================================
+20. EXPLOSION LAYERS
+============================================================
+
+Explosionen aus mehreren Ebenen zusammensetzen.
+
+Beispiel:
+
+Layer 1:
+White/Yellow Core
+
+Layer 2:
+Orange Fireball
+
+Layer 3:
+Dark Smoke
+
+Layer 4:
+Dust
+
+Layer 5:
+Sparks
+
+Layer 6:
+Debris
+
+Layer 7:
+Shockwave optional
+
+Dadurch deutlich hochwertiger als einzelnes Sprite.
+
+============================================================
+21. RANDOMISIERUNG
+============================================================
+
+Explosion
+
+UMSETZUNGSSTAND 0.11 / READABILITY & PERSISTENT DESTRUCTION
+Die zeitliche Ablaufgrenze der Ruinen/Krater aus früheren Versionen wird durch missionslange, budgetierte und separat gespeicherte lokale Spuren ersetzt. Maßgeblich: docs/PERSISTENT_DESTRUCTION_IMPLEMENTATION.md (128 Reste, 80 Krater, 220 Transients, 8/16/24 Rauchquellen). Rein kosmetisch, ohne Collision/Pathfinding/Authority-Einfluss. Gemeinsamer Modern-/Classic-Datenbestand.

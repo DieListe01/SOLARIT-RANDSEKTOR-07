@@ -1,0 +1,464 @@
+{
+  "format_version": 1,
+  "rules": {
+    "tile_size": 32,
+    "tick_rate": 30,
+    "build_radius": 8,
+    "harvest_capacity": 240,
+    "harvest_rate": 40,
+    "unload_rate": 160,
+    "cancel_refund": 0.75,
+    "repair_cost": 0.3,
+    "repair_rate": 26,
+    "ai_interval": {
+      "easy": 6,
+      "normal": 3,
+      "hard": 1.8
+    },
+    "attack_size": {
+      "easy": 4,
+      "normal": 5,
+      "hard": 7
+    },
+    "armor": {
+      "kinetic": {
+        "light": 1.2,
+        "medium": 1,
+        "heavy": 0.75,
+        "structure": 0.65
+      },
+      "energy": {
+        "light": 0.9,
+        "medium": 1.1,
+        "heavy": 1.25,
+        "structure": 0.8
+      },
+      "siege": {
+        "light": 0.65,
+        "medium": 0.9,
+        "heavy": 1,
+        "structure": 1.65
+      }
+    },
+    "attack_grace": {
+      "easy": 160,
+      "normal": 110,
+      "hard": 70
+    },
+    "army_limit": {
+      "easy": 8,
+      "normal": 14,
+      "hard": 24
+    },
+    "attack_commit": {
+      "easy": 4,
+      "normal": 6,
+      "hard": 10
+    },
+    "ai_production_interval": {
+      "easy": 24,
+      "normal": 12,
+      "hard": 7
+    }
+  },
+  "factions": {
+    "forge": {
+      "name": "Kobalt-Konsortium",
+      "tag": "INDUSTRIE",
+      "color": "69d6c0",
+      "health": 1.2,
+      "speed": 0.9,
+      "cost": 1.1,
+      "damage": 1,
+      "music_root": 38,
+      "description": "Robuste Kettenfahrzeuge. +20% Integrität, −10% Tempo, +10% Kosten."
+    },
+    "drift": {
+      "name": "Wanderpakt",
+      "tag": "MOBILITÄT",
+      "color": "e49a63",
+      "health": 0.85,
+      "speed": 1.25,
+      "cost": 0.85,
+      "damage": 0.95,
+      "music_root": 43,
+      "description": "Leichte Keilfahrzeuge. +25% Tempo, −15% Kosten und Integrität."
+    },
+    "lumen": {
+      "name": "Prisma-Konklave",
+      "tag": "TECHNOLOGIE",
+      "color": "b69bfa",
+      "health": 0.95,
+      "speed": 1,
+      "cost": 1.2,
+      "damage": 1.3,
+      "music_root": 45,
+      "description": "Schwebende Energiefahrzeuge. +30% Waffenleistung, +20% Kosten."
+    }
+  },
+  "buildings": {
+    "core": {
+      "name": "Baukern",
+      "cost": 1800,
+      "time": 35,
+      "health": 2200,
+      "armor": "structure",
+      "footprint": [
+        3,
+        3
+      ],
+      "vision": 10,
+      "power": -30,
+      "requires": [],
+      "description": "Konstruktionszentrum. Sein Verlust beendet diesen Einsatz."
+    },
+    "power": {
+      "name": "Impulswerk",
+      "cost": 400,
+      "time": 7,
+      "health": 850,
+      "armor": "structure",
+      "footprint": [
+        2,
+        2
+      ],
+      "vision": 7,
+      "power": 140,
+      "requires": [
+        "core"
+      ],
+      "description": "Erzeugt 140 Energie. Bei Unterversorgung wird die Produktion gedrosselt."
+    },
+    "refinery": {
+      "name": "Solarit-Raffinerie",
+      "cost": 800,
+      "time": 12,
+      "health": 1300,
+      "armor": "structure",
+      "footprint": [
+        3,
+        2
+      ],
+      "vision": 8,
+      "power": -40,
+      "requires": [
+        "power"
+      ],
+      "max_level": 1,
+      "upgrade_costs": [0, 720],
+      "upgrade_times": [0, 13],
+      "upgrade_campaign_levels": [0, 1],
+      "description": "Entlädt Solarit. Der Baupreis enthält einen Sammler. Stufe 1 steigert den Erlös um 20%."
+    },
+    "factory": {
+      "name": "Fahrzeugwerft",
+      "cost": 900,
+      "time": 14,
+      "health": 1400,
+      "armor": "structure",
+      "footprint": [
+        3,
+        3
+      ],
+      "vision": 8,
+      "power": -55,
+      "requires": [
+        "refinery"
+      ],
+      "max_level": 1,
+      "upgrade_costs": [0, 850],
+      "upgrade_times": [0, 16],
+      "upgrade_campaign_levels": [0, 1],
+      "description": "Produziert Fahrzeuge. Stufe 1 schaltet den Flammenwerfer Scorcher frei und beschleunigt die Montage."
+    },
+    "tower": {
+      "name": "Wachtgeschütz",
+      "cost": 500,
+      "time": 9,
+      "health": 900,
+      "armor": "structure",
+      "footprint": [
+        1,
+        1
+      ],
+      "vision": 10,
+      "power": -20,
+      "weapon": "cannon",
+      "requires": [
+        "factory"
+      ],
+      "description": "Stationäre Nahverteidigung. Benötigt Energie."
+    },
+    "radar": {
+      "name": "Signalstation",
+      "cost": 650,
+      "time": 11,
+      "health": 800,
+      "armor": "structure",
+      "footprint": [
+        2,
+        2
+      ],
+      "vision": 13,
+      "power": -35,
+      "requires": [
+        "factory"
+      ],
+      "campaign_level": 1,
+      "max_level": 1,
+      "upgrade_costs": [0, 900],
+      "upgrade_times": [0, 17],
+      "upgrade_campaign_levels": [0, 2],
+      "description": "Aktiviert die taktische Übersicht. Ausbau erweitert die Sichtweite des Netzes."
+    },
+    "repair": {
+      "name": "Servicehangar",
+      "cost": 600,
+      "time": 10,
+      "health": 1000,
+      "armor": "structure",
+      "footprint": [
+        2,
+        2
+      ],
+      "vision": 7,
+      "power": -25,
+      "requires": [
+        "factory"
+      ],
+      "campaign_level": 1,
+      "description": "Repariert nahe Fahrzeuge automatisch. Reparaturen kosten Solarit und benötigen Energie."
+    },
+    "armory": {
+      "name": "Rüstungswerkstatt",
+      "cost": 760,
+      "time": 12,
+      "health": 1120,
+      "armor": "structure",
+      "footprint": [
+        2,
+        2
+      ],
+      "vision": 8,
+      "power": -40,
+      "requires": [
+        "factory"
+      ],
+      "max_level": 2,
+      "campaign_level": 1,
+      "upgrade_costs": [
+        0,
+        700,
+        1150
+      ],
+      "upgrade_times": [
+        0,
+        14,
+        20
+      ],
+      "description": "Rüstungszentrum. Ausbauten schalten kampagnenabhängig Spezialfahrzeuge frei."
+    }
+  },
+  "units": {
+    "harvester": {
+      "name": "Solarit-Sammler",
+      "cost": 650,
+      "time": 12,
+      "health": 850,
+      "armor": "heavy",
+      "speed": 60,
+      "turn_speed": 2,
+      "vision": 7,
+      "requires": [
+        "factory"
+      ],
+      "description": "Autonomer Abbau und Transport. Rechtsklick auf ein Feld startet den Abbau."
+    },
+    "scout": {
+      "name": "Späher · Nadel",
+      "cost": 200,
+      "time": 5,
+      "health": 180,
+      "armor": "light",
+      "speed": 125,
+      "turn_speed": 5,
+      "vision": 12,
+      "weapon": "pulse",
+      "requires": [
+        "factory"
+      ],
+      "description": "Schnelle Aufklärung mit großer Sichtweite. Leichte Bewaffnung."
+    },
+    "tank": {
+      "name": "Panzer · Amboss",
+      "cost": 400,
+      "time": 8,
+      "health": 520,
+      "armor": "medium",
+      "speed": 75,
+      "turn_speed": 2.5,
+      "vision": 8,
+      "weapon": "cannon",
+      "requires": [
+        "factory"
+      ],
+      "description": "Vielseitiges Kampffahrzeug mit drehbarem Turm."
+    },
+    "siege": {
+      "name": "Belagerer · Echo",
+      "cost": 700,
+      "time": 14,
+      "health": 320,
+      "armor": "light",
+      "speed": 48,
+      "turn_speed": 1.8,
+      "vision": 8,
+      "weapon": "mortar",
+      "requires": [
+        "factory",
+        "radar"
+      ],
+      "description": "Hohe Reichweite und Gebäudeschaden. Im Nahkampf verwundbar."
+    },
+    "raider": {
+      "name": "Sturmjäger · Dorn",
+      "cost": 520,
+      "time": 9,
+      "health": 300,
+      "armor": "light",
+      "speed": 112,
+      "turn_speed": 4.2,
+      "vision": 9,
+      "weapon": "shard",
+      "requires": [
+        "factory",
+        "armory"
+      ],
+      "required_level": 1,
+      "campaign_level": 1,
+      "description": "Flankiert schnell und feuert eine kurze Salve aus zwei Splitterkanonen. Verwundbar gegen schwere Treffer."
+    },
+    "lancer": {
+      "name": "Lanzierer · Prisma",
+      "cost": 940,
+      "time": 17,
+      "health": 430,
+      "armor": "medium",
+      "speed": 58,
+      "turn_speed": 2.1,
+      "vision": 10,
+      "weapon": "lance",
+      "requires": [
+        "factory",
+        "armory"
+      ],
+      "required_level": 2,
+      "campaign_level": 2,
+      "power_required": 35,
+      "description": "Präzisionsfahrzeug mit langem Energielanzierer. Durchschlagsstark gegen schwere Ziele. Die Montage belegt 35 Energie; nach Fertigstellung wird sie wieder frei."
+    },
+    "scorcher": {
+      "name": "Flammenwerfer · Glut",
+      "cost": 620,
+      "time": 11,
+      "health": 390,
+      "armor": "medium",
+      "speed": 70,
+      "turn_speed": 2.6,
+      "vision": 7,
+      "weapon": "flame",
+      "requires": ["factory"],
+      "facility_level": {"factory": 1},
+      "campaign_level": 1,
+      "description": "Kurzreichweiten-Fahrzeug. Der Flammenkegel trifft Gruppen und leichte Ziele besonders effektiv."
+    },
+    "bulwark": {
+      "name": "Durchbruchpanzer · Wall",
+      "cost": 1080,
+      "time": 19,
+      "health": 1120,
+      "armor": "heavy",
+      "speed": 38,
+      "turn_speed": 1.25,
+      "vision": 7,
+      "weapon": "breaker",
+      "requires": ["factory", "armory"],
+      "required_level": 2,
+      "campaign_level": 2,
+      "power_required": 55,
+      "description": "Schwer gepanzerter Durchbruchpanzer mit Gebäudebrecher. Die Montage belegt 55 Energie; nach Fertigstellung wird sie wieder frei."
+    }
+  },
+  "weapons": {
+    "pulse": {
+      "damage": 13,
+      "range": 135,
+      "reload": 0.65,
+      "speed": 330,
+      "type": "energy",
+      "splash": 0,
+      "minimum_range": 0,
+      "color": "82e7ee"
+    },
+    "cannon": {
+      "damage": 52,
+      "range": 185,
+      "reload": 1.5,
+      "speed": 300,
+      "type": "kinetic",
+      "splash": 0,
+      "minimum_range": 0,
+      "color": "ffd18a"
+    },
+    "mortar": {
+      "damage": 95,
+      "range": 340,
+      "reload": 3.8,
+      "speed": 180,
+      "type": "siege",
+      "splash": 44,
+      "minimum_range": 80,
+      "color": "ffac72"
+    },
+    "shard": {
+      "damage": 19,
+      "range": 148,
+      "reload": 0.82,
+      "speed": 390,
+      "type": "kinetic",
+      "splash": 0,
+      "minimum_range": 0,
+      "color": "ffb36f"
+    },
+    "lance": {
+      "damage": 78,
+      "range": 250,
+      "reload": 2.4,
+      "speed": 460,
+      "type": "energy",
+      "splash": 0,
+      "minimum_range": 0,
+      "color": "b9a7ff"
+    },
+    "flame": {
+      "damage": 24,
+      "range": 118,
+      "reload": 1.0,
+      "speed": 245,
+      "type": "kinetic",
+      "splash": 48,
+      "minimum_range": 0,
+      "color": "ff813b"
+    },
+    "breaker": {
+      "damage": 112,
+      "range": 205,
+      "reload": 3.4,
+      "speed": 235,
+      "type": "siege",
+      "splash": 0,
+      "minimum_range": 0,
+      "color": "ffd18a"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+.godot/
+tools/*.zip
+tools/*.exe
+tools/editor_data/
+.local/
+build/
+test-output/
+*.tmp
+/data/update_channel.json
+/data/update_channel.json

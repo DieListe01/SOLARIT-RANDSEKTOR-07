@@ -1,0 +1,102 @@
+name: Windows Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Validate release version
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          $history = Get-Content data/update_history.json -Raw | ConvertFrom-Json
+          if ($history.current_version -ne $version) {
+            throw "Release tag $version does not match data/update_history.json ($($history.current_version))."
+          }
+          "ASHLINE_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Install Godot 4.7.2 console
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'godot-console.zip'
+          $url = 'https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win64_console.exe.zip'
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $PWD 'tools') -Force
+          $engine = Get-ChildItem tools -Filter '*win64_console.exe' | Select-Object -First 1
+          if ($null -eq $engine) { throw 'Godot console executable was not found in the official archive.' }
+          if ($engine.Name -ne 'Godot_v4.7.2-stable_win64_console.exe') {
+            Move-Item -LiteralPath $engine.FullName -Destination (Join-Path $PWD 'tools\Godot_v4.7.2-stable_win64_console.exe') -Force
+          }
+
+      - name: Install export template
+        run: python tools/fetch_windows_template.py
+
+      - name: Run full regression suite
+        shell: pwsh
+        run: .\Test-Ashline.ps1
+
+      - name: Embed release channel
+        shell: pwsh
+        run: |
+          $channel = @{ format_version = 1; repository = $env:GITHUB_REPOSITORY; installer_prefix = 'ASHLINE-Setup-'; check_interval_hours = 24 }
+          $channel | ConvertTo-Json | Set-Content -Encoding utf8 data/update_channel.json
+
+      - name: Export Windows game
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          & .\tools\Godot_v4.7.2-stable_win64_console.exe --headless --path . --export-release 'Windows Desktop' build/ASHLINE.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\tools\Godot_v4.7.2-stable_win64_console.exe --headless --path . --script tools/write_engine_notices.gd
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          (Get-Content docs/Spielstart.txt -Raw).Replace('@VERSION@', $env:ASHLINE_VERSION) | Set-Content -Encoding utf8 build/Spielstart.txt
+
+      - name: Build portable archives
+        run: python tools/package_release.py $env:ASHLINE_VERSION
+
+      - name: Build per-user installer
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) { $compiler = Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe' }
+          if (-not (Test-Path $compiler)) { throw 'Inno Setup compiler was not found.' }
+          & $compiler "/DAppVersion=$env:ASHLINE_VERSION" installer/ASHLINE.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Create verified release manifest
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem build -Filter "ASHLINE-Setup-$env:ASHLINE_VERSION.exe" | Select-Object -First 1
+          if ($null -eq $installer) { throw 'Installer output is missing.' }
+          $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $manifest = @{ version = $env:ASHLINE_VERSION; installer = $installer.Name; sha256 = $hash }
+          $manifest | ConvertTo-Json | Set-Content -Encoding utf8 "build/ASHLINE-$env:ASHLINE_VERSION-release.json"
+          "$hash  $($installer.Name)" | Set-Content -Encoding ascii "$($installer.FullName).sha256"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create $env:GITHUB_REF_NAME `
+            "build/ASHLINE-Setup-$env:ASHLINE_VERSION.exe" `
+            "build/ASHLINE-Setup-$env:ASHLINE_VERSION.exe.sha256" `
+            "build/ASHLINE-$env:ASHLINE_VERSION-release.json" `
+            "build/ASHLINE-$env:ASHLINE_VERSION-Windows.zip" `
+            "build/ASHLINE-$env:ASHLINE_VERSION-Source.zip" `
+            --title "ASHLINE $env:ASHLINE_VERSION" --generate-notes

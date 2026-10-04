@@ -1,0 +1,249 @@
+{
+  "format_version": 1,
+  "id": "veyra_basin",
+  "name": "01 / Das Veyra-Becken",
+  "width": 64,
+  "height": 64,
+  "seed": 78124,
+  "briefing": "Auf Veyra speichert Solarit die Wärme jahrtausendealter Sternstürme. Der Wanderpakt besetzt den östlichen Kessel. Errichte eine Förderbasis, sichere die Engstelle und zerstöre seinen Baukern. Dein eigener Baukern muss überleben.",
+  "credits": [
+    4200,
+    900
+  ],
+  "rules_overrides": {
+    "easy": {
+      "attack_grace": 300,
+      "attack_size": 8,
+      "attack_commit": 4,
+      "ai_production_interval": 34
+    },
+    "normal": {
+      "attack_grace": 210,
+      "attack_size": 7,
+      "attack_commit": 4,
+      "ai_production_interval": 24
+    },
+    "hard": {
+      "attack_grace": 145,
+      "attack_size": 7,
+      "attack_commit": 5,
+      "ai_production_interval": 14
+    }
+  },
+  "player_starts": [
+    [
+      10,
+      43
+    ],
+    [
+      51,
+      17
+    ]
+  ],
+  "terrain_regions": [
+    {
+      "type": "rock",
+      "rect": [
+        4,
+        36,
+        18,
+        22
+      ]
+    },
+    {
+      "type": "rock",
+      "rect": [
+        42,
+        6,
+        18,
+        22
+      ]
+    },
+    {
+      "type": "cliff",
+      "rect": [
+        29,
+        0,
+        4,
+        23
+      ]
+    },
+    {
+      "type": "cliff",
+      "rect": [
+        29,
+        32,
+        4,
+        32
+      ]
+    },
+    {
+      "type": "dunes",
+      "rect": [
+        17,
+        7,
+        8,
+        24
+      ]
+    },
+    {
+      "type": "crater",
+      "rect": [
+        39,
+        36,
+        9,
+        8
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "cell": [
+        19,
+        44
+      ],
+      "radius": 3,
+      "amount": 2200
+    },
+    {
+      "cell": [
+        43,
+        20
+      ],
+      "radius": 3,
+      "amount": 2200
+    },
+    {
+      "cell": [
+        24,
+        27
+      ],
+      "radius": 2,
+      "amount": 3000
+    },
+    {
+      "cell": [
+        39,
+        29
+      ],
+      "radius": 2,
+      "amount": 3000
+    },
+    {
+      "cell": [
+        13,
+        17
+      ],
+      "radius": 2,
+      "amount": 2200
+    },
+    {
+      "cell": [
+        50,
+        48
+      ],
+      "radius": 2,
+      "amount": 2200
+    }
+  ],
+  "structures": [
+    {
+      "kind": "core",
+      "owner": 0,
+      "cell": [
+        9,
+        43
+      ]
+    },
+    {
+      "kind": "core",
+      "owner": 1,
+      "cell": [
+        50,
+        15
+      ]
+    },
+    {
+      "kind": "power",
+      "owner": 1,
+      "cell": [
+        55,
+        16
+      ]
+    },
+    {
+      "kind": "refinery",
+      "owner": 1,
+      "cell": [
+        46,
+        20
+      ]
+    },
+    {
+      "kind": "factory",
+      "owner": 1,
+      "cell": [
+        52,
+        21
+      ]
+    }
+  ],
+  "units": [
+    {
+      "kind": "scout",
+      "owner": 0,
+      "cell": [
+        13,
+        46
+      ]
+    },
+    {
+      "kind": "harvester",
+      "owner": 1,
+      "cell": [
+        44,
+        23
+      ]
+    },
+    {
+      "kind": "tank",
+      "owner": 1,
+      "cell": [
+        49,
+        25
+      ]
+    },
+    {
+      "kind": "scout",
+      "owner": 1,
+      "cell": [
+        48,
+        24
+      ]
+    }
+  ],
+  "objectives": [
+    {
+      "id": "enemy_core",
+      "type": "destroy_target",
+      "owner": 1,
+      "kind": "core",
+      "primary": true,
+      "text": "Zerstöre den feindlichen Baukern."
+    },
+    {
+      "id": "home_core",
+      "type": "protect",
+      "owner": 0,
+      "kind": "core",
+      "text": "Erhalte deinen Baukern."
+    }
+  ],
+  "display_name": "Das Veyra-Becken",
+  "short_name": "VEYRA-BECKEN",
+  "briefing_hint": "AUFBAUMISSION  ·  Impulswerk → Raffinerie → Werft  ·  Späher erkunden die Engstelle",
+  "hud_hint": "VEYRA / KOMMANDO\nImpulswerk → Raffinerie → Werft\nSpäher erkunden das Becken.",
+  "start_message": "Errichte zuerst ein Impulswerk. Wähle es rechts und platziere es nahe dem Baukern.",
+  "victory_title": "Becken gesichert",
+  "defeat_title": "Signal verloren"
+}

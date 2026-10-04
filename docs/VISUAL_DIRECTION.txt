@@ -1,0 +1,683 @@
+============================================================
+VISUELLE KORREKTUR – WICHTIGE NEUAUSRICHTUNG
+============================================================
+
+Der aktuelle visuelle Zustand darf NICHT minimalistisch, leer, steril oder prototypartig wirken.
+
+Das Spiel soll deutlich stärker das Gefühl eines klassischen 90er-Jahre-RTS transportieren:
+
+- dichter
+- atmosphärischer
+- detailreicher
+- industrieller
+- lebendiger
+- materialhafter
+- lesbarer
+- visuell befriedigender
+
+WICHTIG:
+
+Das Ziel ist NICHT fotorealistische Grafik.
+
+Das Ziel ist auch NICHT moderner Flat-Look.
+
+Das Ziel ist:
+
+Eine detailreiche, charakterstarke 2D-RTS-Optik, die sich spürbar an klassischen Dune-II-/Westwood-/frühen RTS-Gefühlen orientiert, ohne geschützte Grafiken direkt zu kopieren.
+
+============================================================
+1. GRUNDLEITBILD
+============================================================
+
+Die Spielwelt muss so wirken, als wäre sie:
+
+- heiß
+- trocken
+- mineralisch
+- industriell erschlossen
+- lebensfeindlich
+- strategisch wertvoll
+- von schweren Maschinen genutzt
+- von Fraktionen militärisch umkämpft
+
+Die Karte darf deshalb niemals aussehen wie:
+
+- eine leere Testfläche
+- ein generischer Platzhalterboden
+- eine sterile Kachelkarte
+- ein Mockup ohne Weltgefühl
+
+Jede Karte muss visuell Atmosphäre besitzen.
+
+============================================================
+2. TERRAIN MUSS DEUTLICH DETAILREICHER WERDEN
+============================================================
+
+Terrain benötigt mindestens mehrere sichtbare Ebenen.
+
+Nicht nur:
+
+eine Bodenfarbe + wenige Steine.
+
+Sondern:
+
+A) Grundfläche
+- Sand
+- Fels
+- verdichteter Boden
+- Asche
+- mineralische Ablagerungen
+
+B) Variation
+- Helligkeitsschwankungen
+- Farbnuancen
+- Staubschleier
+- körnige Strukturen
+- Windspuren
+
+C) Mikrodetails
+- kleine Steine
+- Geröll
+- Risse
+- Abrieb
+- Schutt
+- Spuren von Fahrzeugen
+- ausgetrocknete Linien
+- dunklere verbrannte Flecken
+
+D) Makroformen
+- Dünenkanten
+- Felsplateaus
+- Bauzonen
+- mineralische Felder
+- natürliche Engstellen
+- Becken
+- Krater
+- Erosionsränder
+
+Wichtig:
+
+Das Terrain muss sofort lesbar machen:
+
+- wo gebaut werden kann
+- wo Ressourcen liegen
+- wo Engstellen sind
+- welche Bereiche strategisch wichtig sind
+
+============================================================
+3. TERRAIN-ÜBERGÄNGE
+============================================================
+
+Übergänge zwischen Terrainarten dürfen nicht plump oder kachelartig hart wirken.
+
+Verwende:
+
+- Übergangskanten
+- Rand-Overlays
+- unregelmäßige Konturen
+- Schmutz-/Staubmasken
+- kleine Felsausläufer
+- verstreute Splitter
+
+Sand zu Fels soll natürlich wirken.
+
+Baufläche zu Wüste soll glaubwürdig wirken.
+
+Ressourcenfelder sollen organisch in die Umgebung eingebettet sein.
+
+============================================================
+4. RESSOURCENFELDER MÜSSEN VISUELL WERTVOLL AUSSEHEN
+============================================================
+
+Ressourcen dürfen nicht nur wie dekorative kleine Objekte wirken.
+
+Sie müssen sofort vermitteln:
+
+„Das ist wertvolles Material.“
+
+Ressourcenfelder sollen deshalb besitzen:
+
+- dichte Cluster
+- unterschiedliche Kristallgrößen
+- klare Gruppenbildung
+- leichte Leuchteffekte
+- schimmernde Kanten
+- Schatten
+- gute Abhebung vom Untergrund
+- klar erkennbaren Feldrand
+
+WICHTIG:
+
+Ressourcenfelder müssen auf den ersten Blick interessanter und „reicher“ wirken als normaler Boden.
+
+Sie sollen strategisch und visuell begehrlich aussehen.
+
+============================================================
+5. GEBÄUDE BRAUCHEN MEHR INDUSTRIELLE DETAILS
+============================================================
+
+Gebäude dürfen nicht wie einfache geometrische Platzhaltersprites aussehen.
+
+Jedes Gebäude soll deutlich mehr visuelle Substanz bekommen.
+
+Gebäudedetails:
+
+- große Metallplatten
+- Panellinien
+- Lüftungsschlitze
+- Kühlrippen
+- Rohre
+- Versorgungsleitungen
+- Wartungsklappen
+- Warnmarkierungen
+- Signallichter
+- kleine Antennen
+- Energiekerne
+- Auslassöffnungen
+- Fraktionsmarkierungen
+- Teamfarb-Akzente
+- Sockel / Fundament
+- kleine Schmutz- und Abnutzungsspuren
+
+Jedes Gebäude soll sich anfühlen wie:
+
+eine echte industrielle Anlage.
+
+============================================================
+6. GEBÄUDE-ANIMATION
+============================================================
+
+Gebäude dürfen nicht völlig statisch sein.
+
+Mindestens leichte Ambient-Animationen:
+
+- blinkende Lichter
+- drehende Lüfter
+- pulsierende Energieelemente
+- kleine Rauchfahnen
+- Hitzeflimmern
+- Öffnen/Schließen mechanischer Teile
+- Radar-/Signalbewegung
+- Raffinerieaktivität
+- Werk-Ausfahrten / Tore
+
+Jedes Gebäude braucht mindestens 1–3 subtile Idle-Animationen.
+
+============================================================
+7. KONSTRUKTIONS-EFFEKT
+============================================================
+
+Gebäudebau muss deutlich eindrucksvoller inszeniert werden.
+
+Nicht einfach:
+
+Gebäude erscheint.
+
+Sondern:
+
+- Baurahmen / Hologramm
+- Fundamentphase
+- Aufbaustufen
+- Funken
+- Energieprojektoren
+- Staub
+- kurze Bauanimation
+- Statuslicht bei Fertigstellung
+
+Bauabschluss:
+
+- Sound
+- kleiner Lichteffekt
+- kurze UI-Meldung
+
+============================================================
+8. EINHEITEN MÜSSEN CHARAKTERVOLLER WERDEN
+============================================================
+
+Einheiten dürfen nicht generisch und „niedlich“ wirken.
+
+Sie sollen klar militärisch, industriell und zweckmäßig aussehen.
+
+Einheiten brauchen:
+
+- deutlichere Silhouetten
+- bessere Front-/Heck-Lesbarkeit
+- mehr Materialgefühl
+- Fahrwerk-/Kettendetails
+- Turm-/Waffen-Details
+- Sensoren / Antennen
+- Fraktionsfarben
+- Statusleuchten
+- klare Waffenmündungen
+- robustere Formsprache
+
+Ein Tank muss wie ein Tank wirken.
+
+Ein Scout muss wie ein Scout wirken.
+
+Ein Harvester muss sofort als wirtschaftlich wichtiges Fahrzeug erkennbar sein.
+
+============================================================
+9. EINHEITEN-BEWEGUNG MUSS LEBENDIGER WERDEN
+============================================================
+
+Bewegung braucht visuelles Feedback.
+
+Beispiele:
+
+- Staubspur bei Fahrzeugen
+- leichte Kettenbewegung / Hoverwellen
+- Schatten
+- minimaler Body-Roll
+- Turm dreht separat
+- Fahrgeräusch
+- kurze Brems-/Anfahrreaktion
+- klar sichtbare Zielausrichtung
+
+Einheiten dürfen nicht lautlos und steril über den Boden gleiten.
+
+============================================================
+10. KAMPF-EFFEKTE
+============================================================
+
+Kampf braucht deutlich mehr visuelle Wucht.
+
+Mindestens:
+
+- Mündungsfeuer
+- Projektilspur
+- Einschlagblitz
+- Funken
+- Staubwolke
+- kleiner Rauch
+- Hit-Flash
+- Trefferpartikel
+- kleine Explosionsvarianten
+- größere Explosionen bei Fahrzeug-/Gebäudezerstörung
+
+Wichtig:
+
+Effekte müssen lesbar sein, aber dürfen die Übersicht nicht zerstören.
+
+============================================================
+11. ZERSTÖRUNG
+============================================================
+
+Gebäude und Einheiten brauchen überzeugendere Zerstörung.
+
+Einheiten:
+
+- kurzer Treffer-Flash
+- Rauchen bei kritischem Zustand
+- finale Explosion
+- Wrack optional
+
+Gebäude:
+
+- Damage States
+- Rauch
+- Feuer
+- blinkende Störung
+- größere Abschluss-Explosion
+- Ruine / Trümmer optional
+
+Ein zerstörtes Gebäude muss sich visuell lohnen.
+
+============================================================
+12. SCHATTEN UND TIEFE
+============================================================
+
+Die Welt wirkt aktuell zu flach.
+
+Benötigt werden:
+
+- weiche, stilisierte Gebäudeschatten
+- Einheiten-Schatten
+- Kristall-Schatten
+- kleine Ambient-Occlusion-artige Abdunkelung an Sockeln
+- leichte Tiefe an Terrainkanten
+- klarere Trennung zwischen Objekt und Boden
+
+Keine realistischen Echtzeitschatten nötig.
+
+Stilisierte 2D-Schatten reichen.
+
+============================================================
+13. FARBSPRACHE
+============================================================
+
+Das Spiel braucht stärkere Farbdramaturgie.
+
+Beispiel:
+
+Terrain:
+- warme Sande
+- graue Asche
+- staubiges Braun
+- blasses Gestein
+
+Ressourcen:
+- leuchtendes Türkis / Cyan / Aquamarin
+
+Gebäude:
+- Stahlblau
+- dunkles Petrol
+- graues Metall
+- Warnstreifen
+- fraktionsspezifische Akzentfarbe
+
+Effekte:
+- goldene UI-Highlights
+- energisches Cyan
+- orange Explosionen
+- warme Mündungsblitze
+
+Die Farbsprache muss das Spiel sofort erkennbar machen.
+
+============================================================
+14. DIE UI MUSS SATTES RTS-FEELING HABEN
+============================================================
+
+Die UI darf nicht zu leer und modern-neutral wirken.
+
+Sie soll sich anfühlen wie ein hochwertiges modernes Retro-RTS.
+
+Benötigt:
+
+- kräftigere Panelrahmen
+- klarere Unterteilung
+- visuelle Ebenen
+- kontrastreichere Buttonzustände
+- Fraktionsstil
+- bessere Informationshierarchie
+- stärkere Minimap-Einbettung
+- klar lesbare Bau- und Produktionsbereiche
+- Hover-/Active-/Disabled-Zustände
+
+Die UI soll sofort sagen:
+
+„Das ist ein Strategiespiel.“
+
+============================================================
+15. DIE MINIMAP MUSS WICHTIGER AUSSEHEN
+============================================================
+
+Die Minimap darf nicht wie ein kleines Nebenfenster wirken.
+
+Sie ist ein Kernwerkzeug.
+
+Deshalb:
+
+- markanter Rahmen
+- klare Kartendarstellung
+- bessere Kontraste
+- Fraktionsfarben
+- Ressourcenpunkte
+- klare Kameraanzeige
+- Radar-/Signalgefühl
+- evtl. kleiner technischer Rahmen / Overlay
+
+============================================================
+16. BAU- UND PRODUKTIONSPANELS
+============================================================
+
+Baumenü und Fahrzeugproduktion sollen kräftiger und begehrlicher aussehen.
+
+Nicht nur einfache Textlisten.
+
+Jedes Element sollte zeigen:
+
+- Icon
+- Name
+- Kosten
+- Status
+- verfügbar / gesperrt
+- Hover-Zustand
+- aktive Auswahl
+- Baufortschritt
+
+Icons müssen charaktervoll und retro-RTS-artig sein.
+
+============================================================
+17. FOG OF WAR UND SICHTBEREICHE
+============================================================
+
+Fog of War soll atmosphärischer wirken.
+
+Nicht nur hart schwarze Fläche.
+
+Verwende:
+
+- weiche Abdunkelung
+- klaren Unterschied zwischen
+  - unbekannt
+  - erkundet
+  - sichtbar
+- Nebel-/Staubgefühl
+- bessere Einbettung in die Wüstenatmosphäre
+
+============================================================
+18. KAMERA UND RAUMGEFÜHL
+============================================================
+
+Die Karte soll visuell größer und interessanter wirken.
+
+Dafür:
+
+- mehr Landschaftsdetails
+- markantere Geländeformen
+- glaubwürdigere Ressourcenzonen
+- baulich interessante Basisbereiche
+- räumliche Staffelung
+- Sichtbarkeit von Engstellen und Frontlinien
+
+Der Spieler soll Lust bekommen, die Karte zu erkunden.
+
+============================================================
+19. MODERN RETRO MODE
+============================================================
+
+Der Standardmodus soll deutlich detailreicher sein als der aktuelle Stand.
+
+Hier gilt:
+
+- mehr Details
+- mehr Effekte
+- mehr Material
+- mehr Animation
+- mehr Atmosphäre
+- feinere Terrainstruktur
+- detailreichere Gebäude
+- detailreichere Einheiten
+- reichere UI
+
+Aber weiterhin:
+
+- klar lesbar
+- 2D
+- retrofuturistisch
+- nicht fotorealistisch
+
+============================================================
+20. CLASSIC RETRO MODE
+============================================================
+
+Der Classic-Retro-Modus darf NICHT weniger inhaltlich reich wirken.
+
+Er soll NICHT:
+
+- Details entfernen
+- Gebäude vereinfachen
+- Atmosphäre verlieren
+- Effekte streichen
+- die Welt leer machen
+
+Stattdessen:
+
+Die gleiche visuelle Logik und die gleiche Informationsdichte bleiben erhalten.
+
+Es ändern sich nur:
+
+- interne Renderauflösung
+- Pixelgröße
+- Detailauflösung
+- Farbvereinfachung
+- feinere Effekte werden gröber dargestellt
+- Kanten werden pixeliger
+- Schattierungen werden reduzierter
+
+Wichtig:
+
+Retro-Modus bedeutet:
+
+„dieselbe Welt in echter Pixelästhetik“
+
+NICHT:
+
+„grafisch abgespeckte Welt“
+
+============================================================
+21. RETRO-MODUS-KONKRET
+============================================================
+
+Im Retro-Modus sollen dieselben Dinge weiterhin sichtbar sein:
+
+- Kristallcluster
+- Gebäudedetails
+- Warnmarkierungen
+- Teamfarben
+- Schatten
+- Mündungsfeuer
+- Rauch
+- Bauanimation
+- Explosionen
+- UI-Struktur
+- Minimap-Rahmen
+- Produktionszustände
+
+Nur eben:
+
+- mit größeren Pixeln
+- gröberen Farbflächen
+- reduzierter Schattierung
+- vereinfachter Linienführung
+
+============================================================
+22. „NAHE AN DUNE 2“ RICHTIG INTERPRETIEREN
+============================================================
+
+„Nahe an Dune 2“ bedeutet NICHT, Originalgrafiken zu kopieren.
+
+Es bedeutet:
+
+- dichtere Bodenoptik
+- wichtigere Ressourcenfelder
+- kräftigere Gebäudesprites
+- markantere Silhouetten
+- industrielles Basisgefühl
+- stärkere Farbkontraste
+- klare Einheitenrollen
+- wertigere Kartenoptik
+- stärkere RTS-Atmosphäre
+
+============================================================
+23. VISUELLE PRIORITÄTEN
+============================================================
+
+Ab sofort haben folgende visuellen Aspekte höchste Priorität:
+
+1. Terrain-Qualität
+2. Ressourcenfeld-Qualität
+3. Gebäude-Detailgrad
+4. Einheiten-Silhouetten und Materialität
+5. Kampf- und Bauseffekte
+6. UI-Gewichtung und Minimap
+7. Fog-of-War-Atmosphäre
+8. Retro-Modus als echter Pixelstil, nicht als abgespeckte Darstellung
+
+============================================================
+24. WAS VERMIEDEN WERDEN SOLL
+============================================================
+
+Nicht:
+
+- große leere Bodenflächen
+- generische Platzhaltergebäude
+- glatte, sterile UI
+- kaum animierte Welt
+- zu wenig Kampf-Feedback
+- zu wenig Schatten
+- zu wenig Detailtiefe
+- zu einfache Ressourcenfelder
+- Retro-Modus als „weniger Inhalt“
+
+============================================================
+25. ZIELBILD
+============================================================
+
+Wenn der Spieler das Spiel sieht, soll er denken:
+
+„Das wirkt wie ein richtiges klassisches Wüsten-RTS.“
+
+Im modernen Modus:
+
+„Schön detailreich, atmosphärisch und wertig.“
+
+Im Retro-Modus:
+
+„Das sieht aus wie die Pixelversion derselben detailreichen Welt.“
+
+Das Spiel muss sich visuell deutlich mehr nach:
+
+- Strategiespiel
+- Wüstenkrieg
+- Ressourcenjagd
+- Basisbau
+- Industrie
+- Frontlinie
+- Retro-Sci-Fi
+
+anfühlen.
+
+============================================================
+26. DIREKTE UMSETZUNGSREGEL
+============================================================
+
+Bei allen künftigen visuellen Entscheidungen gilt:
+
+Lieber mehr glaubwürdige kleine Terrain-, Gebäude- und Effekt-Details einbauen,
+als große sterile Flächen zu lassen.
+
+Wenn zwischen „einfach, leer und sauber“ und „detailreich, atmosphärisch und leicht unruhig“ gewählt werden muss,
+dann ist für dieses Spiel klar die zweite Variante zu bevorzugen.
+
+============================================================
+27. DEFINITION OF VISUAL DONE
+============================================================
+
+Ein Bildschirm gilt erst dann als visuell überzeugend, wenn:
+
+- die Karte atmosphärisch wirkt
+- der Boden nicht leer aussieht
+- Ressourcen wertvoll aussehen
+- Gebäude industriell wirken
+- Einheiten Persönlichkeit besitzen
+- Kämpfe sichtbares Feedback haben
+- die UI satt und strukturiert wirkt
+- die Minimap nach RTS aussieht
+- der Retro-Modus dieselbe Welt glaubwürdig pixelig wiedergibt
+- das Gesamtbild Lust aufs Spielen macht
+
+UMSETZUNGSSTAND 0.10 / STYLE CONSOLIDATION
+Die bestehende Richtung wird durch docs/STYLE_CONSOLIDATION.txt und den dokumentierten Stand in README.md, ROADMAP.md und QA.md konsistent ergänzt. Warme Welt, dynamische Teamfarben, gemeinsame Modern-/Classic-Art, typeigene Ruinen und kosmetische Ereignis-VFX bleiben verbindlich. Lokale Command-Grenze und Entity-Identitätsfelder jetzt umgesetzt; fertiger Netzwerk-Mehrspielermodus wird nicht behauptet.
+
+
+UMSETZUNGSSTAND 0.11 / READABILITY & PERSISTENT DESTRUCTION
+Die zeitliche Ablaufgrenze der Ruinen/Krater aus früheren Versionen wird durch missionslange, budgetierte und separat gespeicherte lokale Spuren ersetzt. Maßgeblich: docs/PERSISTENT_DESTRUCTION_IMPLEMENTATION.md (128 Reste, 80 Krater, 220 Transients, 8/16/24 Rauchquellen). Rein kosmetisch, ohne Collision/Pathfinding/Authority-Einfluss. Gemeinsamer Modern-/Classic-Datenbestand.
+
+
+UMSETZUNGSSTAND 0.12 / MODELLE UND UPDATEINFO
+Bestehende Art durch Oberflächenbevels, Zylinderschattierung und zusätzliche Höhenebenen ergänzt. Dünne Ecken-/Bogenmarkierungen ersetzen große Auswahlkreise. Energie-Impacts kompakt statt langer radialer Linien. Kristallformen lokal variiert. Historie im Haupt-/Pausenmenü, versioniert über data/update_history.json. Kein Einfluss auf die Simulation.
+
+0.13: Feinere mechanische Panzerplatten, Luken, Verschlüsse, Kabel und Auspuffteile. Layer aus geschwungenen Flammenloben statt starrer Dreiecke. Kleine Trümmer und offenliegende Räder/Motorrippen; Brandspuren schwächer, Fundamente gebrochen. Kurze Auswahlwinkel entlang des Fahrzeugs; Lebensbalken bei Überlagerung leicht versetzt und durch dünne Zuordnungslinien verbunden.
+

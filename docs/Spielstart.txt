@@ -1,0 +1,23 @@
+ASHLINE — Das Veyra-Becken | Version @VERSION@
+
+Installation
+Starte ASHLINE-Setup-@VERSION@.exe und folge den Schritten. Der Installer
+installiert das Spiel nur für dein Windows-Benutzerkonto; Administratorrechte
+sind nicht erforderlich. Spielstände und Einstellungen bleiben in deinem
+persönlichen Godot-Appdatenordner gespeichert.
+
+Erste Partie
+1. „Einsatz wählen“ öffnen und Einsatz 01 auf „Ruhig“ starten.
+2. Ein Impulswerk neben dem Baukern errichten.
+3. Eine Solarit-Raffinerie bauen; ein Sammler ist enthalten.
+4. Fahrzeugwerft bauen, Fahrzeuge produzieren und das Becken erkunden.
+5. Verteidige deinen Baukern und zerstöre den gegnerischen Baukern.
+
+Steuerung
+Linksklick oder Ziehen: auswählen. Rechtsklick: Befehl oder Karte verschieben.
+A und Linksklick: Angriffsmarsch. R: Reparatur umschalten.
+Pfeiltasten oder Bildschirmrand: Kamera bewegen. Mausrad: Zoom.
+F5/F9: Schnell speichern/laden. Escape: Pause.
+
+Spielstände liegen in %APPDATA%\Godot\app_userdata\ASHLINE — Das Veyra-Becken\.
+Lizenzhinweise: LICENSE, THIRD_PARTY_NOTICES.md und GODOT-LICENSES.txt.

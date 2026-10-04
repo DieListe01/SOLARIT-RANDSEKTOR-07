@@ -1,0 +1,1985 @@
+extends Control
+
+const WORLD_RECT = Rect2(20,86,1560,944)
+const SAVE_PATH = "user://quick_save.json"
+const HIGHSCORE_PATH = "user://highscores.json"
+const CAMPAIGN_PATH = "user://campaign_progress.json"
+const MISSION_PATHS := ["res://data/veyra.json","res://data/dry_vein.json","res://data/khepri_pass.json"]
+var update_history := Catalog.read_json("res://data/update_history.json")
+var update_manager: Node
+var update_check_manual := false
+var update_button: Button
+var update_checked_this_session := false
+var db: Catalog
+var mission_index := 0
+var sim: Simulation
+var renderer: WorldRenderer
+var music: MusicDirector
+var viewport: SubViewport
+var view_container: SubViewportContainer
+var ui := Control.new()
+var overlay := Control.new()
+var selected: Array = []
+var inspected := 0
+var groups: Dictionary = {}
+var bookmarks: Dictionary = {}
+var faction := "forge"
+var difficulty := "normal"
+var paused := true
+var playing := false
+var ended := false
+var classic := false
+var crt := 0
+var placement := ""
+var placement_rotation := 0
+var attack_mode := false
+var drag_start := Vector2.ZERO
+var dragging := false
+var middle_drag := false
+var right_held := false
+var right_panning := false
+var right_start := Vector2.ZERO
+var right_point := Vector2.ZERO
+var harvest_mode := false
+var harvest_button: Button
+var unload_button: Button
+var select_same := false
+var group_last := 0
+var group_time := 0.0
+var status: Label
+var information: Label
+var details_button: Button
+var repair_button: Button
+var selection_icons: Control
+var selection_signature := ""
+var alert_panel: Panel
+var queue_label: Label
+var production_bar: ProgressBar
+var notification: Label
+var objective: Label
+var minimap: TacticalMap
+var radar_caption: Label
+var low_power_alerted := false
+var buttons: Dictionary = {}
+var requirement_marks: Dictionary = {}
+var production_rows: Dictionary = {}
+var production_empty_label: Label
+var production_content: Control
+var production_signature := ""
+var production_target_factory_id := 0
+var hover_panel: Panel
+var hover_label: Label
+var hovered_entity_id := 0
+var pointer_local := Vector2(-10000,-10000)
+const EDGE_SCROLL_BAND := 46.0
+var category := "buildings"
+var notice_timer := 0.0
+var last_event := Vector2(400,1450)
+var update_timer := 0.0
+var autosave_timer := 120.0
+var debug_label: Label
+var accumulator := 0.0
+var render_previous: Dictionary = {}
+var render_current: Dictionary = {}
+var edge_scroll := true
+var health_mode := "damaged"
+var save_config := ConfigFile.new()
+var remap_action := ""
+var intro_active := false
+var intro_art: FrontendBackdrop
+var menu_buttons: Dictionary = {}
+var hotkeys := {"attack":KEY_A,"stop":KEY_S,"hold":KEY_H,"guard":KEY_G,"repair":KEY_R,"home":KEY_HOME,"event":KEY_SPACE,"save":KEY_F5,"load":KEY_F9}
+var options_tab := "BILD"
+const GOLD = Color("e7bd78")
+const MINT = Color("79d9bd")
+const MUTED = Color("b4a58d")
+const PERFORMANCE_LOG_PATH := "user://performance_events.csv"
+const LOW_FPS_THRESHOLD := 45.0
+const RECOVERY_FPS_THRESHOLD := 50.0
+const LOW_FPS_TRIGGER_SECONDS := 1.0
+var fps_label: Label
+var performance_log_path := PERFORMANCE_LOG_PATH
+var fps_sample_elapsed := 0.0
+var fps_sample_frames := 0
+var low_fps_seconds := 0.0
+var low_fps_minimum := INF
+var low_fps_weighted_sum := 0.0
+var low_fps_recorded_seconds := 0.0
+var low_fps_active := false
+var performance_log_error_reported := false
+var highscore_path := HIGHSCORE_PATH
+var campaign_progress: Dictionary = {"format_version":1,"unlocked_mission":0,"tech_level":0,"completed":[]}
+var campaign_progress_path := CAMPAIGN_PATH
+var run_id := ""
+
+func _ready() -> void:
+	mouse_filter=Control.MOUSE_FILTER_IGNORE
+	db=Catalog.new(MISSION_PATHS[mission_index])
+	music=MusicDirector.new()
+	add_child(music)
+	setup_theme()
+	setup_world()
+	add_child(ui)
+	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ui.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	add_child(overlay)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	load_settings()
+	load_campaign_progress()
+	setup_update_manager()
+	if not db.errors.is_empty():
+		show_error("Spieldaten ungültig:\n"+"\n".join(db.errors))
+		return
+	if "--skip-intro" in OS.get_cmdline_user_args() or "--smoke" in OS.get_cmdline_user_args(): show_main_menu()
+	else: show_intro()
+	if "--smoke" in OS.get_cmdline_user_args():
+		start_game()
+		get_tree().create_timer(3.0).timeout.connect(capture_smoke)
+	elif "--frontend-smoke" in OS.get_cmdline_user_args():
+		get_tree().create_timer(1.0).timeout.connect(capture_frontend_smoke)
+
+func setup_theme() -> void:
+	var t := Theme.new()
+	t.default_font_size=19
+	var normal := StyleBoxFlat.new()
+	normal.bg_color=Color("342920")
+	normal.border_color=Color("79604a")
+	normal.set_border_width_all(1)
+	normal.content_margin_left=15; normal.content_margin_right=15
+	normal.content_margin_top=9; normal.content_margin_bottom=9
+	var hover: StyleBoxFlat = normal.duplicate()
+	hover.bg_color=Color("4b3827"); hover.border_color=MINT
+	var pressed: StyleBoxFlat = normal.duplicate()
+	pressed.bg_color=Color("5d472d"); pressed.border_color=GOLD; pressed.border_width_left=3
+	var disabled: StyleBoxFlat = normal.duplicate()
+	disabled.bg_color=Color("251e18"); disabled.border_color=Color("48392d")
+	t.set_stylebox("normal","Button",normal)
+	t.set_stylebox("hover","Button",hover)
+	t.set_stylebox("pressed","Button",pressed)
+	t.set_stylebox("focus","Button",hover)
+	t.set_stylebox("disabled","Button",disabled)
+	t.set_color("font_color","Button",Color("d5e3db"))
+	t.set_color("font_disabled_color","Button",Color("8c7964"))
+	t.set_color("font_color","Label",Color("d6e1d9"))
+	t.set_color("font_color","CheckButton",Color("d6e1d9"))
+	var tooltip := StyleBoxFlat.new()
+	tooltip.bg_color=Color("302317"); tooltip.border_color=GOLD
+	tooltip.set_border_width_all(1)
+	tooltip.content_margin_left=12; tooltip.content_margin_right=12
+	tooltip.content_margin_top=10; tooltip.content_margin_bottom=10
+	t.set_stylebox("panel","TooltipPanel",tooltip)
+	t.set_font_size("font_size","TooltipLabel",17)
+	theme=t
+
+func setup_world() -> void:
+	view_container=SubViewportContainer.new()
+	view_container.position=WORLD_RECT.position
+	view_container.size=WORLD_RECT.size
+	view_container.stretch=true
+	view_container.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	view_container.texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR
+	add_child(view_container)
+	viewport=SubViewport.new()
+	viewport.size=Vector2i(WORLD_RECT.size)
+	viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS
+	viewport.gui_disable_input=true
+	view_container.add_child(viewport)
+	renderer=WorldRenderer.new()
+	renderer.logical_size=WORLD_RECT.size
+	viewport.add_child(renderer)
+
+func clear(node: Node) -> void:
+	for child in node.get_children(): node.remove_child(child); child.queue_free()
+
+func panel(parent: Node, rect: Rect2, color: Color = Color("241d18")) -> Panel:
+	var p := Panel.new()
+	p.position=rect.position; p.size=rect.size
+	var style := StyleBoxFlat.new()
+	style.bg_color=color; style.border_color=Color("65513e")
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(5)
+	style.shadow_color=Color(0,0,0,0.28); style.shadow_size=10; style.shadow_offset=Vector2(0,4)
+	p.add_theme_stylebox_override("panel",style)
+	parent.add_child(p)
+	return p
+
+func label(parent: Node, text_value: String, pos: Vector2, font_size: int = 20, color: Color = Color("d6e1d9"), width: float = 0) -> Label:
+	var l := Label.new()
+	l.text=text_value; l.position=pos
+	l.add_theme_font_size_override("font_size",font_size)
+	l.add_theme_color_override("font_color",color)
+	l.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	if width>0:
+		l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x=width
+		l.size.x=width
+		l.clip_text=true
+	parent.add_child(l)
+	if width>0:
+		var extent := l.get_theme_font("font").get_multiline_string_size(text_value,HORIZONTAL_ALIGNMENT_LEFT,width,font_size)
+		l.size=Vector2(width,extent.y+font_size)
+	return l
+
+func button(parent: Node, text_value: String, rect: Rect2, callback: Callable) -> Button:
+	var b := Button.new()
+	b.text=text_value; b.position=rect.position; b.size=rect.size
+	b.pressed.connect(callback)
+	parent.add_child(b)
+	return b
+
+func show_main_menu() -> void:
+	var scene_time := intro_art.elapsed if is_instance_valid(intro_art) else 0.0
+	intro_active=false
+	playing=false; paused=true; placement=""; renderer.placement=""
+	clear(ui); clear(overlay)
+	view_container.visible=false
+	var art := FrontendBackdrop.new()
+	art.size=Vector2(1920,1080); art.elapsed=scene_time
+	ui.add_child(art)
+	label(ui,"VEYRA  /  RANDSEKTOR 07  /  2186",Vector2(96,65),17,MUTED)
+	label(ui,"ASHLINE",Vector2(85,158),115,GOLD)
+	label(ui,"DIE VEYRA-FRONT",Vector2(96,301),25,MINT)
+	label(ui,"Unter der Asche einer fremden Welt\nbeginnt deine erste Kolonie.",Vector2(98,373),24,Color("cbd5c8"))
+	label(ui,"KOMMANDO / BEREIT",Vector2(98,482),16,MUTED)
+	menu_buttons.clear()
+	menu_buttons.start=menu_button("01","EINSATZ WÄHLEN",526,show_briefing,true)
+	menu_buttons.load=menu_button("02","SPIELSTAND LADEN",600,load_game)
+	menu_buttons.load.disabled=not FileAccess.file_exists(SAVE_PATH) and not FileAccess.file_exists("user://autosave.json")
+	menu_buttons.options=menu_button("03","OPTIONEN",662,func():show_options(show_main_menu))
+	menu_buttons.credits=menu_button("04","MUSIK & CREDITS",724,show_credits)
+	menu_buttons.quit=menu_button("05","BEENDEN",786,func():music.shutdown(); get_tree().quit())
+	menu_buttons.start.grab_focus()
+	var replay := button(ui,"↺  INTRO ANSEHEN",Rect2(98,900,245,38),show_intro)
+	replay.add_theme_font_size_override("font_size",16)
+	menu_buttons.updates=button(ui,"UPDATEINFO",Rect2(360,900,190,38),func():show_updates(show_main_menu))
+	menu_buttons.updates.add_theme_font_size_override("font_size",16)
+	menu_buttons.highscores=button(ui,"BESTENLISTE",Rect2(567,900,200,38),func():show_highscores(show_main_menu))
+	menu_buttons.highscores.add_theme_font_size_override("font_size",16)
+	update_button=button(ui,"UPDATES PRÜFEN",Rect2(784,900,220,38),check_for_game_update)
+	update_button.add_theme_font_size_override("font_size",16)
+	ghost_button_style(replay); ghost_button_style(menu_buttons.updates); ghost_button_style(menu_buttons.highscores); ghost_button_style(update_button)
+	update_button.disabled=not update_manager.can_check()
+	if update_button.disabled:
+		update_button.text="UPDATES AB RELEASE"
+		update_button.tooltip_text="Dieser Build enthält noch keinen Veröffentlichungsfeed. GitHub-Releases werden automatisch eingebunden."
+	label(ui,"SOLARIT-SIGNAL\nVEYRA-FRONT / 3 EINSÄTZE",Vector2(1320,96),16,Color("a7baad"))
+	label(ui,"BASIS ERRICHTEN  /  RESSOURCEN SICHERN  /  GRENZE HALTEN",Vector2(96,1025),15,MUTED)
+	label(ui,"ASHLINE  /  "+str(update_history.current_version),Vector2(1710,1025),15,MUTED)
+	music.start_frontend()
+	if update_manager.can_check() and not update_checked_this_session:
+		update_checked_this_session=true
+		update_check_manual=false
+		update_manager.check_for_update()
+	# Staggered, short fades preserve immediate button response.
+	var index := 0
+	for child in ui.get_children():
+		if child==art: continue
+		child.modulate.a=0
+		var tween := child.create_tween()
+		tween.tween_property(child,"modulate:a",1.0,0.4).set_delay(minf(index*0.035,0.25))
+		index+=1
+
+func setup_update_manager() -> void:
+	update_manager=load("res://scripts/update_manager.gd").new()
+	var channel: Dictionary={}
+	if FileAccess.file_exists("res://data/update_channel.json"):
+		var parsed: Variant=JSON.parse_string(FileAccess.get_file_as_string("res://data/update_channel.json"))
+		if parsed is Dictionary: channel=parsed
+	update_manager.configure(str(update_history.get("current_version","0.0")),channel)
+	add_child(update_manager)
+	update_manager.update_check_finished.connect(_on_update_check_finished)
+	update_manager.installer_download_finished.connect(_on_installer_download_finished)
+
+func check_for_game_update() -> void:
+	if update_manager==null or not update_manager.can_check():
+		if is_instance_valid(update_button): notify("Der Updatefeed wird mit dem offiziellen GitHub-Release aktiviert.")
+		return
+	if not str(update_manager.latest_version).is_empty() and update_manager.is_newer_version(str(update_manager.latest_version),str(update_history.get("current_version","0.0"))):
+		show_available_update({"version":update_manager.latest_version,"notes":update_manager.latest_notes})
+		return
+	update_check_manual=true
+	if is_instance_valid(update_button): update_button.disabled=true; update_button.text="PRÜFE…"
+	if not update_manager.check_for_update():
+		if is_instance_valid(update_button): update_button.disabled=false; update_button.text="UPDATES PRÜFEN"
+
+func _on_update_check_finished(result: Dictionary) -> void:
+	if is_instance_valid(update_button):
+		update_button.disabled=not update_manager.can_check()
+		update_button.text="UPDATE VERFÜGBAR · "+str(result.get("version","")) if bool(result.get("available",false)) else "UPDATES PRÜFEN"
+	if bool(result.get("available",false)):
+		show_available_update(result)
+	elif update_check_manual:
+		notify(str(result.get("message","ASHLINE ist auf dem neuesten Stand.")) if not bool(result.get("ok",false)) else "ASHLINE ist auf dem neuesten Stand.")
+	update_check_manual=false
+
+func show_available_update(result: Dictionary) -> void:
+	clear(overlay)
+	var p:=panel(overlay,Rect2(520,255,880,570),Color("211b17"))
+	label(p,"ASHLINE / UPDATE",Vector2(38,30),18,MINT)
+	label(p,"Version "+str(result.get("version","")),Vector2(38,70),42,GOLD)
+	var notes:=RichTextLabel.new()
+	notes.position=Vector2(40,135); notes.size=Vector2(800,300); notes.bbcode_enabled=false; notes.scroll_active=true
+	notes.add_theme_font_size_override("normal_font_size",19)
+	notes.text=str(result.get("notes","" )).strip_edges()
+	if notes.text.is_empty(): notes.text="Verbesserungen und Fehlerbehebungen für ASHLINE."
+	p.add_child(notes)
+	button(p,"HERUNTERLADEN & INSTALLIEREN",Rect2(40,470,500,54),func():begin_game_update())
+	button(p,"SPÄTER",Rect2(562,470,278,54),func():clear(overlay))
+
+func begin_game_update() -> void:
+	clear(overlay)
+	var p:=panel(overlay,Rect2(560,400,800,260),Color("211b17"))
+	label(p,"UPDATE WIRD GELADEN",Vector2(34,28),28,GOLD)
+	label(p,"Prüfsumme und Herausgeber werden kontrolliert.",Vector2(34,86),19,MUTED,730)
+	button(p,"ABBRECHEN",Rect2(34,165,730,48),func():clear(overlay))
+	if not update_manager.begin_installer_download():
+		clear(overlay)
+		show_error("Das Update konnte nicht gestartet werden. Bitte prüfe deine Internetverbindung und versuche es erneut.")
+
+func _on_installer_download_finished(success: bool, message: String) -> void:
+	if not success:
+		clear(overlay)
+		show_error(message)
+		return
+	if update_manager.launch_installer():
+		music.shutdown()
+		get_tree().quit()
+	else:
+		clear(overlay)
+		show_error("Der Installer wurde geprüft, konnte aber nicht gestartet werden. Du findest ihn unter user://updates.")
+
+func menu_button(number: String, text_value: String, y: float, callback: Callable, primary: bool = false) -> Button:
+	var b := button(ui,number+"     /     "+text_value,Rect2(96,y,510,64 if primary else 48),callback)
+	b.alignment=HORIZONTAL_ALIGNMENT_LEFT
+	b.add_theme_font_size_override("font_size",21 if primary else 18)
+	var style := StyleBoxFlat.new()
+	style.set_border_width_all(0)
+	style.bg_color=Color(0.20,0.15,0.10,0.72) if primary else Color(0.045,0.055,0.055,0.36)
+	style.border_color=Color("7e694f") if primary else Color(0.25,0.39,0.37,0.38)
+	style.border_width_left=3 if primary else 0
+	style.border_width_bottom=1
+	style.content_margin_left=18
+	style.shadow_color=Color(0,0,0,0.16); style.shadow_size=4; style.shadow_offset=Vector2(0,2)
+	var hover: StyleBoxFlat = style.duplicate()
+	hover.set_border_width_all(0)
+	hover.bg_color=Color(0.08,0.12,0.115,0.82); hover.border_color=MINT
+	hover.border_width_left=3; hover.shadow_color=Color(MINT.r,MINT.g,MINT.b,0.12); hover.shadow_size=7
+	var pressed: StyleBoxFlat = hover.duplicate()
+	pressed.bg_color=Color("59452d")
+	var focus_style: StyleBoxFlat=style.duplicate()
+	focus_style.set_border_width_all(0)
+	focus_style.bg_color=Color(0.20,0.15,0.10,0.90) if primary else Color(0.08,0.12,0.115,0.82)
+	focus_style.border_color=GOLD if primary else MINT
+	focus_style.border_width_left=3 if primary else 3
+	focus_style.border_width_bottom=1
+	focus_style.shadow_color=Color(GOLD.r,GOLD.g,GOLD.b,0.10); focus_style.shadow_size=7; focus_style.shadow_offset=Vector2(0,2)
+	b.add_theme_stylebox_override("normal",style)
+	b.add_theme_stylebox_override("hover",hover)
+	b.add_theme_stylebox_override("pressed",pressed)
+	b.add_theme_stylebox_override("focus",focus_style)
+	b.add_theme_color_override("font_color",GOLD if primary else Color("c8d3cc"))
+	b.add_theme_color_override("font_hover_color",Color("f0e2c6"))
+	if primary:
+		var arrow := Label.new()
+		arrow.text="→"; arrow.position=Vector2(462,17); arrow.size=Vector2(28,30)
+		arrow.add_theme_font_size_override("font_size",22)
+		arrow.add_theme_color_override("font_color",GOLD)
+		arrow.mouse_filter=Control.MOUSE_FILTER_IGNORE
+		b.add_child(arrow)
+	b.mouse_entered.connect(func():music.cue("select",0.3))
+	return b
+
+func ghost_button_style(target: Button) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color=Color(0.04,0.055,0.052,0.20)
+	normal.set_border_width_all(0)
+	normal.border_width_bottom=1
+	normal.border_color=Color(0.45,0.40,0.32,0.38)
+	normal.content_margin_left=8; normal.content_margin_right=8
+	var hover: StyleBoxFlat=normal.duplicate()
+	hover.bg_color=Color(0.08,0.13,0.12,0.58); hover.border_color=MINT
+	hover.border_width_bottom=2
+	target.add_theme_stylebox_override("normal",normal)
+	target.add_theme_stylebox_override("hover",hover)
+	target.add_theme_stylebox_override("focus",hover)
+	target.add_theme_stylebox_override("pressed",hover)
+	target.add_theme_color_override("font_color",Color("b5b2a3"))
+	target.add_theme_color_override("font_hover_color",Color("e7d7b8"))
+
+func show_intro() -> void:
+	intro_active=true; playing=false; paused=true
+	view_container.visible=false
+	clear(ui); clear(overlay)
+	intro_art=FrontendBackdrop.new()
+	intro_art.intro=true; intro_art.size=Vector2(1920,1080)
+	intro_art.completed.connect(skip_intro)
+	ui.add_child(intro_art)
+	var skip := button(ui,"ÜBERSPRINGEN  /  ESC",Rect2(1580,26,292,43),skip_intro)
+	skip.add_theme_font_size_override("font_size",16)
+	skip.mouse_filter=Control.MOUSE_FILTER_STOP
+	skip.focus_mode=Control.FOCUS_ALL
+	skip.z_index=100
+	music.start_frontend(true)
+
+func skip_intro() -> void:
+	if intro_active:
+		show_main_menu()
+
+# Intro input must be handled before GUI controls can consume it.
+# _unhandled_input() is too late for Escape/Enter/Space and mouse clicks
+# whenever a Control handles the event first.
+func _input(event: InputEvent) -> void:
+	if intro_active:
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ESCAPE, KEY_ENTER, KEY_SPACE]:
+			skip_intro()
+			get_viewport().set_input_as_handled()
+		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			skip_intro()
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouse:
+		pointer_local=get_global_transform_with_canvas().affine_inverse()*event.position
+	# Once started in the world, finish the gesture even when the pointer crosses the HUD.
+	if not right_held or not playing or paused or not event is InputEventMouse: return
+	var inverse := get_global_transform_with_canvas().affine_inverse()
+	var local: Vector2 = inverse*event.position
+	if event is InputEventMouseMotion:
+		if not right_panning and local.distance_to(right_start)>6:
+			right_panning=true; renderer.camera-=(local-right_start)/renderer.zoom
+		elif right_panning: renderer.camera-=inverse.basis_xform(event.relative)/renderer.zoom
+		clamp_camera()
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_RIGHT and not event.pressed:
+		if not right_panning and WORLD_RECT.has_point(local): issue_context_order(right_point)
+		right_held=false; right_panning=false
+		get_viewport().set_input_as_handled()
+
+func mission_index_for_id(id: String) -> int:
+	for index in range(MISSION_PATHS.size()):
+		var probe:=Catalog.new(MISSION_PATHS[index])
+		if str(probe.mission.get("id",""))==id: return index
+	return -1
+
+func select_mission(index: int) -> void:
+	if index<0 or index>int(campaign_progress.unlocked_mission): notify("Dieser Einsatz wird erst nach dem vorherigen Missionssieg freigegeben."); return
+	mission_index=clampi(index,0,MISSION_PATHS.size()-1)
+	db=Catalog.new(MISSION_PATHS[mission_index])
+	playing=false; paused=true
+	show_briefing()
+
+func mission_objective_brief() -> String:
+	var lines: Array[String]=[]
+	for item in db.mission.get("objectives",[]):
+		var objective: Dictionary=item
+		var prefix: String="HAUPT" if bool(objective.get("primary",false)) else ("SICHERN" if str(objective.get("type",""))=="protect" else "OPTIONAL")
+		lines.append(prefix+"  ·  "+str(objective.get("text","")))
+	return "\n".join(lines)
+
+func show_briefing() -> void:
+	clear(ui); clear(overlay)
+	view_container.visible=false
+	var art := FrontendBackdrop.new()
+	art.size=Vector2(1920,1080)
+	ui.add_child(art)
+	var veil := ColorRect.new()
+	veil.color=Color(0.025,0.035,0.038,0.50); veil.size=Vector2(1920,1080); veil.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	ui.add_child(veil)
+	label(ui,"ASHLINE   /   EINSATZVORBEREITUNG",Vector2(72,34),17,MINT)
+	var p := panel(ui,Rect2(300,64,1320,950),Color("202a29"))
+	var rail := ColorRect.new(); rail.color=MINT; rail.position=Vector2.ZERO; rail.size=Vector2(5,950); rail.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(rail)
+	label(p,"EINSATZ / %02d     ·     VEYRA-FRONT" % (mission_index+1),Vector2(48,27),17,MINT)
+	label(p,str(db.mission.get("display_name",db.mission.get("name","Einsatz"))),Vector2(48,62),42,GOLD)
+	label(p,db.mission.briefing,Vector2(48,116),19,Color("d5ded5"),1215)
+	label(p,"KAMPAGNENFOLGE  ·  EINSATZ %02d / %02d" % [mission_index+1,MISSION_PATHS.size()],Vector2(48,234),14,MUTED)
+	for i in range(MISSION_PATHS.size()):
+		var preview:=Catalog.new(MISSION_PATHS[i])
+		var unlocked:=i<=int(campaign_progress.unlocked_mission)
+		var mission_button:=button(p,("%02d  %s" % [i+1,str(preview.mission.get("short_name",preview.mission.get("display_name","Einsatz")))]) if unlocked else ("%02d  SIGNAL GESPERRT"%[i+1]),Rect2(48+i*406,260,386,55),func():select_mission(i))
+		mission_button.disabled=not unlocked
+		mission_button.tooltip_text=(str(preview.mission.get("briefing","")) if unlocked else "Wird nach dem Sieg im vorherigen Einsatz freigeschaltet.")
+		var mission_style:=StyleBoxFlat.new(); mission_style.bg_color=Color("173732") if i==mission_index else Color("263331"); mission_style.border_color=MINT if i==mission_index else Color("485b55"); mission_style.set_border_width_all(1); mission_style.set_corner_radius_all(4)
+		mission_button.add_theme_stylebox_override("normal",mission_style); mission_button.add_theme_color_override("font_color",Color("82e3c0") if unlocked and i==mission_index else (Color("d5ded5") if unlocked else MUTED))
+		var completed_missions: Array=campaign_progress.get("completed",[])
+		var mission_id:=str(preview.mission.get("id",""))
+		var progress_segment:=ColorRect.new()
+		progress_segment.position=Vector2(48+i*406,321); progress_segment.size=Vector2(386,3)
+		progress_segment.color=GOLD if completed_missions.has(mission_id) else (MINT if i==mission_index else (Color("52746b") if unlocked else Color("3b3027")))
+		progress_segment.mouse_filter=Control.MOUSE_FILTER_IGNORE
+		p.add_child(progress_segment)
+	label(p,"KOMMANDO WÄHLEN",Vector2(48,337),14,MUTED)
+	var index := 0
+	for id in db.factions:
+		var f: Dictionary = db.factions[id]
+		var b := button(p,f.name+"\n"+f.tag,Rect2(48+index*406,363,386,76),func():faction=id; show_briefing())
+		var accent:=Color(str(f.get("color","69d6c0")))
+		var card := StyleBoxFlat.new(); card.bg_color=Color("173732") if faction==id else Color("263331"); card.border_color=accent if faction==id else accent.darkened(0.45); card.set_border_width_all(1); card.set_corner_radius_all(4)
+		b.add_theme_stylebox_override("normal",card); b.add_theme_color_override("font_color",accent if faction==id else Color("d5ded5"))
+		var faction_rail:=ColorRect.new(); faction_rail.color=accent; faction_rail.position=Vector2(0,0); faction_rail.size=Vector2(4,76); faction_rail.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(faction_rail)
+		var insignia:=ColorRect.new(); insignia.color=Color(accent,0.15); insignia.position=Vector2(16,15); insignia.size=Vector2(46,46); insignia.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(insignia)
+		var initial:=Label.new(); initial.text=str(f.name).substr(0,1); initial.position=Vector2(16,15); initial.size=Vector2(46,46); initial.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; initial.vertical_alignment=VERTICAL_ALIGNMENT_CENTER; initial.add_theme_color_override("font_color",accent); initial.add_theme_font_size_override("font_size",23); initial.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(initial)
+		b.tooltip_text=f.description
+		index+=1
+	label(p,db.factions[faction].description,Vector2(48,449),17,Color(str(db.factions[faction].get("color","69d6c0"))),1215)
+	label(p,"SCHWIERIGKEIT",Vector2(48,493),14,MUTED)
+	index=0
+	for id in ["easy","normal","hard"]:
+		var names := {"easy":"Ruhig","normal":"Ausgewogen","hard":"Entschlossen"}
+		var b := button(p,names[id],Rect2(48+index*406,519,386,48),func():difficulty=id; show_briefing())
+		var card := StyleBoxFlat.new(); card.bg_color=Color("173732") if difficulty==id else Color("263331"); card.border_color=MINT if difficulty==id else Color("485b55"); card.set_border_width_all(1); card.set_corner_radius_all(4)
+		b.add_theme_stylebox_override("normal",card); b.add_theme_color_override("font_color",Color("82e3c0") if difficulty==id else Color("d5ded5"))
+		index+=1
+	var resistance_copy: String={"easy":"Ruhig · längere Vorwarnung und kleinere feindliche Angriffe.","normal":"Ausgewogen · regulärer Druck und mittlere Angriffsgruppen.","hard":"Entschlossen · kurze Vorwarnung, größere Gruppen und häufigere Angriffe."}.get(difficulty,"Ausgewogen")
+	label(p,resistance_copy,Vector2(48,574),14,MINT,740)
+	var threat_level:=1 if difficulty=="easy" else (2 if difficulty=="normal" else 3)
+	label(p,"BEDROHUNG",Vector2(842,574),12,MUTED,100)
+	var threat_names: Array[String]=["NIEDRIG","MITTEL","HOCH"]
+	label(p,threat_names[threat_level-1],Vector2(946,572),13,Color("e8b963") if threat_level<3 else Color("e06d4e"),112)
+	for threat_index in range(3):
+		var threat_mark:=ColorRect.new(); threat_mark.position=Vector2(1064+threat_index*68,578); threat_mark.size=Vector2(58,6)
+		threat_mark.color=(Color("e06d4e") if threat_level==3 else Color("e8b963")) if threat_index<threat_level else Color("3b3a35")
+		threat_mark.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(threat_mark)
+	label(p,"AUFTRAG",Vector2(48,606),14,MUTED)
+	label(p,mission_objective_brief(),Vector2(48,631),16,Color("d5ded5"),720)
+	label(p,"AUFBAUROUTE",Vector2(48,730),13,MUTED)
+	label(p,str(db.mission.get("briefing_hint","Impulswerk → Raffinerie → Werft · Späher erkunden die Engstelle")),Vector2(48,753),15,Color("d5ded5"),720)
+	label(p,"NÄCHSTE FREIGABE",Vector2(48,790),13,MUTED)
+	var unlock_text := "Kampagne abgeschlossen" if mission_index>=MISSION_PATHS.size()-1 else "Sieg schaltet Einsatz %02d frei" % (mission_index+2)
+	label(p,unlock_text,Vector2(48,812),15,MINT,720)
+	label(p,"TAKTISCHE LAGE",Vector2(832,606),14,MUTED)
+	var tactical_preview := MissionTacticalPreview.new()
+	tactical_preview.name="MissionTacticalPreview"
+	tactical_preview.position=Vector2(832,631); tactical_preview.size=Vector2(440,154); tactical_preview.mission_data=db.mission
+	tactical_preview.tooltip_text="Einsatzkarte mit Gelände, Solaritfeldern, bekannten Gegnern und Hauptziel"
+	p.add_child(tactical_preview)
+	label(p,"RANDSEKTOR 07   ·   %d × %d FELDER   ·   SOLARITVORKOMMEN" % [int(db.mission.get("width",64)),int(db.mission.get("height",64))],Vector2(832,797),13,MUTED,440)
+	button(p,"ZURÜCK ZUM HAUPTMENÜ",Rect2(48,854,350,58),show_main_menu)
+	var launch := button(p,"EINSATZ STARTEN     →",Rect2(798,854,474,58),start_game)
+	launch.add_theme_color_override("font_color",GOLD); launch.add_theme_font_size_override("font_size",21)
+
+func start_game() -> void:
+	intro_active=false
+	sim=Simulation.new(db,faction,difficulty,int(campaign_progress.tech_level))
+	run_id=create_run_id()
+	render_previous=capture_render_state(); render_current=render_previous.duplicate(true)
+	connect_sim()
+	selected=[]; groups={}; ended=false; accumulator=0; production_target_factory_id=0
+	right_held=false; right_panning=false; middle_drag=false; harvest_mode=false
+	renderer.camera=sim.buildings(0,"core")[0].pos
+	renderer.zoom=1.25
+	clamp_camera()
+	playing=true; paused=false; placement=""; renderer.placement=""
+	clear(overlay)
+	view_container.visible=true
+	build_hud()
+	music.start(sim)
+	music.cue("complete")
+	save_game("user://autosave.json",false)
+	notify(str(db.mission.get("start_message","Einsatz begonnen.")))
+
+func connect_sim() -> void:
+	inspected=0
+	renderer.sim=sim
+	renderer.combat_fx.reset()
+	renderer.preserve_loaded_visuals=false
+	sim.presentation.connect(on_presentation)
+	renderer.visual_bursts.clear()
+	sim.event.connect(on_event)
+
+func build_hud() -> void:
+	clear(ui)
+	buttons.clear()
+	var top := panel(ui,Rect2(20,16,1880,56))
+	label(top,"ASHLINE",Vector2(18,9),25,GOLD)
+	status=label(top,"",Vector2(212,17),18,MINT,500)
+	status.size.y=30
+	status.tooltip_text="Solarit ist die Bau- und Produktionswährung. Energie zeigt Verbrauch / Erzeugung; Gebäudeüberlastung verlangsamt Bau und Fahrzeugmontage, pausiert Geschütze und Reparaturen. Schwere Fahrzeuge benötigen zusätzlich freie Energie zum Start der Montage."
+	objective=label(top,sim.hud_objective_text(),Vector2(730,19),16,MUTED,440)
+	fps_label=label(top,"FPS --",Vector2(1197,18),16,MINT,112)
+	fps_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	fps_label.tooltip_text="Bildrate live. Einbruchprotokoll mit Objektzahlen: user://performance_events.csv (unter Windows im Godot-Appdatenordner)."
+	button(top,"PAUSE / ESC",Rect2(1695,8,166,40),show_pause)
+	var side := panel(ui,Rect2(1600,86,300,944))
+	label(side,"TAKTISCHE ÜBERSICHT",Vector2(18,12),16,GOLD)
+	minimap=TacticalMap.new()
+	minimap.position=Vector2(1400,820); minimap.size=Vector2(164,138); minimap.sim=sim
+	minimap.navigate.connect(func(point):renderer.camera=point; clamp_camera())
+	ui.add_child(minimap)
+	radar_caption=label(side,"Signalstation schaltet Radar frei",Vector2(18,43),14,MUTED)
+	information=label(side,"",Vector2(76,72),14,Color("cbd9d0"),206)
+	information.mouse_filter=Control.MOUSE_FILTER_STOP
+	information.tooltip_text="Anklicken: technische Daten und Reparatur"
+	information.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT: show_entity_details())
+	details_button=button(top,"OBJEKTINFO",Rect2(1330,8,160,40),func():
+		if placement!="": rotate_placement(1)
+		else: show_entity_details())
+	repair_button=button(top,"REPARIEREN · R",Rect2(1498,8,180,40),repair_selection)
+	details_button.add_theme_font_size_override("font_size",14)
+	repair_button.add_theme_font_size_override("font_size",14)
+	var build_tab := button(side,"BAU",Rect2(18,220,84,43),func():category="buildings"; build_hud())
+	var unit_tab := button(side,"FAHRZEUGE",Rect2(108,220,84,43),func():category="units"; build_hud())
+	var production_tab := button(side,"PRODUKTION",Rect2(198,220,84,43),func():category="production"; build_hud())
+	unit_tab.add_theme_font_size_override("font_size",11)
+	production_tab.add_theme_font_size_override("font_size",11)
+	var active_tab: Button = build_tab if category=="buildings" else (unit_tab if category=="units" else production_tab)
+	var active_style: StyleBoxFlat = active_tab.get_theme_stylebox("normal").duplicate()
+	active_style.border_color=GOLD; active_style.border_width_bottom=3
+	active_tab.add_theme_stylebox_override("normal",active_style)
+	active_tab.add_theme_color_override("font_color",GOLD)
+	selection_icons=Control.new()
+	selection_icons.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	side.add_child(selection_icons); selection_signature=""
+	var catalog_scroll := ScrollContainer.new()
+	catalog_scroll.position=Vector2(18,279)
+	catalog_scroll.size=Vector2(264,511)
+	catalog_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	catalog_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO
+	catalog_scroll.mouse_filter=Control.MOUSE_FILTER_PASS
+	side.add_child(catalog_scroll)
+	var catalog_content := Control.new()
+	catalog_content.custom_minimum_size=Vector2(264,0)
+	catalog_scroll.add_child(catalog_content)
+	production_content=catalog_content if category=="production" else null
+	var y := 0
+	var catalog_count := 0
+	production_rows.clear()
+	production_empty_label=null
+	production_signature=""
+	if category=="production":
+		var factories:=sim.buildings(0,"factory",false)
+		factories.sort_custom(func(a,b):return int(a.id)<int(b.id))
+		if factories.is_empty():
+			production_empty_label=label(catalog_content,"KEINE FAHRZEUGWERFT\n\nErrichte im Tab Bau eine Fahrzeugwerft. Dort werden alle Fahrzeuge montiert.",Vector2(6,10),15,MUTED,250)
+			production_empty_label.size.y=125
+			production_signature=""
+	else:
+		if category=="units":
+			var target_text: String="AUTOMATIK · KÜRZESTE WARTESCHLANGE"
+			if production_target_factory_id>0 and sim.entities.has(production_target_factory_id):
+				target_text="ZIELWERFT %02d · HIER EINREIHEN"%production_factory_number(production_target_factory_id)
+			var target_banner:=label(catalog_content,target_text,Vector2(4,2),11,MINT if production_target_factory_id>0 else MUTED,256)
+			target_banner.size.y=22
+			target_banner.tooltip_text="Im Tab Produktion eine Werft auswählen. Neue Fahrzeuge werden dann gezielt dort eingereiht."
+			y=25
+		var table: Dictionary = db.buildings if category=="buildings" else db.units
+		for id in table:
+			if id=="core": continue
+			catalog_count+=1
+			var d: Dictionary = table[id]
+			var b := button(catalog_content,"",Rect2(0,y,264,48),func():catalog_click(id,false))
+			b.alignment=HORIZONTAL_ALIGNMENT_LEFT
+			b.add_theme_font_size_override("font_size",14)
+			for state in ["normal","hover","pressed","disabled","focus"]:
+				var style: StyleBoxFlat = b.get_theme_stylebox(state).duplicate()
+				style.content_margin_left=61
+				b.add_theme_stylebox_override(state,style)
+			var icon := IndustrialThumbnail.new()
+			icon.sim=sim; icon.kind=id; icon.position=Vector2(6,1); icon.size=Vector2(47,46)
+			icon.mouse_filter=Control.MOUSE_FILTER_IGNORE
+			b.add_child(icon)
+			var marker:=ColorRect.new()
+			marker.position=Vector2.ZERO; marker.size=Vector2(4,48); marker.color=Color("9e524c"); marker.visible=false
+			marker.mouse_filter=Control.MOUSE_FILTER_IGNORE
+			b.add_child(marker); requirement_marks[id]=marker
+			b.tooltip_text="%s\n%s\nBauzeit: %s s\nVoraussetzungen: %s" % [d.name,d.description,d.time,", ".join(d.get("requires",[]))]
+			b.gui_input.connect(func(e):
+				if e is InputEventMouseButton and e.pressed and e.button_index==MOUSE_BUTTON_RIGHT: catalog_click(id,true); b.accept_event())
+			buttons[id]=b
+			y+=54
+	catalog_content.custom_minimum_size=Vector2(264,maxf(511,y-6))
+	queue_label=label(side,"",Vector2(18,857),16,MUTED,264)
+	production_bar=ProgressBar.new()
+	production_bar.position=Vector2(18,842); production_bar.size=Vector2(264,8)
+	production_bar.show_percentage=false
+	production_bar.add_theme_font_size_override("font_size",1)
+	var progress_style := StyleBoxFlat.new()
+	progress_style.bg_color=GOLD
+	production_bar.add_theme_stylebox_override("fill",progress_style)
+	var progress_background := StyleBoxFlat.new()
+	progress_background.bg_color=Color("18110c")
+	production_bar.add_theme_stylebox_override("background",progress_background)
+	side.add_child(production_bar)
+	production_bar.size=Vector2(264,8)
+	harvest_button=button(side,"FELD WÄHLEN",Rect2(18,903,128,32),func():
+		harvest_mode=true; attack_mode=false; placement=""; notify("Solaritfeld mit Linksklick zuweisen. Rechtsklick auf Solarit sammelt ebenfalls."))
+	unload_button=button(side,"ABLADEN",Rect2(154,903,128,32),func():
+		dispatch_order(selected,Vector2.ZERO,"return"); harvest_mode=false; notify("Sammler kehrt zur Raffinerie zurück."))
+	harvest_button.add_theme_font_size_override("font_size",13)
+	unload_button.add_theme_font_size_override("font_size",13)
+	var bottom := panel(ui,Rect2(20,1042,1880,28))
+	label(bottom,"LMB Auswahl   RMB Klick: Befehl · Ziehen: Karte   A Angriff   S Stopp   H Halten   Strg+1–9 Gruppen   F5/F9 Speichern/Laden",Vector2(12,4),14,MUTED)
+	alert_panel=panel(ui,Rect2(32,975,1515,45),Color(0.16,0.10,0.055,0.86))
+	alert_panel.visible=false
+	notification=label(ui,"",Vector2(44,985),19,GOLD,1460)
+	hover_panel=panel(ui,Rect2(0,0,244,56),Color("211a15",0.96))
+	hover_panel.z_index=80; hover_panel.mouse_filter=Control.MOUSE_FILTER_IGNORE; hover_panel.visible=false
+	hover_label=label(hover_panel,"",Vector2(10,7),14,Color("dce4dc"),224)
+	debug_label=label(ui,"",Vector2(36,100),17,Color("bdf3ce"))
+	update_hud()
+
+func catalog_click(id: String, cancel: bool) -> void:
+	if paused: return
+	if db.buildings.has(id):
+		if cancel: placement=""; renderer.placement=""; return
+		var block_reason:=catalog_block_reason(id)
+		if block_reason!="": notify(block_reason); music.cue("error"); return
+		placement=id; placement_rotation=0; renderer.placement_rotation=0; renderer.placement=id; attack_mode=false
+		notify("%s: R / E dreht, Q dreht zurück. Baufläche anklicken; Rechtsklick bricht ab." % db.buildings[id].name)
+	else:
+		if cancel: sim.submit_command({"type":"cancel_produce","owner_id":0,"kind":id},0)
+		else:
+			var block_reason:=catalog_block_reason(id)
+			if block_reason!="": notify(block_reason); music.cue("error"); return
+			var amount := 5 if Input.is_key_pressed(KEY_SHIFT) else 1
+			for i in amount:
+				var packet: Dictionary={"type":"produce","owner_id":0,"kind":id}
+				if production_target_factory_id>0: packet.producer_id=production_target_factory_id
+				if not sim.submit_command(packet,0): notify("Produktion nicht möglich: Solarit, Anforderung oder Warteschlange prüfen."); music.cue("error"); break
+	update_hud()
+
+func catalog_block_reason(id: String) -> String:
+	var reasons: Array[String]=[]
+	var missing:=sim.missing_requirements(id,0)
+	if not missing.is_empty(): reasons.append("Voraussetzungen nicht erfüllt: "+", ".join(missing))
+	var available:=int(sim.credits[0])
+	var needed:=sim.cost(id,0)
+	if available<needed: reasons.append("Solarit reicht nicht aus (%d von %d benötigt)"%[available,needed])
+	if production_target_factory_id>0:
+		if not sim.entities.has(production_target_factory_id): reasons.append("Zielwerft nicht verfügbar")
+		elif sim.entities[production_target_factory_id].queue.size()>=12: reasons.append("Zielwerft-Warteschlange ist voll")
+	return " · ".join(reasons)
+
+func production_factory_number(factory_id: int) -> int:
+	var factories:=sim.buildings(0,"factory",false)
+	factories.sort_custom(func(a,b):return int(a.id)<int(b.id))
+	for index in factories.size():
+		if int(factories[index].id)==factory_id: return index+1
+	return 0
+
+func focus_production_building(building_id: int) -> void:
+	if not sim.entities.has(building_id): return
+	production_target_factory_id=0 if production_target_factory_id==building_id else building_id
+	selected=[building_id]
+	inspected=0
+	renderer.camera=sim.entities[building_id].pos
+	clamp_camera()
+	update_hud()
+	if production_target_factory_id==building_id: notify("Neue Fahrzeuge werden gezielt in Werft %02d eingereiht."%production_factory_number(building_id))
+	else: notify("Automatische Verteilung auf die kürzeste Warteschlange aktiv.")
+
+func update_hud() -> void:
+	if not playing or sim==null or not is_instance_valid(status): return
+	var ui_started:=Time.get_ticks_usec() if renderer.profile_enabled else 0
+	var p := sim.power(0)
+	radar_caption.text="RADAR / SCANNER AKTIV" if not sim.buildings(0,"radar").is_empty() and sim.powered(0) else "Signalstation schaltet Radar frei"
+	status.text="SOLARIT %04d · ENERGIE %d/%d · FREI %d · %02d:%02d%s" % [int(sim.credits[0]),int(p.x),int(p.y),int(p.y-p.x),int(sim.time)/60,int(sim.time)%60,"  !" if p.x>p.y else ""]
+	status.modulate=Color("ffb17c") if p.x>p.y else Color.WHITE
+	if is_instance_valid(objective): objective.text=sim.hud_objective_text()
+	if p.x>p.y and not low_power_alerted:
+		notify("ENERGIE KNAPP / IMPULSWERK BAUEN"); music.cue("alarm")
+		minimap.ping(renderer.camera,GOLD)
+	low_power_alerted=p.x>p.y
+	selected=selected.filter(func(id):return sim.entities.has(int(id)))
+	if production_target_factory_id>0 and (not sim.entities.has(production_target_factory_id) or sim.entities[production_target_factory_id].owner!=0): production_target_factory_id=0
+	for k in groups: groups[k]=groups[k].filter(func(id):return sim.entities.has(int(id)))
+	if inspected>0 and (not sim.entities.has(inspected) or not sim.is_visible(sim.entities[inspected],0)): inspected=0
+	renderer.selected=selected+[inspected] if inspected>0 else selected
+	refresh_selection_icons()
+	var has_harvester := false
+	for id in selected:
+		if sim.entities[int(id)].kind=="harvester": has_harvester=true
+	harvest_button.disabled=not has_harvester
+	unload_button.disabled=not has_harvester
+	details_button.disabled=placement=="" and selected.is_empty() and inspected==0
+	details_button.text="DREHEN · R" if placement!="" else "OBJEKTINFO"
+	repair_button.disabled=selected.is_empty() or inspected>0
+	repair_button.text="REPARATUR AUS" if selected.size()==1 and sim.entities[int(selected[0])].building and sim.entities[int(selected[0])].repair else "REPARIEREN · R"
+	information.add_theme_color_override("font_color",MUTED)
+	if selected.size()==1 or inspected>0:
+		var e: Dictionary = sim.entities[inspected if inspected>0 else int(selected[0])]
+		information.add_theme_color_override("font_color",sim.team_color(e.owner).lightened(0.15))
+		var states := {"SEARCH_RESOURCE":"Sucht Solarit", "MOVE_TO_RESOURCE":"Fährt zum Solarit", "HARVEST":"Sammelt", "RETURN_TO_BASE":"Kehrt zurück", "UNLOAD":"Lädt ab", "IDLE":"Wartet auf Auftrag", "EVADE":"Weicht Angriff aus"}
+		information.text="%s\nHP %d/%d · %s\n%s" % [TeamIdentity.symbol(e.owner)+" "+sim.definition(e).name,int(e.hp),int(e.max_hp),sim.definition(e).armor,states.get(e.harvest_state,e.harvest_state)+" · %d / %d"%[int(e.cargo),int(db.rules.harvest_capacity)] if e.kind=="harvester" else e.order.to_upper()]
+		if e.kind=="harvester": information.text=information.text.replace("\n"+states.get(e.harvest_state,e.harvest_state),"\nAUTO / "+states.get(e.harvest_state,e.harvest_state))
+		elif not e.building:
+			var weapon_id: String = sim.definition(e).get("weapon","")
+			information.text+=" · "+{"pulse":"ENERGIEIMPULS", "cannon":"PANZERKANONE", "mortar":"BELAGERUNG", "shard":"SPLITTERSALVE", "lance":"ENERGIELANZE", "flame":"FLAMMENKEGEL", "breaker":"GEBÄUDEBRECHER"}.get(weapon_id,"UNBEWAFFNET")
+		if inspected>0: information.text="◆ FEIND / %s\n%s\nIntegrität %d / %d" % [db.factions[sim.factions[e.owner]].name,sim.definition(e).name,int(e.hp),int(e.max_hp)]
+	elif selected.size()>1: information.text="%d FAHRZEUGE AUSGEWÄHLT\nRechtsklick: Formation bewegen" % selected.size()
+	else: information.text=str(db.mission.get("hud_hint","BECKEN / KOMMANDO\nImpulswerk → Raffinerie → Werft\nSpäher erkunden das Becken."))
+	for id in buttons:
+		var d: Dictionary = db.buildings[id] if db.buildings.has(id) else db.units[id]
+		var count := 0
+		for f in sim.buildings(0,"factory"):
+			for j in f.queue:
+				if j.kind==id: count+=1
+		var missing:=sim.missing_requirements(id,0)
+		var affordable: bool=sim.credits[0]>=sim.cost(id,0)
+		var availability: String="VORAUSSETZUNGEN FEHLEN" if not missing.is_empty() else ("SOLARIT REICHT NICHT" if not affordable else "%d Solarit · %s s%s" % [sim.cost(id,0),d.time,"  ×%d"%count if count>0 else ""])
+		if not missing.is_empty() and not affordable: availability="VORAUSSETZUNGEN + SOLARIT FEHLEN"
+		buttons[id].text="%s\n%s" % [d.name,availability]
+		buttons[id].disabled=false
+		# Keep the catalog's neutral surfaces and original unit artwork intact.
+		# Only the label and narrow edge marker carry the blocker state.
+		buttons[id].modulate=Color.WHITE
+		buttons[id].add_theme_color_override("font_color",Color("c07d70") if not missing.is_empty() else (Color("d6b56f") if not affordable else Color("d8d1c4")))
+		requirement_marks[id].visible=not missing.is_empty() or not affordable
+		requirement_marks[id].color=Color("9e524c") if not missing.is_empty() else Color("d6b56f")
+		var status_lines: Array[String]=[]
+		if not missing.is_empty(): status_lines.append("VORAUSSETZUNGEN NICHT ERFÜLLT: "+", ".join(missing))
+		if not affordable: status_lines.append("SOLARIT REICHT NICHT AUS: %d vorhanden, %d benötigt"%[int(sim.credits[0]),sim.cost(id,0)])
+		if status_lines.is_empty(): status_lines.append("BAUPLATZ WÄHLEN" if db.buildings.has(id) else "BEREIT / Linksklick reiht die Produktion ein")
+		var requirement_text: String="\n".join(status_lines)
+		var energy_text: String="Energie Gebäude: %+d"%int(d.get("power",0))
+		if int(d.get("power_required",0))>0: energy_text+="\nMontage benötigt %d freie Energie"%int(d.power_required)
+		buttons[id].tooltip_text="%s\n%s\nKosten: %d Solarit · Montage: %s s\n%s\n%s" % [d.name,d.description,sim.cost(id,0),d.time,energy_text,requirement_text]
+	queue_label.text="PRODUKTION / LEER"
+	production_bar.value=0
+	refresh_production_list()
+	for f in sim.buildings(0,"factory"):
+		if not f.queue.is_empty():
+			var production_time:=float(db.units[f.queue[0].kind].time)*(0.85 if int(f.get("upgrade_level",0))>0 else 1.0)
+			production_bar.value=f.progress/production_time*100
+			queue_label.text="%s · %d%%\n%d Auftrag/Aufträge · RMB: −1" % [db.units[f.queue[0].kind].name,int(f.progress/production_time*100),f.queue.size()]
+			break
+	if queue_label.text=="PRODUKTION / LEER":
+		for building in sim.entities.values():
+			if not building.building or building.owner!=0 or building.complete: continue
+			var progress: float = building.build_progress/float(sim.definition(building).time)
+			production_bar.value=progress*100
+			queue_label.text="%s · %d%%\n%s" % [sim.definition(building).name,int(progress*100),"FUNDAMENT" if progress<0.2 else ("MONTAGE" if progress<0.55 else ("SYSTEME" if progress<0.8 else "ONLINE-SCHALTUNG"))]
+			break
+	if queue_label.text=="PRODUKTION / LEER":
+		for building in sim.buildings(0):
+			if building.get("upgrading",false):
+				var upgrade_progress:=float(building.get("upgrade_progress",0.0))/maxf(1.0,float(building.get("upgrade_time",1.0)))
+				production_bar.value=upgrade_progress*100
+				queue_label.text="%s · STUFE %d → %d\nAUSBAU %d%%" % [sim.definition(building).name.to_upper(),building.get("upgrade_level",0),building.get("upgrade_target",1),int(upgrade_progress*100)]
+				break
+	minimap.camera=renderer.camera; minimap.world_view=WORLD_RECT.size/renderer.zoom
+	debug_label.visible=renderer.profile_enabled
+	if renderer.profile_enabled:
+		debug_label.text="FPS %d · %.1f ms | MOBIL %d GEBÄUDE %d VFX %d\nZEICHNEN %.1f ms · Terrain %.1f · Ruinen %.1f · Bauten %.1f · Fahrzeuge %.1f\nPASS · Spuren %.1f · Geschosse %.1f · Treffer %.1f · Explosionen %.1f · Rauch %.1f · Sicht %.1f\nSIM %.1f ms · SOLARIT %d · WRACKS %d · SCHÜSSE %d · EINSCHLÄGE %d · EFFEKTE %d\nDRAW %d · KACHELN %d/%d · GEBÄUDE-CACHE %d/%d · FAHRZEUGE %d/%d · PROC %.2f ms" % [Engine.get_frames_per_second(),1000.0/maxf(1,Engine.get_frames_per_second()),renderer.visible_mobile_count,renderer.visible_building_count,renderer.active_vfx_count,renderer.profile_total_ms,renderer.profile_terrain_ms,renderer.profile_ground_fx_ms,renderer.profile_buildings_ms,renderer.profile_vehicles_ms,renderer.profile_tracks_ms,renderer.profile_projectiles_ms,renderer.profile_impacts_ms,renderer.profile_explosions_ms,renderer.profile_smoke_ms,renderer.profile_fog_ms,renderer.profile_sim_ms,renderer.profile_solarit_count,renderer.profile_ruin_count,renderer.profile_projectile_count,renderer.profile_impact_count,renderer.profile_particle_count,int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),renderer.visible_terrain_chunk_count,renderer.terrain_detail_chunks.size(),renderer.building_cache_hits,renderer.building_cache_misses,renderer.vehicle_cache_hits,renderer.vehicle_cache_misses,Performance.get_monitor(Performance.TIME_PROCESS)*1000.0]
+		debug_label.text+="\nVFX-POOL %d aktiv / %d frei · erstellt %d / recycelt %d / Spitze %d" % [renderer.combat_fx.particles.size(),renderer.combat_fx.free_particles.size(),renderer.combat_fx.particle_pool_created,renderer.combat_fx.particle_pool_reused,renderer.combat_fx.particle_pool_peak]
+		debug_label.text+="\nWRACK-PASS %.2f ms · HUD-UPDATE %.2f ms" % [renderer.profile_wrecks_ms,renderer.profile_ui_ms]
+	else:
+		debug_label.text="FPS %d · %.1f ms | MOBIL %d GEBÄUDE %d VFX %d\nDRAW %d · CHUNK %d/%d · CACHE %d/%d\nPROC %.2f ms · KI %s · MUSIK %s" % [Engine.get_frames_per_second(),1000.0/maxf(1,Engine.get_frames_per_second()),renderer.visible_mobile_count,renderer.visible_building_count,renderer.active_vfx_count,int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),renderer.visible_terrain_chunk_count,renderer.terrain_detail_chunks.size(),renderer.vehicle_cache_hits,renderer.vehicle_cache_misses,Performance.get_monitor(Performance.TIME_PROCESS)*1000.0,sim.ai_state,music.state]
+	fit_wrapped(information)
+	information.size.y=96
+	fit_wrapped(queue_label)
+	if renderer.profile_enabled: renderer.profile_ui_ms=float(Time.get_ticks_usec()-ui_started)/1000.0
+
+func refresh_production_list() -> void:
+	if category!="production": return
+	var factories:=sim.buildings(0,"factory",false)
+	factories.sort_custom(func(a,b):return int(a.id)<int(b.id))
+	if production_content==null: return
+	var signature_parts: Array[String]=[]
+	signature_parts.append("target:%d"%production_target_factory_id)
+	for factory in factories:
+		var jobs: Array[String]=[]
+		for job in factory.queue: jobs.append("%s:%d"%[str(job.kind),int(job.get("paid",0))])
+		signature_parts.append("%d|%s|%s"%[int(factory.id),str(factory.complete),",".join(jobs)])
+	var signature: String=";".join(signature_parts)
+	if signature!=production_signature: rebuild_production_list(factories,signature)
+	for index in factories.size():
+		var factory: Dictionary=factories[index]
+		var row: Button=production_rows.get(int(factory.id))
+		if row==null: continue
+		var heading: String="WERFT %02d%s"%[index+1," · ZIEL" if production_target_factory_id==int(factory.id) else ""]
+		if not factory.complete:
+			var build_pct:=int(float(factory.build_progress)/maxf(1.0,float(sim.definition(factory).time))*100.0)
+			row.text="%s · IM BAU\nFundament %d%%"%[heading,build_pct]
+			continue
+		if factory.queue.is_empty():
+			row.text="%s · BEREIT\nJETZT: — · ALS NÄCHSTES: —"%heading
+			row.tooltip_text="Diese Werft ist online und wartet auf einen Produktionsauftrag."
+			continue
+		var current_kind: String=str(factory.queue[0].kind)
+		var current_def: Dictionary=db.units[current_kind]
+		var production_time:=float(current_def.time)*(0.85 if int(factory.get("upgrade_level",0))>0 else 1.0)
+		var completion:=clampi(int(factory.progress/maxf(1.0,production_time)*100.0),0,99)
+		var next_text: String="—"
+		if factory.queue.size()>1:
+			next_text=production_unit_short_name(str(factory.queue[1].kind))
+		row.text="%s · MONTAGE %d%%\nJETZT: %s · NÄCHST: %s"%[heading,completion,production_unit_short_name(current_kind),next_text]
+		row.tooltip_text="%s\nLäuft: %s (%d%%)\nDanach: %s\nGesamte Warteschlange: %d Fahrzeuge"%[heading,current_def.name,completion,next_text,factory.queue.size()]
+
+func production_unit_short_name(kind: String) -> String:
+	var name_value: String=str(db.units.get(kind,{}).get("name",kind))
+	return name_value.get_slice("·",1).strip_edges() if name_value.contains("·") else name_value.replace("Solarit-","")
+
+func rebuild_production_list(factories: Array, signature: String) -> void:
+	for child in production_content.get_children(): child.queue_free()
+	production_rows.clear()
+	production_empty_label=null
+	var y:=0.0
+	if factories.is_empty():
+		production_empty_label=label(production_content,"KEINE FAHRZEUGWERFT\n\nErrichte im Tab Bau eine Fahrzeugwerft. Dort werden alle Fahrzeuge montiert.",Vector2(6,10),15,MUTED,250)
+		production_empty_label.size.y=125
+		y=135
+	else:
+		var automatic:=button(production_content,"AUTOMATIK · KÜRZESTE WARTESCHLANGE",Rect2(0,y,264,34),func():production_target_factory_id=0; update_hud())
+		automatic.add_theme_font_size_override("font_size",11)
+		automatic.tooltip_text="Neue Aufträge automatisch der Werft mit der kürzesten Warteschlange zuweisen."
+		if production_target_factory_id==0:
+			automatic.add_theme_color_override("font_color",MINT)
+		y+=40
+		for factory_index in factories.size():
+			var factory: Dictionary=factories[factory_index]
+			var factory_id:=int(factory.id)
+			var header:=button(production_content,"",Rect2(0,y,264,52),focus_production_building.bind(factory_id))
+			header.alignment=HORIZONTAL_ALIGNMENT_LEFT
+			header.add_theme_font_size_override("font_size",12)
+			header.tooltip_text="Anklicken: als Zielwerft für neue Aufträge auswählen; erneut anklicken: zurück zur Automatik."
+			if production_target_factory_id==factory_id:
+				var target_style: StyleBoxFlat=header.get_theme_stylebox("normal").duplicate()
+				target_style.border_color=MINT; target_style.border_width_left=3
+				header.add_theme_stylebox_override("normal",target_style)
+			production_rows[factory_id]=header
+			y+=56
+			if factory.queue.is_empty():
+				var empty:=label(production_content,"Warteschlange leer",Vector2(10,y+2),13,MUTED,244)
+				empty.size.y=22; y+=25
+			else:
+				for queue_index in factory.queue.size():
+					var job: Dictionary=factory.queue[queue_index]
+					var item_panel:=panel(production_content,Rect2(0,y,264,39),Color("30251b",0.92))
+					var unit_name: String=str(db.units[str(job.kind)].name)
+					var state_text: String="MONTAGE" if queue_index==0 else ("ALS NÄCHSTES" if queue_index==1 else "WARTET")
+					label(item_panel,"%02d  %s\n%s"%[queue_index+1,unit_name,state_text],Vector2(7,2),11,Color("d6e1d9") if queue_index==0 else MUTED,160)
+					var priority:=button(item_panel,"↑",Rect2(174,5,34,29),prioritize_production_order.bind(factory_id,queue_index))
+					priority.tooltip_text="Als Nächstes produzieren"
+					priority.disabled=queue_index<=1 or not factory.complete
+					priority.add_theme_color_override("font_color",MINT)
+					var cancel:=button(item_panel,"×",Rect2(216,5,37,29),cancel_production_order.bind(factory_id,queue_index))
+					cancel.tooltip_text="Diesen Auftrag abbrechen · %d Solarit Erstattung"%int(float(job.get("paid",0))*float(db.rules.cancel_refund))
+					cancel.add_theme_color_override("font_color",Color("c07d70"))
+					y+=43
+			y+=10
+	production_content.custom_minimum_size=Vector2(264,maxf(511,y))
+	production_signature=signature
+
+func cancel_production_order(factory_id: int, queue_index: int) -> void:
+	if sim.cancel_queue_at(factory_id,queue_index,0): music.cue("error"); update_hud()
+
+func prioritize_production_order(factory_id: int, queue_index: int) -> void:
+	if sim.prioritize_queue(factory_id,queue_index,0): music.cue("select"); update_hud()
+
+func capture_render_state() -> Dictionary:
+	var state := {}
+	if sim==null: return state
+	for id in sim.entities:
+		var e: Dictionary=sim.entities[id]
+		if e.building: continue
+		state[id]=[e.pos,e.angle,e.turret]
+	return state
+
+func rotate_placement(direction: int) -> void:
+	if paused or placement=="": return
+	placement_rotation=posmod(placement_rotation+direction,4)
+	renderer.placement_rotation=placement_rotation
+	music.cue("rotate")
+	notify("%s · %d° · R / E drehen, Q zurück" % [db.buildings[placement].name,placement_rotation*90])
+	update_hud(); renderer.queue_redraw()
+
+func repair_selection() -> void:
+	if paused or inspected>0 or selected.is_empty(): return
+	if sim.submit_command({"type":"repair","owner_id":0,"ids":selected.duplicate()},0):
+		music.cue("repair")
+		notify("Reparatur umgeschaltet. Fahrzeuge fahren zum Servicehangar; Reparaturen kosten Solarit.")
+	else: notify("Reparatur nicht möglich: fertigen Servicehangar, Energie und erreichbaren Zugang prüfen. Baustellen zuerst fertigstellen.")
+	update_hud()
+
+func entity_details_text(e: Dictionary) -> String:
+	var d: Dictionary = sim.definition(e)
+	var armor := {"light":"Leicht", "medium":"Mittel", "heavy":"Schwer", "structure":"Gebäude"}
+	var sight:=int(d.vision)+(4*int(e.get("upgrade_level",0)) if e.kind=="radar" else 0)
+	var text_value := "%s\n\nZUSTAND\nIntegrität: %d / %d HP · %d%%\nPanzerung: %s\nSichtweite: %d Felder\n\n" % [d.description,int(e.hp),int(e.max_hp),int(e.hp/e.max_hp*100),armor.get(d.armor,d.armor),sight]
+	if d.has("weapon"):
+		var w: Dictionary = db.weapons[d.weapon]
+		text_value+="BEWAFFNUNG\nSchaden: %s · Reichweite: %s\nNachladezeit: %s s\n\n" % [w.damage,w.range,w.reload]
+	else: text_value+="BEWAFFNUNG\nUnbewaffnet\n\n"
+	if e.building:
+		text_value+="BETRIEB\nEnergie: %+d · %s\n" % [d.get("power",0),"Betriebsbereit" if e.complete else "Im Bau"]
+		if int(d.get("max_level",0))>0:
+			var level:=int(e.get("upgrade_level",0))
+			text_value+="AUSBAU\nStufe %d / %d · Kampagnenstufe %d\n" % [level,d.max_level,sim.campaign_tech_level]
+			if e.get("upgrading",false): text_value+="Ausbau auf Stufe %d: %d%% abgeschlossen.\n" % [e.upgrade_target,int(float(e.upgrade_progress)/maxf(1.0,float(e.upgrade_time))*100)]
+			elif level<d.max_level:
+				var unlocks: Array=d.get("upgrade_campaign_levels",[])
+				var required_tech:=int(unlocks[level+1]) if level+1<unlocks.size() else level+1
+				text_value+="Nächster Ausbau: %d Solarit · %s s · Freigabe ab Kampagnenstufe %d.\n" % [d.upgrade_costs[level+1],d.upgrade_times[level+1],required_tech]
+			if e.kind=="armory": text_value+="Freigaben: Dorn ab Stufe 1 · Prisma und Wall ab Stufe 2.\n"
+			elif e.kind=="factory": text_value+="Freigabe: Glut ab Stufe 1 · Montagezeit −15%.\n"
+			elif e.kind=="refinery": text_value+="Solarit-Erlös: +%d%%.\n" % [level*20]
+			elif e.kind=="radar": text_value+="Zusätzliche Netzsicht: +%d Felder.\n" % [level*4]
+	else:
+		text_value+="ANTRIEB\nTempo: %.0f · Auftrag: %s\n" % [float(d.speed)*float(db.factions[sim.factions[e.owner]].speed),e.order.to_upper()]
+		if e.kind=="harvester": text_value+="Ladung: %d / %d Solarit\n" % [int(e.cargo),int(db.rules.harvest_capacity)]
+	text_value+="\nREPARATUR\n%.0f HP/s · %.1f Solarit pro HP\nBis zur vollen Integrität: %.1f Solarit\n" % [db.rules.repair_rate,db.rules.repair_cost,(e.max_hp-e.hp)*float(db.rules.repair_cost)]
+	if e.owner!=0: text_value+="Feindliches Objekt: keine Reparaturbefehle möglich."
+	elif e.building:
+		text_value+="Gebäudereparatur: "+("AKTIV" if e.repair else "AUS")+"\nMit Reparieren oder R ein-/ausschalten. Solarit wird nur für tatsächlich reparierte HP abgezogen."
+	else: text_value+="Servicehangar repariert im Umkreis von 100 automatisch, wenn Energie und Solarit vorhanden sind. Reparieren oder R schickt dieses Fahrzeug zum Hangar. Sammler warten bis zur vollständigen Reparatur und arbeiten danach automatisch weiter; Kampffahrzeugen danach neue Befehle erteilen."
+	return text_value
+
+func show_entity_details() -> void:
+	var ids: Array = [inspected] if inspected>0 else selected
+	if ids.is_empty() or not sim.entities.has(int(ids[0])): return
+	var e: Dictionary = sim.entities[int(ids[0])]
+	if not sim.is_visible(e,0): return
+	paused=true; music.set_paused(true); dragging=false; renderer.selecting=false
+	clear(overlay)
+	var p := panel(overlay,Rect2(470,110,980,850))
+	label(p,"OBJEKTINFO / "+("EIGENE EINHEIT" if e.owner==0 else "FEIND"),Vector2(34,24),18,MINT)
+	label(p,sim.definition(e).name,Vector2(34,58),35,GOLD,912)
+	var portrait := IndustrialThumbnail.new()
+	portrait.sim=sim; portrait.entity_id=e.id; portrait.kind=e.kind
+	portrait.position=Vector2(35,127); portrait.size=Vector2(160,170); portrait.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(portrait)
+	portrait.scale=Vector2.ONE*2.8
+	var details := RichTextLabel.new()
+	details.name="EntityDetails"; details.position=Vector2(227,132); details.size=Vector2(716,574)
+	details.add_theme_font_size_override("normal_font_size",22); details.add_theme_constant_override("line_separation",5)
+	details.text=entity_details_text(e); p.add_child(details)
+	var can_upgrade: bool=e.building and e.owner==0 and e.complete and not e.get("upgrading",false) and sim.definition(e).has("max_level") and int(e.get("upgrade_level",0))<int(sim.definition(e).max_level)
+	if can_upgrade:
+		var next_level:=int(e.get("upgrade_level",0))+1
+		var d: Dictionary=sim.definition(e)
+		var unlocks: Array=d.get("upgrade_campaign_levels",[])
+		var required_tech:=int(unlocks[next_level]) if next_level<unlocks.size() else next_level
+		can_upgrade=required_tech<=sim.campaign_tech_level and sim.credits[0]>=int(d.upgrade_costs[next_level])
+	var is_upgradeable: bool=e.building and sim.definition(e).has("max_level")
+	var action_label: String="AUSBAU: "+str(sim.definition(e).name) if is_upgradeable else ("REPARATUR EIN / AUS" if e.building else "ZUM SERVICEHANGAR")
+	var action := button(p,action_label,Rect2(34,727,440,48),func():
+		if is_upgradeable: start_armory_upgrade(e.id)
+		else: resume_game(); repair_selection())
+	action.disabled=e.owner!=0 or not e.complete
+	if is_upgradeable: action.disabled=not can_upgrade
+	button(p,"ZURÜCK ZUM SPIEL",Rect2(500,727,446,48),resume_game)
+
+func start_armory_upgrade(id: int) -> void:
+	if sim.submit_command({"type":"upgrade","owner_id":0,"id":id},0):
+		music.cue("build"); resume_game(); notify("Gebäudeausbau begonnen. Neue Funktionen gelten nach der Fertigstellung.")
+	else:
+		notify("Ausbau gesperrt: Solarit, Energie oder Kampagnenfreigabe prüfen.")
+
+func refresh_selection_icons() -> void:
+	if not is_instance_valid(selection_icons): return
+	var ids: Array = [inspected] if inspected>0 else selected
+	var signature := str(ids)
+	if signature==selection_signature: return
+	selection_signature=signature; clear(selection_icons)
+	information.position.x=76 if ids.size()==1 else 18
+	information.custom_minimum_size.x=206 if ids.size()==1 else 264
+	information.size.x=information.custom_minimum_size.x
+	if ids.size()==1 and sim.entities.has(int(ids[0])):
+		var portrait := IndustrialThumbnail.new()
+		portrait.sim=sim; portrait.entity_id=int(ids[0]); portrait.kind=sim.entities[int(ids[0])].kind
+		portrait.position=Vector2(18,77); portrait.size=Vector2(52,54)
+		portrait.mouse_filter=Control.MOUSE_FILTER_IGNORE
+		selection_icons.add_child(portrait)
+	elif ids.size()>1:
+		for i in mini(6,ids.size()):
+			var icon := IndustrialThumbnail.new()
+			icon.sim=sim; icon.entity_id=int(ids[i]); icon.kind=sim.entities[int(ids[i])].kind
+			icon.position=Vector2(18+i*43,170); icon.size=Vector2(40,36); icon.scale=Vector2.ONE*0.75
+			icon.mouse_filter=Control.MOUSE_FILTER_IGNORE
+			selection_icons.add_child(icon)
+
+func fit_wrapped(control: Label) -> void:
+	var extent := control.get_theme_font("font").get_multiline_string_size(control.text,HORIZONTAL_ALIGNMENT_LEFT,control.size.x,control.get_theme_font_size("font_size"))
+	control.size.y=extent.y+6
+
+func screen_world(local: Vector2) -> Vector2:
+	return renderer.camera+(local-WORLD_RECT.position-WORLD_RECT.size*0.5-renderer.visual_offset)/renderer.zoom
+
+func edge_scroll_direction(local: Vector2) -> Vector2:
+	var direction:=Vector2.ZERO
+	direction.x-=clampf((WORLD_RECT.position.x+EDGE_SCROLL_BAND-local.x)/EDGE_SCROLL_BAND,0.0,1.0)
+	direction.x+=clampf((local.x-(WORLD_RECT.end.x-EDGE_SCROLL_BAND))/EDGE_SCROLL_BAND,0.0,1.0)
+	direction.y-=clampf((WORLD_RECT.position.y+EDGE_SCROLL_BAND-local.y)/EDGE_SCROLL_BAND,0.0,1.0)
+	direction.y+=clampf((local.y-(WORLD_RECT.end.y-EDGE_SCROLL_BAND))/EDGE_SCROLL_BAND,0.0,1.0)
+	return direction.normalized() if direction.length()>1.0 else direction
+
+func entity_at(point: Vector2) -> int:
+	var best := 0
+	var distance := 32.0
+	for e in sim.entities.values():
+		if e.owner!=0 and not sim.is_visible(e,0): continue
+		if e.building:
+			var d: Dictionary = sim.definition(e)
+			var footprint := sim.footprint(e)
+			if Rect2(e.pos-Vector2(sim.footprint(e)[0],sim.footprint(e)[1])*sim.grid.tile*0.5,Vector2(sim.footprint(e)[0],sim.footprint(e)[1])*sim.grid.tile).has_point(point): best=e.id
+		elif e.pos.distance_to(point)<distance: distance=e.pos.distance_to(point); best=e.id
+	return best
+
+func _unhandled_input(event: InputEvent) -> void:
+	if intro_active:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if remap_action!="":
+			if event.keycode==KEY_ESCAPE:
+				remap_action=""; notify("TASTENÄNDERUNG ABGEBROCHEN"); show_options(show_pause if playing else show_main_menu,"STEUERUNG"); return
+			var action_name := remap_action
+			hotkeys[action_name]=event.keycode; remap_action=""; persist_settings(); notify("TASTE ZUGEWIESEN: "+action_name.to_upper()); show_options(show_pause if playing else show_main_menu,"STEUERUNG"); return
+		if event.keycode==KEY_ESCAPE:
+			if harvest_mode: harvest_mode=false; return
+			if placement!="": placement=""; renderer.placement=""; return
+			if playing:
+				if paused and not ended: resume_game()
+				elif not ended: show_pause()
+			else: clear(overlay)
+			return
+		if not playing: return
+		if event.keycode==hotkeys.load: load_game(); return
+		if event.keycode==hotkeys.save: save_game(); return
+		if paused: return
+		if placement!="" and event.keycode in [KEY_R,KEY_E,KEY_Q]:
+			rotate_placement(-1 if event.keycode==KEY_Q else 1); return
+		if event.keycode==KEY_F3:
+			renderer.profile_enabled=not renderer.profile_enabled
+		if event.keycode==hotkeys.attack and not selected.is_empty(): attack_mode=true; notify("Angriffsmarsch: Ziel mit Linksklick setzen.")
+		if event.keycode==hotkeys.stop: dispatch_order(selected,Vector2.ZERO,"stop")
+		if event.keycode==hotkeys.hold: dispatch_order(selected,Vector2.ZERO,"hold")
+		if event.keycode==hotkeys.guard: dispatch_order(selected,Vector2.ZERO,"guard")
+		if event.keycode==hotkeys.repair: repair_selection()
+		if event.keycode==hotkeys.home: renderer.camera=sim.buildings(0,"core")[0].pos if not sim.buildings(0,"core").is_empty() else renderer.camera
+		if event.keycode==hotkeys.event: renderer.camera=last_event
+		if event.keycode>=KEY_1 and event.keycode<=KEY_9:
+			var key: int = event.keycode-KEY_0
+			if event.ctrl_pressed: groups[key]=selected.duplicate(); notify("Gruppe %d gespeichert." % key)
+			else:
+				selected=groups.get(key,[]).duplicate()
+				if group_last==key and Time.get_ticks_msec()/1000.0-group_time<0.4 and not selected.is_empty():
+					if sim.entities.has(int(selected[0])): renderer.camera=sim.entities[int(selected[0])].pos
+				group_last=key; group_time=Time.get_ticks_msec()/1000.0
+		if event.keycode>=KEY_F1 and event.keycode<=KEY_F4 and event.keycode!=KEY_F3:
+			if event.shift_pressed: bookmarks[event.keycode]=renderer.camera
+			elif bookmarks.has(event.keycode): renderer.camera=bookmarks[event.keycode]
+	if not playing or paused: return
+	var local := get_local_mouse_position()
+	if pointer_local.x>-9000: local=pointer_local
+	if event is InputEventMouse:
+		local=get_global_transform_with_canvas().affine_inverse()*event.position
+	var in_world := WORLD_RECT.has_point(local)
+	if event is InputEventMouseButton:
+		if event.button_index==MOUSE_BUTTON_MIDDLE: middle_drag=event.pressed and in_world
+		if event.button_index==MOUSE_BUTTON_WHEEL_UP and in_world: renderer.zoom=minf(2.5 if not classic else 1.5,renderer.zoom+0.25); clamp_camera()
+		if event.button_index==MOUSE_BUTTON_WHEEL_DOWN and in_world: renderer.zoom=maxf(0.75,renderer.zoom-0.25); clamp_camera()
+		if event.button_index==MOUSE_BUTTON_RIGHT:
+			if event.pressed and in_world:
+				if placement!="" or harvest_mode:
+					placement=""; renderer.placement=""; harvest_mode=false; return
+				right_held=true; right_panning=false; right_start=local; right_point=screen_world(local)
+			elif not event.pressed and right_held:
+				if not right_panning and in_world: issue_context_order(right_point)
+				right_held=false; right_panning=false
+		if event.button_index==MOUSE_BUTTON_LEFT:
+			if event.pressed and in_world:
+				var point := screen_world(local)
+				if harvest_mode:
+					var cell := sim.grid.cell(point)
+					if not sim.grid.inside(cell) or sim.explored[0][cell.y*sim.grid.width+cell.x]==0 or float(sim.grid.resources.get(sim.grid.key(cell),0))<=0:
+						notify("Wähle ein Solaritfeld."); music.cue("error"); return
+					dispatch_order(selected,point,"harvest"); harvest_mode=false
+					renderer.command_marker=point; renderer.marker_time=0.8
+					notify("Solaritfeld zugewiesen. Der Sammler sammelt und lädt automatisch ab."); return
+				if placement!="":
+					var reason := sim.build_reason(placement,0,sim.grid.cell(point),placement_rotation)
+					if reason=="": sim.submit_command({"type":"build","owner_id":0,"kind":placement,"rotation":placement_rotation,"cell":[sim.grid.cell(point).x,sim.grid.cell(point).y]},0); placement=""; renderer.placement=""
+					else: notify(reason); music.cue("error")
+					return
+				if attack_mode: dispatch_order(selected,point,"attack_move"); attack_mode=false; music.cue("move"); return
+				drag_start=point; dragging=true; select_same=event.double_click or event.ctrl_pressed
+				renderer.selecting=true; renderer.selection_rect=Rect2(point,Vector2.ZERO)
+			elif not event.pressed and dragging:
+				var point := screen_world(local)
+				inspected=0
+				if not event.shift_pressed: selected=[]
+				if point.distance_to(drag_start)>8:
+					var rect := Rect2(drag_start,point-drag_start).abs()
+					for e in sim.entities.values():
+						if e.owner==0 and not e.building and rect.has_point(e.pos) and not selected.has(e.id): selected.append(e.id)
+				else:
+					var id := entity_at(point)
+					if id>0 and sim.entities[id].owner==0:
+						if select_same:
+							for e in sim.entities.values():
+								if e.owner==0 and e.kind==sim.entities[id].kind and absf(e.pos.x-renderer.camera.x)<WORLD_RECT.size.x/2/renderer.zoom and absf(e.pos.y-renderer.camera.y)<WORLD_RECT.size.y/2/renderer.zoom and not selected.has(e.id): selected.append(e.id)
+						elif not selected.has(id): selected.append(id)
+					elif id>0:
+						selected=[]; inspected=id
+				dragging=false; renderer.selecting=false; music.cue("select"); update_hud()
+	if event is InputEventMouseMotion:
+		if middle_drag: renderer.camera-=event.relative/(renderer.zoom*(1.0/3.0 if classic else 1.0)); clamp_camera()
+		if dragging: renderer.selection_rect=Rect2(drag_start,screen_world(local)-drag_start).abs()
+
+func _process(dt: float) -> void:
+	if is_instance_valid(renderer): renderer.visual_paused=paused
+	monitor_frame_rate(dt)
+	if is_instance_valid(renderer): renderer.profile_sim_ms=0.0
+	if not playing or paused or sim==null: return
+	accumulator+=minf(dt,0.15)
+	var step := 1.0/float(db.rules.tick_rate)
+	var sim_started := Time.get_ticks_usec() if renderer.profile_enabled else 0
+	while accumulator>=step:
+		render_previous=render_current
+		sim.tick(step)
+		render_current=capture_render_state()
+		accumulator-=step
+	if renderer.profile_enabled: renderer.profile_sim_ms=float(Time.get_ticks_usec()-sim_started)/1000.0
+	renderer.set_interpolation(render_previous,render_current,clampf(accumulator/step,0.0,1.0))
+	var local := get_local_mouse_position()
+	if pointer_local.x>-9000: local=pointer_local
+	if WORLD_RECT.has_point(local):
+		var hover_enabled:=placement=="" and not harvest_mode and not dragging
+		hovered_entity_id=entity_at(screen_world(local)) if hover_enabled else 0
+		renderer.hovered_entity_id=hovered_entity_id
+		hover_panel.visible=hovered_entity_id>0
+		if hovered_entity_id>0 and sim.entities.has(hovered_entity_id):
+			var hovered: Dictionary=sim.entities[hovered_entity_id]
+			var hovered_name: String=str(sim.definition(hovered).name)
+			var team_name: String="Eigene Einheit" if hovered.owner==0 else "Feindliche Einheit"
+			hover_label.text="%s · %s\nHP %d/%d · %s"%[team_name,hovered_name,int(hovered.hp),int(hovered.max_hp),sim.definition(hovered).armor]
+			hover_panel.position=Vector2(clampf(local.x+20,8,1920-hover_panel.size.x-8),clampf(local.y+18,8,1080-hover_panel.size.y-8))
+		else: renderer.hovered_entity_id=0
+		renderer.placement=placement
+		renderer.placement_rotation=placement_rotation
+		var direction := Vector2.ZERO
+		if Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_J) or (selected.is_empty() and Input.is_key_pressed(KEY_A)): direction.x-=1
+		if Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_L) or Input.is_key_pressed(KEY_D): direction.x+=1
+		if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W): direction.y-=1
+		if Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_K) or (selected.is_empty() and Input.is_key_pressed(KEY_S)): direction.y+=1
+		# With a selection, A/S issue combat orders. Arrow keys always pan.
+		if edge_scroll and not dragging and not right_held and not middle_drag:
+			direction+=edge_scroll_direction(local)
+		renderer.camera+=direction*680*dt/renderer.zoom
+		clamp_camera()
+		if placement!="": renderer.placement_cell=sim.grid.cell(screen_world(local))
+	else:
+		hovered_entity_id=0
+		renderer.hovered_entity_id=0
+		hover_panel.visible=false
+		renderer.placement=""
+	notice_timer-=dt
+	if is_instance_valid(alert_panel): alert_panel.visible=notice_timer>0 or placement!=""
+	if is_instance_valid(notification): notification.modulate=Color(1,0.9+sin(notice_timer*10)*0.1,0.7+sin(notice_timer*10)*0.3) if notice_timer>4.5 else Color.WHITE
+	if notice_timer<=0 and is_instance_valid(notification):
+		if placement!="": notification.text="%d° · R / E drehen · Q zurück · %s" % [placement_rotation*90,sim.build_reason(placement,0,renderer.placement_cell,placement_rotation)]
+		else: notification.text=""
+	update_timer-=dt
+	if update_timer<=0: update_hud(); update_timer=0.15
+	autosave_timer-=dt
+	if autosave_timer<=0: save_game("user://autosave.json",false); autosave_timer=120
+	if sim.result!="" and not ended: ended=true; show_end()
+
+func monitor_frame_rate(dt: float) -> void:
+	if dt<=0.0: return
+	fps_sample_elapsed+=dt
+	fps_sample_frames+=1
+	if fps_sample_elapsed<0.4: return
+	var measured_fps:=float(fps_sample_frames)/fps_sample_elapsed
+	if is_instance_valid(fps_label):
+		fps_label.text="FPS %02d" % roundi(measured_fps)
+		fps_label.add_theme_color_override("font_color",MINT if measured_fps>=50.0 else (GOLD if measured_fps>=30.0 else Color("ff765f")))
+	if playing and sim!=null:
+		record_performance_sample(measured_fps,fps_sample_elapsed)
+	fps_sample_elapsed=0.0
+	fps_sample_frames=0
+
+func record_performance_sample(measured_fps: float, sample_seconds: float) -> void:
+	if measured_fps<LOW_FPS_THRESHOLD:
+		low_fps_seconds+=sample_seconds
+		low_fps_minimum=minf(low_fps_minimum,measured_fps)
+		low_fps_weighted_sum+=measured_fps*sample_seconds
+		low_fps_recorded_seconds+=sample_seconds
+		if not low_fps_active and low_fps_seconds>=LOW_FPS_TRIGGER_SECONDS:
+			low_fps_active=true
+			write_performance_event("LOW_FPS",low_fps_seconds,low_fps_minimum,low_fps_weighted_sum/maxf(low_fps_recorded_seconds,0.001))
+	elif low_fps_active:
+		if measured_fps<RECOVERY_FPS_THRESHOLD:
+			low_fps_seconds+=sample_seconds
+			low_fps_minimum=minf(low_fps_minimum,measured_fps)
+			low_fps_weighted_sum+=measured_fps*sample_seconds
+			low_fps_recorded_seconds+=sample_seconds
+		else:
+			write_performance_event("RECOVERED",low_fps_seconds,low_fps_minimum,low_fps_weighted_sum/maxf(low_fps_recorded_seconds,0.001))
+			reset_low_fps_event()
+	else:
+		reset_low_fps_event()
+
+func reset_low_fps_event() -> void:
+	low_fps_seconds=0.0
+	low_fps_minimum=INF
+	low_fps_weighted_sum=0.0
+	low_fps_recorded_seconds=0.0
+	low_fps_active=false
+
+func write_performance_event(event_type: String, duration: float, minimum_fps: float, average_fps: float) -> void:
+	var directory:=performance_log_path.get_base_dir()
+	if not directory.is_empty(): DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
+	var existed:=FileAccess.file_exists(performance_log_path)
+	var file:=FileAccess.open(performance_log_path,FileAccess.READ_WRITE if existed else FileAccess.WRITE)
+	if file==null:
+		if not performance_log_error_reported:
+			push_warning("Could not write performance log: "+error_string(FileAccess.get_open_error()))
+			performance_log_error_reported=true
+		return
+	if existed: file.seek_end()
+	else: file.store_line("timestamp,event,mission_time_s,duration_s,average_fps,minimum_fps,entities,units,buildings,friendly_units,enemy_units,friendly_buildings,enemy_buildings,visible_units,visible_buildings,vfx,draw_calls,primitives,process_ms,physics_ms,vehicle_cache_hits,vehicle_cache_misses")
+	var total_units:=0
+	var total_buildings:=0
+	var friendly_units:=0
+	var enemy_units:=0
+	var friendly_buildings:=0
+	var enemy_buildings:=0
+	for entity in sim.entities.values():
+		if entity.building:
+			total_buildings+=1
+			if entity.owner==0: friendly_buildings+=1
+			else: enemy_buildings+=1
+		else:
+			total_units+=1
+			if entity.owner==0: friendly_units+=1
+			else: enemy_units+=1
+	var values:Array = [Time.get_datetime_string_from_system(false),event_type,"%.1f"%sim.time,"%.2f"%duration,"%.2f"%average_fps,"%.2f"%minimum_fps,str(sim.entities.size()),str(total_units),str(total_buildings),str(friendly_units),str(enemy_units),str(friendly_buildings),str(enemy_buildings),str(renderer.visible_mobile_count),str(renderer.visible_building_count),str(renderer.active_vfx_count),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),"%.2f"%(Performance.get_monitor(Performance.TIME_PROCESS)*1000.0),"%.2f"%(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000.0),str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses)]
+	var row:=PackedStringArray()
+	for value in values: row.append(str(value))
+	file.store_line(",".join(row))
+	file.close()
+	print("PERFORMANCE EVENT ",event_type," | "," FPS ",snappedf(average_fps,0.1)," min ",snappedf(minimum_fps,0.1)," | units ",total_units," buildings ",total_buildings," vfx ",renderer.active_vfx_count)
+
+func clamp_camera() -> void:
+	if sim==null: return
+	var half := WORLD_RECT.size*0.5/renderer.zoom
+	var max_size := Vector2(sim.grid.width,sim.grid.height)*sim.grid.tile
+	renderer.camera.x=clampf(renderer.camera.x,minf(half.x,max_size.x/2),maxf(max_size.x-half.x,max_size.x/2))
+	renderer.camera.y=clampf(renderer.camera.y,minf(half.y,max_size.y/2),maxf(max_size.y-half.y,max_size.y/2))
+
+func dispatch_order(ids: Array, point: Vector2, order: String = "move", target_id: int = 0) -> bool:
+	var actors := ids.duplicate()
+	if order in ["harvest","return"]: actors=actors.filter(func(id):return sim.entities.has(int(id)) and sim.entities[int(id)].kind=="harvester")
+	if actors.size()==1 and sim.entities.has(int(actors[0])) and sim.entities[int(actors[0])].kind=="factory" and order in ["move","attack","attack_move"]: order="rally"
+	return sim.submit_command({"type":order,"owner_id":0,"ids":actors,"point":[point.x,point.y],"target_id":target_id},0)
+
+func issue_context_order(point: Vector2) -> void:
+	var id := entity_at(point)
+	var order := "move"
+	if id>0 and sim.entities[id].owner==1: order="attack"
+	elif sim.grid.inside(sim.grid.cell(point)) and sim.explored[0][sim.grid.cell(point).y*sim.grid.width+sim.grid.cell(point).x]>0 and float(sim.grid.resources.get(sim.grid.key(sim.grid.cell(point)),0))>0: order="harvest"
+	elif id>0 and sim.entities[id].owner==0 and sim.entities[id].kind=="refinery": order="return"
+	dispatch_order(selected,point,order,id if order=="attack" else 0)
+	renderer.command_marker=point; renderer.marker_time=0.8; music.cue("move")
+	if order=="harvest": notify("Solaritfeld zugewiesen: sammeln und automatisch abladen.")
+
+func on_presentation(kind: String, data: Dictionary) -> void:
+	if kind=="destroy" and data.has("id"):
+		selected.erase(int(data.id))
+		if inspected==int(data.id): inspected=0
+		renderer.selected=selected.duplicate()
+	var cell := sim.grid.cell(data.pos)
+	if not sim.grid.inside(cell) or sim.fog[0][cell.y*sim.grid.width+cell.x]==0: return
+	renderer.combat_fx.emit_effect(kind,data,renderer.camera.distance_to(data.pos))
+	var distance_gain := clampf(1.0-renderer.camera.distance_to(data.pos)/1600.0,0.08,1.0)
+	if kind=="shot": music.cue(renderer.combat_fx.family(data.weapon).to_lower()+"_shot",0.8*distance_gain)
+	if kind=="impact": music.cue(renderer.combat_fx.family(data.weapon).to_lower()+"_impact",0.7*distance_gain)
+	if kind=="destroy":
+		if data.get("kind","")=="core": music.cue("alarm",0.6); music.cue("core_impact",0.9)
+		notify(("EIGENES GEBÄUDE ZERSTÖRT" if data.building else "FAHRZEUG VERLOREN") if data.owner==0 else ("FEINDLICHES GEBÄUDE ZERSTÖRT" if data.building else "FEINDLICHES FAHRZEUG ZERSTÖRT"))
+		if is_instance_valid(minimap): minimap.ping(data.pos,Color("f34c32"))
+	if kind=="hit" and data.owner==0 and not data.building and notice_timer<=0:
+		notify("FAHRZEUG UNTER BESCHUSS"); music.cue("alarm")
+		if is_instance_valid(minimap): minimap.ping(data.pos,Color("f34c32"))
+
+func on_event(kind: String, pos: Vector2, message: String) -> void:
+	var visible := false
+	if sim!=null:
+		var cell := sim.grid.cell(pos)
+		visible=sim.grid.inside(cell) and sim.fog[0][cell.y*sim.grid.width+cell.x]>0
+	if kind in ["shot","explosion"]:
+		if visible:
+			if kind=="explosion": music.cue(kind,clampf(1.0-pos.distance_to(renderer.camera)/1200.0,0.05,0.8))
+	else:
+		if not visible: return
+		renderer.visual_event(kind,pos)
+		music.cue(kind)
+		if message!="": notify(message)
+		last_event=pos
+		if kind in ["alarm","complete","ready"] and is_instance_valid(minimap): minimap.ping(pos,GOLD if kind=="alarm" else sim.team_color(0))
+
+func notify(message: String) -> void:
+	if is_instance_valid(notification): notification.text=message; fit_wrapped(notification)
+	notice_timer=6.0
+	if is_instance_valid(alert_panel): alert_panel.visible=true
+
+func show_pause() -> void:
+	if not playing: return
+	paused=true; music.set_paused(true); dragging=false; renderer.selecting=false; right_held=false; middle_drag=false
+	clear(overlay)
+	var p := panel(overlay,Rect2(650,215,620,650),Color("2b221b"))
+	label(p,"KOMMANDO UNTERBROCHEN",Vector2(40,32),18,MINT)
+	label(p,"Pause",Vector2(40,74),48,GOLD)
+	var actions := [["WEITERSPIELEN",resume_game],["SPEICHERN",func():save_game(); show_pause()],["LADEN",load_game],["OPTIONEN",func():show_options(show_pause)],["UPDATEINFO",func():show_updates(show_pause)],["EINSATZ NEU STARTEN",start_game],["HAUPTMENÜ",show_main_menu]]
+	var y := 163
+	for action in actions: button(p,action[0],Rect2(40,y,540,54),action[1]); y+=70
+
+func resume_game() -> void:
+	clear(overlay); paused=false; music.set_paused(false)
+
+func show_end() -> void:
+	paused=true
+	clear(overlay)
+	var p := panel(overlay,Rect2(585,205,750,670),Color("2b221b"))
+	label(p,"EINSATZ ABGESCHLOSSEN",Vector2(42,28),18,MINT)
+	var end_title:=str(db.mission.get("victory_title","Sektor gesichert")) if sim.result=="victory" else str(db.mission.get("defeat_title","Signal verloren"))
+	label(p,end_title,Vector2(42,72),43,GOLD)
+	var s: Dictionary = sim.stats
+	label(p,"Zeit                %02d:%02d\nSolarit geliefert   %d\nFahrzeuge gebaut     %d\nFahrzeuge verloren   %d\nFeinde zerstört      %d\nGebäude errichtet    %d\nGebäude verloren     %d" % [int(sim.time)/60,int(sim.time)%60,int(s.gathered),s.produced,s.lost,s.kills,s.built,s.buildings_lost],Vector2(44,164),23,Color("c8d8ce"))
+	if sim.result=="victory":
+		record_campaign_victory()
+		var score_result := record_highscore()
+		var ranking_text := "PUNKTE  %s    ·    PLATZ %s" % [format_score(int(score_result.score)),"%d / 10" % int(score_result.rank) if int(score_result.rank)>0 else "AUSSERHALB DER TOP 10"]
+		if score_result.new_best: ranking_text+="    ·    NEUER BESTWERT"
+		label(p,ranking_text,Vector2(44,401),18,GOLD,660)
+		label(p,"BESTENLISTE   "+leaderboard_preview(),Vector2(44,433),15,MINT,660)
+	if sim.result=="victory" and mission_index<MISSION_PATHS.size()-1:
+		button(p,"ERNEUT",Rect2(42,540,190,58),start_game)
+		button(p,"NÄCHSTER EINSATZ",Rect2(247,540,255,58),func():select_mission(mission_index+1))
+		button(p,"HAUPTMENÜ",Rect2(517,540,185,58),show_main_menu)
+	else:
+		button(p,"ERNEUT SPIELEN",Rect2(42,540,310,58),start_game)
+		button(p,"HAUPTMENÜ",Rect2(392,540,310,58),show_main_menu)
+
+func create_run_id() -> String:
+	return "%d-%d" % [Time.get_ticks_usec(),randi()]
+
+func load_campaign_progress() -> void:
+	if not FileAccess.file_exists(campaign_progress_path): return
+	var parsed=JSON.parse_string(FileAccess.get_file_as_string(campaign_progress_path))
+	if not parsed is Dictionary or int(parsed.get("format_version",0))!=1: return
+	var completed_value=parsed.get("completed",[])
+	if not completed_value is Array: return
+	campaign_progress={"format_version":1,"unlocked_mission":clampi(int(parsed.get("unlocked_mission",0)),0,MISSION_PATHS.size()-1),"tech_level":clampi(int(parsed.get("tech_level",0)),0,2),"completed":completed_value.duplicate()}
+
+func record_campaign_victory() -> void:
+	var completed_value: Array=campaign_progress.completed
+	var mission_id:=str(db.mission.get("id",""))
+	if not completed_value.has(mission_id): completed_value.append(mission_id)
+	campaign_progress.completed=completed_value
+	campaign_progress.unlocked_mission=maxi(int(campaign_progress.unlocked_mission),mini(mission_index+1,MISSION_PATHS.size()-1))
+	campaign_progress.tech_level=maxi(int(campaign_progress.tech_level),mini(mission_index+1,2))
+	var temporary:=campaign_progress_path+".tmp"
+	var file:=FileAccess.open(temporary,FileAccess.WRITE)
+	if file==null: return
+	file.store_string(JSON.stringify(campaign_progress,"  ")); file.close()
+	var err:=DirAccess.rename_absolute(ProjectSettings.globalize_path(temporary),ProjectSettings.globalize_path(campaign_progress_path))
+	if err!=OK: push_warning("Campaign progress could not be saved: "+error_string(err))
+
+func calculate_run_score() -> int:
+	var s: Dictionary=sim.stats
+	var time_bonus:=maxf(0.0,1800.0-sim.time)*2.0
+	var total:=1000.0+float(s.kills)*250.0+float(s.gathered)*0.5+float(s.produced)*120.0+float(s.built)*100.0+time_bonus-float(s.lost)*200.0-float(s.buildings_lost)*500.0
+	return maxi(0,roundi(total))
+
+func format_score(score: int) -> String:
+	var digits:=str(score)
+	var groups: Array[String]=[]
+	while digits.length()>3:
+		groups.push_front(digits.substr(digits.length()-3))
+		digits=digits.substr(0,digits.length()-3)
+	groups.push_front(digits)
+	return ".".join(groups)
+
+func load_highscores() -> Dictionary:
+	var empty: Dictionary={"format_version":1,"entries":[],"completed_runs":[]}
+	if not FileAccess.file_exists(highscore_path): return empty
+	var parsed=JSON.parse_string(FileAccess.get_file_as_string(highscore_path))
+	if not parsed is Dictionary or int(parsed.get("format_version",0))!=1 or not parsed.get("entries",[]) is Array: return empty
+	var valid_entries: Array=[]
+	for entry in parsed.entries:
+		if entry is Dictionary and entry.has("mission") and entry.has("score") and entry.has("time"): valid_entries.append(entry)
+	parsed["entries"]=valid_entries
+	if not parsed.get("completed_runs",[]) is Array: parsed["completed_runs"]=[]
+	return parsed
+
+func save_highscores(data: Dictionary) -> bool:
+	var temporary:=highscore_path+".tmp"
+	var file:=FileAccess.open(temporary,FileAccess.WRITE)
+	if file==null: push_warning("Highscore could not be written: "+error_string(FileAccess.get_open_error())); return false
+	file.store_string(JSON.stringify(data,"",true,true)); file.close()
+	return DirAccess.rename_absolute(temporary,highscore_path)==OK
+
+func record_highscore() -> Dictionary:
+	var data:=load_highscores()
+	var entries: Array=data.entries
+	var completed: Array=data.completed_runs
+	if run_id.is_empty(): run_id=create_run_id()
+	if completed.has(run_id):
+		for previous in entries:
+			if str(previous.get("run_id",""))==run_id:
+				var saved_rank:=1
+				for ranked in entries:
+					if ranked.get("mission","")==db.mission.id and (int(ranked.score)>int(previous.score) or (int(ranked.score)==int(previous.score) and float(ranked.time)<float(previous.time))): saved_rank+=1
+				return {"score":int(previous.score),"rank":saved_rank if saved_rank<=10 else 0,"new_best":false}
+		return {"score":calculate_run_score(),"rank":0,"new_best":false}
+	for existing in entries:
+		if str(existing.get("run_id",""))==run_id:
+			var previous_rank:=1
+			for ranked in entries:
+				if int(ranked.score)>int(existing.score) or (int(ranked.score)==int(existing.score) and float(ranked.time)<float(existing.time)): previous_rank+=1
+			return {"score":int(existing.score),"rank":previous_rank,"new_best":false}
+	var old_best:=0
+	for old_entry in entries:
+		if old_entry.get("mission","")==db.mission.id: old_best=maxi(old_best,int(old_entry.get("score",0)))
+	var score:=calculate_run_score()
+	var entry: Dictionary={"run_id":run_id,"mission":db.mission.id,"mission_name":db.mission.name,"score":score,"time":sim.time,"difficulty":difficulty,"faction":db.factions[faction].name,"date":Time.get_date_string_from_system(false),"gathered":int(sim.stats.gathered),"kills":int(sim.stats.kills),"lost":int(sim.stats.lost)}
+	entries.append(entry)
+	entries.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
+		if int(a.score)==int(b.score): return float(a.time)<float(b.time)
+		return int(a.score)>int(b.score))
+	var mission_count:=0
+	var retained: Array=[]
+	for ranked in entries:
+		if ranked.get("mission","")!=db.mission.id: retained.append(ranked)
+		elif mission_count<10: retained.append(ranked); mission_count+=1
+	var rank:=1
+	for ranked in retained:
+		if ranked.get("mission","")!=db.mission.id: continue
+		if str(ranked.get("run_id",""))==run_id: break
+		rank+=1
+	if not run_id.is_empty() and not completed.has(run_id): completed.append(run_id)
+	data["entries"]=retained
+	data["completed_runs"]=completed
+	save_highscores(data)
+	return {"score":score,"rank":rank if rank<=10 else 0,"new_best":score>old_best}
+
+func leaderboard_preview() -> String:
+	var rows: Array[String]=[]
+	for entry in load_highscores().entries:
+		if entry.get("mission","")!=db.mission.id: continue
+		rows.append("%d. %s" % [rows.size()+1,format_score(int(entry.score))])
+		if rows.size()>=3: break
+	return "   /   ".join(rows) if not rows.is_empty() else "Noch keine Siege gespeichert"
+
+func difficulty_label(value: String) -> String:
+	return {"easy":"Ruhig","normal":"Ausgewogen","hard":"Entschlossen"}.get(value,value)
+
+func show_highscores(return_action: Callable = Callable()) -> void:
+	if not return_action.is_valid(): return_action=show_main_menu
+	clear(overlay)
+	var p:=panel(overlay,Rect2(470,112,980,856),Color("202a29"))
+	label(p,"PILOTENARCHIV / PERSÖNLICHE BESTENLISTE",Vector2(38,28),17,MINT)
+	label(p,"Einsatzrekorde",Vector2(38,60),42,GOLD)
+	label(p,"MISSION   "+db.mission.name,Vector2(38,123),16,MUTED)
+	var entries: Array=[]
+	for entry in load_highscores().entries:
+		if entry.get("mission","")==db.mission.id: entries.append(entry)
+	if entries.is_empty():
+		label(p,"Noch kein Einsatz abgeschlossen.\nSichere das Becken, um deinen ersten Eintrag freizuschalten.",Vector2(42,210),23,Color("c8d8ce"),875)
+	else:
+		label(p,"RANG     PUNKTE       ZEIT       WIDERSTAND       FRAKTION       DATUM",Vector2(42,186),15,MUTED)
+		var y:=222
+		for i in mini(entries.size(),10):
+			var entry: Dictionary=entries[i]
+			var style:=Color("e7bd78") if i==0 else Color("c8d8ce")
+			label(p,"%02d       %s       %02d:%02d       %s       %s       %s" % [i+1,format_score(int(entry.score)),int(float(entry.time))/60,int(float(entry.time))%60,difficulty_label(str(entry.difficulty)),str(entry.faction),str(entry.date)],Vector2(42,y),17,style,885)
+			y+=52
+	label(p,"Wertung: 1.000 Basis · Abschuss +250 · Solarit ×0,5 · Produktion +120 · Bau +100.\nZeitbonus: max. 0, (1.800 s − Zeit) ×2 · eigene Verluste −200 je Fahrzeug, −500 je Gebäude.",Vector2(42,746),15,MUTED,890)
+	button(p,"ZURÜCK",Rect2(42,804,260,42),return_action)
+
+func save_game(path: String = SAVE_PATH, feedback: bool = true) -> void:
+	if sim==null: return
+	var data := sim.snapshot()
+	data["run_id"]=run_id
+	data["camera"]=[renderer.camera.x,renderer.camera.y]
+	data["zoom"]=renderer.zoom
+	data["groups"]=groups
+	data["selected"]=selected
+	data["placement"]=placement
+	data["placement_rotation"]=placement_rotation
+	data["visual_state"]=renderer.combat_fx.persistence_snapshot()
+	var temporary := path+".tmp"
+	var file := FileAccess.open(temporary,FileAccess.WRITE)
+	if file==null: notify("Speichern fehlgeschlagen: "+error_string(FileAccess.get_open_error())); return
+	file.store_string(JSON.stringify(data,"",true,true)); file.close()
+	var err := DirAccess.rename_absolute(temporary,path)
+	if err!=OK: notify("Speichern fehlgeschlagen: "+error_string(err)); return
+	if feedback: music.cue("save"); notify("Spielstand gespeichert.")
+
+func load_game() -> void:
+	var path := SAVE_PATH if FileAccess.file_exists(SAVE_PATH) else "user://autosave.json"
+	if not FileAccess.file_exists(path): show_error("Noch kein Spielstand vorhanden."); return
+	var parser := JSON.new()
+	if parser.parse(FileAccess.get_file_as_string(path))!=OK: show_error("Spielstand enthält ungültiges JSON."); return
+	var data = parser.data
+	if not data is Dictionary: show_error("Ungültiger Spielstand."); return
+	var saved_mission_index:=mission_index_for_id(str(data.get("mission","")))
+	if saved_mission_index<0: show_error("Mission des Spielstands ist nicht verfügbar."); return
+	mission_index=saved_mission_index
+	db=Catalog.new(MISSION_PATHS[mission_index])
+	var model := Simulation.new(db,"forge","normal",int(campaign_progress.tech_level))
+	if model.restore(data)!=OK: show_error("Spielstandversion oder Spieldaten passen nicht."); return
+	var local_visuals := CombatEffects.new()
+	if data.has("visual_state") and local_visuals.restore_persistence(data.visual_state,Vector2(model.grid.width,model.grid.height)*model.grid.tile)!=OK:
+		show_error("Ungültige visuelle Zerstörungsspuren im Spielstand."); return
+	sim=model; run_id=str(data.get("run_id","")); if run_id.is_empty(): run_id=create_run_id()
+	connect_sim(); playing=true; paused=false; ended=false
+	render_previous=capture_render_state(); render_current=render_previous.duplicate(true)
+	renderer.set_interpolation(render_previous,render_current,1.0)
+	renderer.combat_fx.ruins=local_visuals.ruins
+	renderer.combat_fx.craters=local_visuals.craters
+	renderer.preserve_loaded_visuals=true
+	faction=sim.factions[0]; difficulty=sim.difficulty
+	selected=[]
+	if data.get("selected",[]) is Array:
+		for id in data.get("selected",[]):
+			if sim.number(id) and sim.entities.has(int(id)): selected.append(int(id))
+	groups={}
+	if data.get("groups",{}) is Dictionary:
+		for k in data.get("groups",{}):
+			if not data.groups[k] is Array: continue
+			groups[int(k)]=[]
+			for id in data.groups[k]:
+				if sim.number(id) and sim.entities.has(int(id)): groups[int(k)].append(int(id))
+	var camera_value = data.get("camera",[400,1450])
+	if not sim.vector_valid(camera_value): camera_value=[400,1450]
+	renderer.camera=Vector2(camera_value[0],camera_value[1])
+	var zoom_value = data.get("zoom",1)
+	renderer.zoom=clampf(float(zoom_value),0.75,2.5) if sim.number(zoom_value) else 1.25
+	placement=data.get("placement","") if data.get("placement","") is String and db.buildings.has(data.get("placement","")) else ""
+	placement_rotation=int(data.get("placement_rotation",0))%4
+	renderer.placement_rotation=placement_rotation
+	renderer.placement=placement
+	accumulator=0; clear(overlay); view_container.visible=true
+	build_hud(); music.start(sim); music.set_paused(false); notify("Spielstand geladen.")
+	if sim.result!="": ended=true; show_end()
+
+func show_error(message: String) -> void:
+	clear(overlay)
+	var p := panel(overlay,Rect2(610,390,700,280))
+	label(p,message,Vector2(30,30),22,GOLD,640)
+	button(p,"SCHLIESSEN",Rect2(30,193,640,50),func():clear(overlay))
+
+func show_options(back: Callable, requested_tab: String = "") -> void:
+	clear(overlay)
+	if requested_tab in ["BILD","AUDIO","STEUERUNG","GAMEPLAY"]: options_tab=requested_tab
+	var screen := get_viewport_rect().size
+	var panel_size := Vector2(minf(1120.0,screen.x-48.0),minf(770.0,screen.y-48.0))
+	var panel_pos := (screen-panel_size)*0.5
+	var shade := ColorRect.new()
+	shade.color=Color(0.015,0.02,0.022,0.54)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(shade)
+	var p := panel(overlay,Rect2(panel_pos,panel_size),Color("171714"))
+	p.name="OptionsPanel"
+	var shell := StyleBoxFlat.new()
+	shell.bg_color=Color(0.075,0.067,0.056,0.94)
+	shell.border_color=Color(0.48,0.39,0.28,0.78)
+	shell.set_border_width_all(1)
+	shell.set_corner_radius_all(3)
+	shell.shadow_color=Color(0,0,0,0.48); shell.shadow_size=24; shell.shadow_offset=Vector2(0,8)
+	p.add_theme_stylebox_override("panel",shell)
+	var w := panel_size.x
+	var h := panel_size.y
+	label(p,"SYSTEM  /  OPTIONEN",Vector2(36,24),15,MINT)
+	label(p,"Bild, Klang & Kontrolle",Vector2(36,47),32,GOLD)
+	label(p,"PERSÖNLICHE EINSATZKONFIGURATION",Vector2(w-360,58),13,MUTED,324)
+	var tab_names := ["BILD","AUDIO","STEUERUNG","GAMEPLAY"]
+	var tab_width := (w-72.0)/4.0
+	var focus_tab: Button
+	for i in tab_names.size():
+		var tab_name: String = tab_names[i]
+		var tab_button := button(p,tab_name,Rect2(36+i*tab_width,103,tab_width-8,42),func():show_options(back,tab_name))
+		tab_button.add_theme_font_size_override("font_size",15)
+		var tab_style := StyleBoxFlat.new()
+		tab_style.bg_color=Color(0.13,0.17,0.15,0.70) if options_tab==tab_name else Color(0.025,0.032,0.032,0.30)
+		tab_style.border_color=MINT if options_tab==tab_name else Color(0.35,0.31,0.26,0.42)
+		tab_style.border_width_bottom=2 if options_tab==tab_name else 1
+		tab_style.content_margin_left=8; tab_style.content_margin_right=8
+		var tab_hover: StyleBoxFlat=tab_style.duplicate()
+		tab_hover.bg_color=Color(0.10,0.15,0.14,0.75); tab_hover.border_color=MINT
+		tab_button.add_theme_stylebox_override("normal",tab_style)
+		tab_button.add_theme_stylebox_override("hover",tab_hover)
+		tab_button.add_theme_stylebox_override("focus",tab_hover)
+		tab_button.add_theme_color_override("font_color",MINT if options_tab==tab_name else MUTED)
+		if options_tab==tab_name: focus_tab=tab_button
+	if focus_tab: focus_tab.grab_focus()
+	var content_height := h-262.0
+	var content := Panel.new()
+	content.position=Vector2(36,163); content.size=Vector2(w-72,content_height)
+	var content_style := StyleBoxFlat.new()
+	content_style.bg_color=Color(0.025,0.032,0.031,0.43)
+	content_style.border_color=Color(0.31,0.34,0.29,0.48)
+	content_style.border_width_bottom=1
+	content.add_theme_stylebox_override("panel",content_style)
+	p.add_child(content)
+	var cw := content.size.x
+	var compact_options := content_height<470.0
+	var heading := func(text_value: String, y: float):
+		label(content,text_value,Vector2(26,y),14,MINT)
+	var row := func(y: float, title: String, hint: String, control: Control):
+		var divider := ColorRect.new()
+		divider.color=Color(0.70,0.61,0.45,0.12)
+		divider.position=Vector2(24,y+(43 if compact_options else 52)); divider.size=Vector2(cw-48,1)
+		divider.mouse_filter=Control.MOUSE_FILTER_IGNORE
+		content.add_child(divider)
+		label(content,title,Vector2(28,y+4),16,Color("d6dfd5"))
+		if hint!="": label(content,hint,Vector2(28,y+26),12,MUTED)
+		control.position=Vector2(cw-350,y+(3 if compact_options else 6)); control.size=Vector2(318,34 if compact_options else 38)
+		control.add_theme_font_size_override("font_size",15)
+		if control.get_parent()==null: content.add_child(control)
+	if options_tab=="BILD":
+		heading.call("ANZEIGE",18)
+		var classic_button := button(content,"CLASSIC RETRO · 640×360" if classic else "MODERN RETRO · FULL HD",Rect2(),func():set_classic(not classic); show_options(back,"BILD"))
+		row.call(30 if compact_options else 45,"Darstellungsstil","Pixelgenaue Retro-Skalierung oder modernes Full HD.",classic_button)
+		var resolutions := [Vector2i(1280,720),Vector2i(1600,900),Vector2i(1920,1080),Vector2i(2560,1440),Vector2i(3840,2160)]
+		var resolution := OptionButton.new()
+		resolution.name="ResolutionSelect"
+		var matched := false
+		for i in resolutions.size():
+			resolution.add_item("%d × %d" % [resolutions[i].x,resolutions[i].y])
+			if get_window().size==resolutions[i]: resolution.select(i); matched=true
+		if not matched: resolution.add_item("Aktuell: %d × %d" % [get_window().size.x,get_window().size.y]); resolution.select(resolutions.size())
+		resolution.item_selected.connect(func(i):
+			if i<resolutions.size(): get_window().size=resolutions[i]; persist_settings())
+		row.call(77 if compact_options else 103,"Auflösung","Fenstergröße für die aktuelle Anzeige.",resolution)
+		var mode := OptionButton.new()
+		mode.name="WindowModeSelect"
+		for mode_name in ["Fenster","Randlos","Vollbild"]: mode.add_item(mode_name)
+		mode.select(2 if get_window().mode==Window.MODE_FULLSCREEN else (1 if get_window().borderless else 0))
+		mode.item_selected.connect(func(i):
+			get_window().mode=Window.MODE_FULLSCREEN if i==2 else Window.MODE_WINDOWED
+			get_window().borderless=i==1
+			if i==1: get_window().size=DisplayServer.screen_get_size(); get_window().position=Vector2i.ZERO
+			persist_settings())
+		row.call(124 if compact_options else 161,"Fenstermodus","Fenster, randloses Fenster oder exklusives Vollbild.",mode)
+		var crt_button := button(content,["AUS","LEICHT","STARK"][crt],Rect2(),func():crt=(crt+1)%3; renderer.crt=crt; persist_settings(); show_options(back,"BILD"))
+		crt_button.disabled=not classic
+		row.call(171 if compact_options else 219,"CRT-Filter","Nur im Classic-Retro-Modus verfügbar.",crt_button)
+		heading.call("GEFECHTSEFFEKTE",224 if compact_options else 286)
+		var fx_button := button(content,["NIEDRIG","MITTEL","HOCH"][renderer.combat_fx.quality],Rect2(),func():renderer.combat_fx.quality=(renderer.combat_fx.quality+1)%3; persist_settings(); show_options(back,"BILD"))
+		fx_button.name="EffectQuality"
+		row.call(248 if compact_options else 313,"Effektqualität","Dichte von Funken, Rauch und Trefferpartikeln.",fx_button)
+		var shake_button := button(content,["AUS","LEICHT","NORMAL"][renderer.combat_fx.shake_mode],Rect2(),func():renderer.combat_fx.shake_mode=(renderer.combat_fx.shake_mode+1)%3; persist_settings(); show_options(back,"BILD"))
+		shake_button.name="CameraShake"
+		row.call(295 if compact_options else 371,"Kamerastoß","Intensität der kurzen Treffer- und Explosionsreaktion.",shake_button)
+		var health_button := button(content,["BEI SCHADEN","IMMER","AUSGEWÄHLT","AUS"][ ["damaged","always","selected","off"].find(health_mode) if health_mode in ["damaged","always","selected","off"] else 0 ],Rect2(),func():
+			var modes := ["damaged","always","selected","off"]
+			health_mode=modes[(modes.find(health_mode)+1)%4]; renderer.health_mode=health_mode; persist_settings(); show_options(back,"BILD"))
+		row.call(342 if compact_options else 429,"Lebensbalken","Anzeige beschädigter oder ausgewählter Einheiten.",health_button)
+	elif options_tab=="AUDIO":
+		heading.call("AUDIO-MISCHPULT",22)
+		label(content,"Die Mischpegel gelten sofort und werden lokal gespeichert.",Vector2(26,51),14,MUTED)
+		for i in 2:
+			var y := 116.0+i*122.0
+			var title := "MUSIK" if i==0 else "SOUND-EFFEKTE"
+			label(content,title,Vector2(28,y),16,Color("d6dfd5"))
+			var slider := HSlider.new()
+			slider.name="MusicVolumeSlider" if i==0 else "SfxVolumeSlider"
+			slider.position=Vector2(28,y+37); slider.size=Vector2(cw-150,32)
+			slider.min_value=0; slider.max_value=1; slider.step=0.01
+			slider.value=music.music_volume if i==0 else music.sfx_volume
+			var track := StyleBoxFlat.new()
+			track.bg_color=Color("292b25"); track.set_corner_radius_all(3); track.content_margin_top=3; track.content_margin_bottom=3
+			var active_track := StyleBoxFlat.new()
+			active_track.bg_color=MINT; active_track.set_corner_radius_all(3); active_track.content_margin_top=3; active_track.content_margin_bottom=3
+			slider.add_theme_stylebox_override("slider",track)
+			slider.add_theme_stylebox_override("grabber_area",active_track)
+			var active_hover: StyleBoxFlat=active_track.duplicate(); active_hover.bg_color=GOLD
+			slider.add_theme_stylebox_override("grabber_area_highlight",active_hover)
+			var percentage := Label.new()
+			percentage.position=Vector2(cw-105,y+36); percentage.size=Vector2(76,30)
+			percentage.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+			percentage.add_theme_color_override("font_color",GOLD)
+			percentage.add_theme_font_size_override("font_size",16)
+			percentage.text="%d %%" % roundi(slider.value*100.0)
+			slider.value_changed.connect(func(value: float):
+				percentage.text="%d %%" % roundi(value*100.0)
+				if i==0: music.music_volume=value
+				else: music.sfx_volume=value; music.cue("select")
+				persist_settings())
+			content.add_child(slider); content.add_child(percentage)
+			var line := ColorRect.new()
+			line.position=Vector2(28,y+88); line.size=Vector2(cw-56,1); line.color=Color(0.70,0.61,0.45,0.14); line.mouse_filter=Control.MOUSE_FILTER_IGNORE
+			content.add_child(line)
+		label(content,"MUSIK UND EFFEKTE SIND GETRENNT GEREGELT",Vector2(28,381),13,MUTED)
+		label(content,"Tipp: Effekte lassen sich unabhängig von der Musik leiser stellen.",Vector2(28,408),14,Color("c8d3cc"))
+	elif options_tab=="STEUERUNG":
+		heading.call("TASTENBELEGUNG",16)
+		label(content,"BEFEHL",Vector2(28,43),12,MUTED)
+		label(content,"TASTE  /  KLICK ZUM ÄNDERN",Vector2(cw-360,43),12,MUTED,330)
+		var actions := [["attack","Angreifen"],["stop","Stoppen"],["hold","Position halten"],["guard","Bewachen"],["repair","Reparieren"],["home","Kamera zur Basis"],["event","Ereignis"],["save","Schnellspeichern"],["load","Schnellladen"]]
+		var key_style := StyleBoxFlat.new()
+		key_style.bg_color=Color(0.09,0.13,0.12,0.54); key_style.border_color=Color(0.42,0.70,0.61,0.55); key_style.set_border_width_all(1); key_style.set_corner_radius_all(2)
+		var key_hover: StyleBoxFlat=key_style.duplicate(); key_hover.bg_color=Color(0.13,0.21,0.18,0.8); key_hover.border_color=MINT
+		var key_row_height := 36.0 if compact_options else 41.0
+		var key_start_y := 58.0 if compact_options else 65.0
+		for i in actions.size():
+			var action: String=actions[i][0]
+			var y := key_start_y+i*key_row_height
+			var separator := ColorRect.new()
+			separator.position=Vector2(24,y+(33 if compact_options else 37)); separator.size=Vector2(cw-48,1); separator.color=Color(0.70,0.61,0.45,0.10); separator.mouse_filter=Control.MOUSE_FILTER_IGNORE
+			content.add_child(separator)
+			label(content,actions[i][1],Vector2(30,y+5),15,Color("d6dfd5"))
+			var key_name := "WARTE AUF EINGABE …" if remap_action==action else OS.get_keycode_string(hotkeys[action])
+			var key_button := button(content,key_name,Rect2(cw-280,y+1,244,30 if compact_options else 34),func():remap_action=action; notify("WARTE AUF EINGABE …  ·  ESC ABBRECHEN"); show_options(back,"STEUERUNG"))
+			key_button.name=action
+			key_button.add_theme_font_size_override("font_size",14)
+			key_button.add_theme_stylebox_override("normal",key_style); key_button.add_theme_stylebox_override("hover",key_hover); key_button.add_theme_stylebox_override("focus",key_hover)
+			key_button.add_theme_color_override("font_color",MINT if remap_action==action else Color("d6dfd5"))
+		var reset := button(content,"STANDARD WIEDERHERSTELLEN",Rect2(24,content.size.y-42,270,32),func():
+			hotkeys={"attack":KEY_A,"stop":KEY_S,"hold":KEY_H,"guard":KEY_G,"repair":KEY_R,"home":KEY_HOME,"event":KEY_SPACE,"save":KEY_F5,"load":KEY_F9}
+			remap_action=""; persist_settings(); show_options(back,"STEUERUNG"))
+		reset.add_theme_font_size_override("font_size",12)
+	elif options_tab=="GAMEPLAY":
+		heading.call("SPIELVERHALTEN",22)
+		label(content,"KAMERA",Vector2(28,72),12,MUTED)
+		var scroll := button(content,"RANDSCROLLEN  ·  "+("AN" if edge_scroll else "AUS"),Rect2(28,104,cw-56,58),func():edge_scroll=not edge_scroll; persist_settings(); show_options(back,"GAMEPLAY"))
+		scroll.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		scroll.add_theme_font_size_override("font_size",16)
+		var scroll_style := StyleBoxFlat.new()
+		scroll_style.bg_color=Color(0.08,0.10,0.09,0.48); scroll_style.border_color=Color(0.40,0.36,0.30,0.38); scroll_style.border_width_bottom=1; scroll_style.content_margin_left=16
+		var scroll_hover: StyleBoxFlat=scroll_style.duplicate(); scroll_hover.bg_color=Color(0.10,0.16,0.14,0.72); scroll_hover.border_color=MINT
+		scroll.add_theme_stylebox_override("normal",scroll_style); scroll.add_theme_stylebox_override("hover",scroll_hover); scroll.add_theme_stylebox_override("focus",scroll_hover)
+		label(content,"Bewegt den Kameraausschnitt, wenn der Mauszeiger den Rand des Spielfelds erreicht.",Vector2(30,174),14,MUTED,cw-60)
+		label(content,"Die Änderung wird sofort übernommen und für den nächsten Start gespeichert.",Vector2(30,207),14,Color("c8d3cc"),cw-60)
+	label(p,"ASHLINE SYSTEM  ·  ÄNDERUNGEN WERDEN SOFORT GESPEICHERT",Vector2(40,h-91),12,MUTED,w-80)
+	var back_button := button(p,"ZURÜCK",Rect2(36,h-61,250,40),func():persist_settings(); back.call())
+	back_button.add_theme_font_size_override("font_size",14)
+	var done_button := button(p,"ÜBERNEHMEN  →",Rect2(w-286,h-61,250,40),func():persist_settings(); back.call())
+	done_button.add_theme_font_size_override("font_size",14)
+	p.modulate.a=0.0
+	var open_tween := p.create_tween()
+	open_tween.tween_property(p,"modulate:a",1.0,0.18)
+
+func set_classic(value: bool) -> void:
+	classic=value; renderer.classic=value; renderer.crt=crt
+	var window := get_window()
+	window.content_scale_mode=Window.CONTENT_SCALE_MODE_VIEWPORT if value else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	window.content_scale_size=Vector2i(640,360) if value else Vector2i(1920,1080)
+	window.content_scale_stretch=Window.CONTENT_SCALE_STRETCH_INTEGER if value else Window.CONTENT_SCALE_STRETCH_FRACTIONAL
+	scale=Vector2.ONE/3.0 if value else Vector2.ONE
+	view_container.stretch_shrink=3 if value else 1
+	texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST if value else CanvasItem.TEXTURE_FILTER_LINEAR
+	view_container.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST if value else CanvasItem.TEXTURE_FILTER_LINEAR
+	if playing: build_hud()
+	persist_settings()
+
+func load_settings() -> void:
+	if save_config.load("user://settings.cfg")==OK:
+		music.music_volume=save_config.get_value("audio","music",0.65)
+		music.sfx_volume=save_config.get_value("audio","sfx",0.75)
+		edge_scroll=save_config.get_value("gameplay","edge",true)
+		health_mode=save_config.get_value("gameplay","health","damaged")
+		crt=save_config.get_value("video","crt",0)
+		renderer.combat_fx.shake_mode=clampi(int(save_config.get_value("video","shake",1)),0,2)
+		renderer.combat_fx.quality=clampi(int(save_config.get_value("video","effects",2)),0,2)
+		for action in hotkeys: hotkeys[action]=int(save_config.get_value("keys",action,hotkeys[action]))
+		var window := get_window()
+		window.size=save_config.get_value("video","resolution",Vector2i(1920,1080))
+		window.mode=save_config.get_value("video","mode",Window.MODE_WINDOWED)
+		window.borderless=save_config.get_value("video","borderless",false)
+		set_classic(save_config.get_value("video","classic",false))
+	renderer.health_mode=health_mode
+
+func persist_settings() -> void:
+	save_config.set_value("audio","music",music.music_volume)
+	save_config.set_value("audio","sfx",music.sfx_volume)
+	save_config.set_value("gameplay","edge",edge_scroll)
+	save_config.set_value("gameplay","health",health_mode)
+	save_config.set_value("video","classic",classic)
+	save_config.set_value("video","crt",crt)
+	save_config.set_value("video","shake",renderer.combat_fx.shake_mode)
+	save_config.set_value("video","effects",renderer.combat_fx.quality)
+	save_config.set_value("video","resolution",get_window().size)
+	save_config.set_value("video","mode",get_window().mode)
+	save_config.set_value("video","borderless",get_window().borderless)
+	for action in hotkeys: save_config.set_value("keys",action,hotkeys[action])
+	save_config.save("user://settings.cfg")
+
+func show_updates(back: Callable) -> void:
+	clear(overlay)
+	var p := panel(overlay,Rect2(390,120,1140,840),Color("2b221b"))
+	label(p,"ASHLINE / VERSION "+str(update_history.current_version),Vector2(32,26),18,MINT)
+	label(p,"Updateinfo",Vector2(32,65),42,GOLD)
+	label(p,"Was wann hinzugekommen ist und verändert wurde",Vector2(32,121),21,MUTED)
+	var versions := ItemList.new()
+	versions.name="Versions"
+	versions.position=Vector2(32,174); versions.size=Vector2(275,566)
+	versions.add_theme_font_size_override("font_size",22)
+	versions.add_theme_constant_override("v_separation",14)
+	p.add_child(versions)
+	var details := RichTextLabel.new()
+	details.name="UpdateDetails"
+	details.position=Vector2(337,174); details.size=Vector2(771,566)
+	details.bbcode_enabled=true; details.scroll_active=true
+	details.add_theme_font_size_override("normal_font_size",23)
+	details.add_theme_font_size_override("bold_font_size",25)
+	details.add_theme_constant_override("line_separation",8)
+	p.add_child(details)
+	var entries: Array = update_history.entries
+	for entry in entries:
+		versions.add_item(str(entry.version)+"  ·  "+str(entry.date))
+		versions.set_item_tooltip(versions.item_count-1,str(entry.title))
+	var display_entry := func(index: int):
+		var entry: Dictionary = entries[index]
+		var text := "[color=#ebbe72][b]"+str(entry.version)+" · "+str(entry.title)+"[/b][/color]\n[color=#bda98b]"+str(entry.date)+"[/color]\n\n"
+		for change in entry.changes: text+="• "+str(change)+"\n\n"
+		details.text=text
+		details.scroll_to_line(0)
+	versions.item_selected.connect(display_entry)
+	versions.select(0); display_entry.call(0); versions.grab_focus()
+	button(p,"ZURÜCK",Rect2(32,772,1076,48),back)
+
+func show_credits() -> void:
+	clear(overlay)
+	var p := panel(overlay,Rect2(580,170,980,740),Color("2b221b"))
+	label(p,"ASHLINE / ORIGINALAUDIO",Vector2(40,34),18,MINT)
+	label(p,"Frequenzen von Veyra",Vector2(40,80),42,GOLD)
+	label(p,"Komposition, Synthese und Grafik wurden für dieses Projekt erstellt.\nAlle Musikspuren laufen bei 120 BPM auf derselben Taktachse.\nAus dem ruhigen Bassmotiv wächst das Gefechtsarrangement.\n\nEngine: Godot, MIT-Lizenz. Keine externen Plugins oder Spielassets.\nProgrammierung, Gestaltung & Komposition: Codex für Dirk.",Vector2(40,168),22,Color("c8d8ce"),900)
+	music.start(Simulation.new(db,faction))
+	music.set_paused(false)
+	for i in 4:
+		button(p,["RUHE","KONTAKT","GEFECHT","BASISALARM"][i],Rect2(40+i*225,467,210,54),func():
+			for j in music.layers.size(): music.layers[j].volume_db=-6 if j<=i else -55
+			music.state=["BASE_CALM","ENEMY_CONTACT","BATTLE","BASE_UNDER_ATTACK"][i]
+			music.age=-100)
+	button(p,"SIEG-JINGLE",Rect2(40,548,430,50),func():music.cue("victory"))
+	button(p,"NIEDERLAGE-JINGLE",Rect2(490,548,430,50),func():music.cue("defeat"))
+	button(p,"ZURÜCK",Rect2(40,648,880,50),show_main_menu)
+
+func capture_smoke() -> void:
+	var directory := "res://test-output" if OS.has_feature("editor") else "user://test-output"
+	DirAccess.make_dir_recursive_absolute(directory)
+	get_viewport().get_texture().get_image().save_png(directory+"/modern.png")
+	set_classic(true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png(directory+"/classic.png")
+	set_classic(false)
+	music.shutdown()
+	await get_tree().create_timer(0.1).timeout
+	get_tree().quit()
+
+func capture_frontend_smoke() -> void:
+	var directory := "res://test-output" if OS.has_feature("editor") else "user://test-output"
+	DirAccess.make_dir_recursive_absolute(directory)
+	intro_art.elapsed=13.0
+	await get_tree().process_frame
+	await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png(directory+"/release_intro.png")
+	skip_intro()
+	await get_tree().create_timer(0.8).timeout
+	get_viewport().get_texture().get_image().save_png(directory+"/release_menu.png")
+	set_classic(true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png(directory+"/release_menu_classic.png")
+	set_classic(false)
+	music.shutdown()
+	await get_tree().create_timer(0.15).timeout
+	get_tree().quit()
+

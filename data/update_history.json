@@ -1,0 +1,394 @@
+{
+  "current_version": "0.35",
+  "entries": [
+    {
+      "version": "0.35",
+      "date": "04.10.2026",
+      "title": "Veröffentlichungen und Updatekanal",
+      "changes": [
+        "Windows-Releases werden automatisiert mit Godot 4.7.2 gebaut, getestet und als portable ZIPs sowie Benutzer-Installer bereitgestellt.",
+        "Das Hauptmenü kann neue GitHub-Versionen beim Start einmalig und jederzeit manuell prüfen.",
+        "Installer werden nur nach Prüfung eines Release-Manifests und der SHA-256-Prüfsumme gestartet; Installation und Spielstände bleiben benutzerbezogen.",
+        "Die Multiplayer-Grundlage definiert versionierte Befehle mit Sitzungs-, Spieler-, Sequenz- und Tickdaten sowie Zustands-Fingerprints für spätere Synchronisationsprüfungen."
+      ]
+    },
+    {
+      "version": "0.34",
+      "date": "03.10.2026",
+      "title": "Werften gezielt steuern",
+      "changes": [
+        "Im Produktionstab lässt sich eine bestimmte Werft als Ziel für neue Fahrzeuge auswählen; der Fahrzeugtab zeigt das aktive Produktionsziel an.",
+        "Die automatische Verteilung auf die Werft mit der kürzesten Warteschlange bleibt jederzeit als Option verfügbar.",
+        "Einträge im Produktionstab markieren die gewählte Zielwerft. Ungültige Zielwerften werden beim Einreihen sicher abgewiesen."
+      ]
+    },
+    {
+      "version": "0.33",
+      "date": "03.10.2026",
+      "title": "Kampagnenstart, Fahrzeug-Hover und Werftwarteschlange",
+      "changes": [
+        "Mission 01 startet mit mehr Solarit und einem späteren, kleineren Gegneraufbau. Geschütze bleiben als frühe Verteidigungsoption verfügbar.",
+        "Radar und Servicehangar werden nach Mission 01 freigeschaltet; Belagerungs- und Spezialfahrzeuge folgen mit den passenden Kampagnenstufen.",
+        "Einheiten und Gebäude zeigen beim Überfahren mit der Maus eine klare Kontur, Namen, Trefferpunkte und Panzerung.",
+        "Die Produktionsübersicht zeigt jeden Werftauftrag einzeln. Aufträge lassen sich gezielt abbrechen; spätere Fahrzeuge können an die nächste Position vorrücken.",
+        "Die Randsteuerung nutzt einen breiteren, weich ansteigenden Bereich am Kartenrand und reagiert schneller auf die Mausbewegung."
+      ]
+    },
+    {
+      "version": "0.32",
+      "date": "03.10.2026",
+      "title": "Dezente Hinweise für gesperrte Bauoptionen",
+      "changes": [
+        "Gesperrte Bau- und Fahrzeugkarten behalten ihre normalen Flächenfarben und ihr unverändertes Einheitensymbol.",
+        "Fehlende Voraussetzungen werden mit gedämpftem Terrakotta und einem schmalen Seitenstrich markiert; zu wenig Solarit bleibt amber.",
+        "Die Textgründe und Tooltips bleiben vollständig sichtbar, ohne dass sich die ganze Liste rot einfärbt."
+      ]
+    },
+    {
+      "version": "0.31",
+      "date": "03.10.2026",
+      "title": "Minimap und klare Bauanforderungen",
+      "changes": [
+        "Die kleine taktische Minimap sitzt jetzt unten rechts im Einsatzfeld und wird nur während einer laufenden Mission angezeigt. Der freigewordene Platz verbessert die Übersicht in der Seitenleiste.",
+        "Bau- und Fahrzeugkarten unterscheiden fehlendes Solarit klar von unerfüllten Voraussetzungen: Solarit-Hinweise erscheinen amber, fehlende Freischaltungen und Gebäudeanforderungen rot.",
+        "Wenn beides fehlt, zeigt die Karte beide Gründe. Der Tooltip nennt die konkreten Anforderungen und den benötigten sowie verfügbaren Solarit-Betrag."
+      ]
+    },
+    {
+      "version": "0.30",
+      "date": "03.10.2026",
+      "title": "Solarit, Werftwarteschlangen und Energiereserve",
+      "changes": [
+        "Die Spielwährung heißt in HUD, Bau- und Fahrzeuglisten, Reparatur, Ausbau und Updateinfo einheitlich Solarit.",
+        "Der neue Tab Produktion zeigt für jede Fahrzeugwerft das laufende Fahrzeug, den Montagefortschritt und den nächsten Auftrag.",
+        "Gesperrte Bau- und Fahrzeugoptionen markieren fehlende Kampagnen-, Gebäude-, Ausbaustufen- und Energieanforderungen rot und erklären sie im Tooltip.",
+        "Das Energiefeld zeigt den freien Überschuss. Überlastung verlangsamt weiterhin Bau und Montage; Lanzierer und Durchbruchpanzer belegen während der Montage Energie, Warteschlangen reservieren den Bedarf.",
+        "Der obere Status ist kompakter, damit Energie, Solarit, Zeit und Missionsziel nicht ineinanderlaufen."
+      ]
+    },
+    {
+      "version": "0.29",
+      "date": "03.10.2026",
+      "title": "Taktisches Briefing und Einsatzübersicht",
+      "changes": [
+        "Die taktische Lagekarte zeigt jetzt das echte Missionsgelände mit Solaritfeldern, Startsektor, bekannten Gegnern und Hauptziel.",
+        "Ein Fortschrittsband unterscheidet abgeschlossene, aktuelle und freigeschaltete Kampagneneinsätze.",
+        "Die Kommandoauswahl verwendet Fraktionsfarben und eigene Kennzeichen; ihre Vorteile bleiben direkt vergleichbar.",
+        "Eine Bedrohungsanzeige ergänzt die Schwierigkeitsstufen und macht den erwarteten Gegnerdruck schneller erfassbar."
+      ]
+    },
+    {
+      "version": "0.28",
+      "date": "03.10.2026",
+      "title": "Einsatzvorbereitung und Kampagnenübersicht",
+      "changes": [
+        "Die Einsatzvorbereitung zeigt jetzt eine schematische taktische Lagekarte mit Startpunkt, Gegnerposition, Ziel und Solaritfeldern.",
+        "Auftrag und Aufbauroute sind klarer getrennt; Kampagnenfortschritt und Freischaltung des nächsten Einsatzes sind direkt sichtbar.",
+        "Die Auswahl heißt nun Schwierigkeit. Gesperrte Einsätze erklären, dass sie nach dem Sieg im vorherigen Einsatz freigeschaltet werden.",
+        "Die Bau- und Fahrzeuglisten sind scrollbar und überdecken bei vielen Einheitentypen nicht mehr die Produktionsanzeige."
+      ]
+    },
+    {
+      "version": "0.27",
+      "date": "03.10.2026",
+      "title": "ASHLINE-Menü und Systemoptionen",
+      "changes": [
+        "Das Hauptmenü behält die Veyra-Wüste, den Planeten, die Basis und die ASHLINE-Farbwelt; Navigation und Zusatzaktionen sind kompakter und klarer gestaffelt.",
+        "Die Optionen sind jetzt in Bild, Audio, Steuerung und Gameplay gegliedert. Das integrierte Systempanel dimmt die Szene leicht ab, lässt sie aber sichtbar.",
+        "Auflösung, Fensterart, Classic-Retro-Modus, CRT, Effektqualität, Kamerastoß, Lebensbalken und Randscrollen bleiben direkt einstellbar.",
+        "Musik- und Effektpegel zeigen ihren Prozentwert. Tastenkürzel erscheinen als lesbare Aktionsliste und lassen sich anklicken oder auf Standard zurücksetzen.",
+        "Optionen übernehmen Änderungen unmittelbar und speichern sie lokal; Tabwechsel und Rückkehr funktionieren aus Hauptmenü und Pause."
+      ]
+    },
+    {
+      "version": "0.26",
+      "date": "03.10.2026",
+      "title": "Kampagnenausbau und Gebäudetechnik",
+      "changes": [
+        "Fahrzeugwerft, Raffinerie und Radar lassen sich nach Kampagnenfreigabe ausbauen: schnellere Montage, 20% mehr Solarit-Erlös beziehungsweise vier zusätzliche Sichtfelder.",
+        "Die ausgebaute Werft schaltet den Flammenwerfer Glut frei; die Rüstungswerkstatt Stufe 2 öffnet Lanzierer Prisma und schweren Durchbruchpanzer Wall.",
+        "Glut trifft Gruppen mit einem kurzen Flammenstoß. Wall ist ein langsamer schwerer Panzer mit hoher Widerstandskraft und Gebäudebrecher.",
+        "Gebäudeinfos zeigen Stufe, Kosten, Freigabestufe und Ausbauwirkung; Modern- und Classic-Modelle zeigen sichtbare Nachrüstungen.",
+        "Fahrzeuge, Wirkungsbereiche und Gebäudeausbauten sind im Kampagnen- und Spielstandtest ergänzt."
+      ]
+    },
+    {
+      "version": "0.25",
+      "date": "03.10.2026",
+      "title": "Kampagnenausbau und neue Fahrzeugrollen",
+      "changes": [
+        "Nach Mission 01 wird die Rüstungswerkstatt freigeschaltet; die Kampagne öffnet Missionen und Technikstufen der Reihe nach.",
+        "Der Ausbau der Werkstatt schaltet den schnellen Doppelsalven-Flanker Dorn und später den Präzisions-Lanzierer Prisma frei.",
+        "Beide Fahrzeuge haben eigene Silhouetten, Waffenwerte, Schuss-/Trefferfamilien und technische Detailinformationen.",
+        "Die Einsatzvorbereitung erklärt jetzt die drei Widerstandsstufen direkt; abgeschlossene Missionen und Kampagnenstufen bleiben lokal gespeichert.",
+        "Spielstände behalten ausgebaute Werkstätten; neue Fahrzeugzeichnungen verwenden den bestehenden begrenzten Fahrzeug-Cache."
+      ]
+    },
+    {
+      "version": "0.24",
+      "date": "03.10.2026",
+      "title": "Gefechts-Rendering und FPS-Pass",
+      "changes": [
+        "Der Desktop nutzt jetzt Godots Forward+-Renderer. Auf derselben RTX-3060-Testszene stieg der echte 40-Fahrzeuge-Gefechtslauf von rund 46 auf 78 FPS.",
+        "Projektile, Trefferblitze, Lichtkreise und Rauch-/Funkenformen werden stärker gebündelt; Fahrzeugbewegung und Fahrzeugdetails bleiben erhalten.",
+        "Das Renderprofil weist jetzt auch Ruinen- und HUD-Aktualisierung getrennt aus. Ein A–G-Benchmark und ein Fünf-Minuten-Gefechtstest protokollieren FPS, Objekte, Partikelpool, Wracks, Spuren und Grafiklast.",
+        "Im besonders dichten Zusatztest mit 36 Explosionen, 43 Wracks und über 1.600 Spuren fällt die Bildrate weiterhin unter 60 FPS; diese hohe Trümmerlast bleibt ein gezielter Folge-Engpass."
+      ]
+    },
+    {
+      "version": "0.23",
+      "date": "03.10.2026",
+      "title": "Große Gefechte: adaptive Explosionen und Ruinen",
+      "changes": [
+        "Bei vielen gleichzeitigen Zerstörungen behalten Kernexplosionen und ausgewählte Detonationen ihre volle VFX-Detailstufe; weitere Explosionen nutzen eine leichtere, weiterhin gut sichtbare Darstellung.",
+        "Dichte Ruinenfelder reduzieren Rauch, Feuerlagen und Trümmerdetails dynamisch, ohne die sichtbaren Wracks oder den großen Explosionsimpuls zu entfernen.",
+        "Im RTX-3060-Stresstest mit 36 gleichzeitigen Zerstörungen sank die Effekt-Zeichenzeit von rund 40,3 auf 12,4 ms pro Bild; der gesamte gemessene Renderpass sank von 50,7 auf 21,4 ms.",
+        "Der Gebäudetest mit 50 zusätzlichen Gebäuden bleibt separat bei rund 104 FPS; die Explosion-Optimierung greift nur bei dichten Effekt-Szenen."
+      ]
+    },
+    {
+      "version": "0.22",
+      "date": "02.10.2026",
+      "title": "Gebäudecache für große Basen",
+      "changes": [
+        "Fertige, intakte Gebäude werden als hochauflösende Texturen zwischengespeichert, statt ihre vielen Vektorformen in jedem Bild neu zu zeichnen.",
+        "Baustellen, Reparaturen und stark beschädigte Gebäude bleiben live gerendert; Produktionsstatus, Fraktion, Drehung und Schadensstufe bestimmen den Cache-Eintrag.",
+        "Der Stresstest vergleicht vier mit 50 zusätzlich sichtbaren Gebäuden und zeigt Cache-Treffer und -Fehler im F3-Renderprofil."
+      ]
+    },
+    {
+      "version": "0.21",
+      "date": "02.10.2026",
+      "title": "F3-Renderprofil und FPS-Diagnose",
+      "changes": [
+        "F3 zeigt jetzt die Zeichenzeit getrennt für Terrain, Ruinen/Trümmer, Gebäude, Fahrzeuge und Kampfeffekte.",
+        "Zusätzliche Zähler zeigen Solaritfelder, Wracks, sichtbare Schüsse, Treffer und Effektpartikel; die Messung wird nur bei aktivierter F3-Diagnose eingeschaltet.",
+        "Ein RTX-3060-Stresstest mit 36 Wracks und Rauch dauerte rund 59 ms pro Bild. Die Ruinendarstellung beanspruchte davon rund 10 ms; 25 gleichzeitig sichtbare Gebäude kosteten rund 71 ms pro Bild.",
+        "Diese Messwerte grenzen die Render-Engpässe ein. Sie versprechen noch keine FPS-Steigerung; Gebäude- und Zerstörungsdarstellung brauchen weitere Optimierung."
+      ]
+    },
+    {
+      "version": "0.20",
+      "date": "02.10.2026",
+      "title": "Veyra-Front: drei Einsätze und erweitertes Missionssystem",
+      "changes": [
+        "Die Einsatzvorbereitung enthält jetzt drei spielbare Missionen: Das Veyra-Becken, Die trockene Ader und Engpass Khepri.",
+        "Das datengetriebene Missionssystem unterstützt kombinierte Primärziele, Schutzziele, Solarit-Mengen, Strukturziele und Überlebensziele.",
+        "Engpass Khepri nutzt echte zeitgesteuerte Angriffswellen mit je Schwierigkeit angepassten Fahrzeuggruppen; Einheiten müssen regulär über die Karte angreifen.",
+        "Missionen können dauerhafte Start-Ruinen und Krater definieren. Dadurch wirken neue Karten bereits beim Start wie umkämpfte, bewohnte Schauplätze.",
+        "Spielstände wählen beim Laden automatisch die passende Mission; Wellenfortschritt und Zielmeldungen bleiben erhalten.",
+        "Startfehler im Eingabe-Handler und eine Renderer-Typwarnung behoben; die aktuelle Version startet wieder sauber."
+      ]
+    },
+    {
+      "version": "0.19",
+      "date": "02.10.2026",
+      "title": "Einsatzrekorde und persönliche Bestenliste",
+      "changes": [
+        "Nach einem Sieg wird eine Punktzahl berechnet und dauerhaft in einer persönlichen Top 10 pro Mission gespeichert.",
+        "Punkteschlüssel: 1.000 Basis, +250 pro Abschuss, Solarit ×0,5, +120 pro produziertem Fahrzeug, +100 pro errichtetem Gebäude, Zeitbonus bis 3.600; −200 pro verlorenem Fahrzeug und −500 pro verlorenem Gebäude. Schnellere Zeit gewinnt bei Gleichstand.",
+        "Der Abschluss zeigt Punktzahl, Rang und die besten drei Ergebnisse. Das Hauptmenü öffnet die vollständige Bestenliste mit Zeit, Schwierigkeit, Fraktion und Datum.",
+        "Spielstände bewahren die Einsatzkennung, damit ein bereits gewerteter Sieg beim erneuten Laden nicht doppelt eingetragen wird. Aktuell ist ein Level spielbar: Das Veyra-Becken."
+      ]
+    },
+    {
+      "version": "0.18",
+      "date": "02.10.2026",
+      "title": "FPS-Anzeige und automatische Einbruchprotokolle",
+      "changes": [
+        "Die aktuelle Bildrate wird während des Einsatzes oben in der Statusleiste angezeigt und farblich nach Leistung markiert.",
+        "Einbrüche unter 45 FPS, die länger als eine Sekunde dauern, werden automatisch mit Uhrzeit, Dauer, Durchschnitts- und Minimal-FPS protokolliert.",
+        "Das Protokoll enthält Gesamtzahl sowie eigene und feindliche Fahrzeuge/Gebäude, sichtbare Objekte, VFX, Zeichenaufrufe, Primitives und Prozesszeiten. Erholung über 50 FPS wird ebenfalls erfasst.",
+        "Die Datei liegt im Godot-Appdatenordner unter user://performance_events.csv."
+      ]
+    },
+    {
+      "version": "0.17",
+      "date": "02.10.2026",
+      "title": "Rendering: Fahrzeuge und Gelände effizienter",
+      "changes": [
+        "Fahrzeugmodelle werden als hochauflösende Cachegrafiken wiederverwendet; Teamfarbe, Turmausrichtung, Schadensstufe und Harvesterladung bleiben korrekt.",
+        "Fahrzeugposition, Rumpf- und Turmausrichtung werden zwischen Simulationsticks interpoliert; Ketten und Kampfeffekte bleiben dynamisch.",
+        "Statische Geländedetails sind in sichtbare 16×16-Kacheln gebündelt. Fahrspuren werden in einem Zeichenlauf zusammengefasst.",
+        "Die 40-Fahrzeuge-Messung auf einer RTX 3060 stieg von zuvor 5,9 auf rund 51 FPS. Der 60-FPS-Zielwert wird noch nicht erreicht; besonders Bewegung mit Kampfeffekten braucht weitere Optimierung."
+      ]
+    },
+    {
+      "version": "0.16",
+      "date": "02.10.2026",
+      "title": "Solaritfelder wieder sichtbar",
+      "changes": [
+        "Fehler im Kristallatlas behoben: Alle Dichte- und Formvarianten enthalten wieder sichtbare Solaritkristalle.",
+        "Die Erntefelder der Startkarte werden wieder vollständig dargestellt und können wie vorgesehen abgebaut werden.",
+        "Atlasgenerator und Textur wurden geprüft; der bestehende automatische Sammel- und Abladevorgang bleibt erhalten."
+      ]
+    },
+    {
+      "version": "0.15",
+      "date": "02.10.2026",
+      "title": "Flüssigere Gefechte und neue Einsatzvorbereitung",
+      "changes": [
+        "Die Einsatzvorbereitung ist jetzt eine eigene Ansicht mit klaren Fraktionskarten, Gegnerstärke, Missionsziel und hervorgehobener Startaktion.",
+        "Menükarten besitzen feinere Rahmen, sanfte Ecken und dezente Schatten; wichtige Aktionen treten stärker hervor.",
+        "Solaritkristalle verwenden eine gemeinsame, facettierte Textur mit vier Formvarianten und sichtbarer Rohstoffabnahme.",
+        "Bei großen Gefechten und weiter Kamera vereinfacht die Grafik entfernte beziehungsweise nicht ausgewählte Fahrzeuge; ausgewählte Einheiten bleiben detailliert.",
+        "Überflüssige Bodendetails werden in Gefechten reduziert; die vorhandene Geländeoberfläche behält Schutt, Spuren und Grundstruktur.",
+        "Im Messlauf mit 40 Fahrzeugen stieg die Bildrate von 4,6 auf rund 29 FPS; die Messung lief mit angehaltener Simulation auf einer RTX 3060."
+      ]
+    },
+    {
+      "version": "0.14",
+      "date": "02.10.2026",
+      "title": "Gebäudedrehung, Industrie und Stereo-Sound",
+      "changes": [
+        "Gebäude vor dem Bau in 90-Grad-Schritten drehen: R/E vorwärts, Q zurück oder Drehknopf.",
+        "Vorschau, Bauplatz, Auswahl, Werftausgang und Spielstand berücksichtigen die Ausrichtung.",
+        "Weitere mechanische Details: Instrumente, Schalter, Wartungsstufen, Manometer, Schienen, Haltebänder und Lüftungslamellen.",
+        "Stereo-Effekte mit Anschlag, Druck, Metallresonanzen und Nachhall; drei Varianten je Waffenklang.",
+        "Neue Bau-, Fertigstellungs-, Dreh- und Reparaturklänge; mehr gleichzeitige Stimmen und Lautstärkebegrenzung.",
+        "Kampfgeräusche werden mit zunehmender Entfernung leiser."
+      ]
+    },
+    {
+      "version": "0.13",
+      "date": "02.10.2026",
+      "title": "Objektinfos, Reparatur und Gefechtsdetails",
+      "changes": [
+        "Details für Fahrzeuge und Gebäude: Zustand, Panzerung, Sichtweite, Waffen, Energie und Reparaturkosten.",
+        "Sichtbarer Reparaturknopf und R: Gebäude reparieren gegen Solarit; Fahrzeuge fahren zum erreichbaren Servicehangar.",
+        "Servicehangar repariert nahe Fahrzeuge automatisch bei ausreichender Energie und Solarit.",
+        "Mehr Fahrzeug- und Gebäudedetails: Panzerplatten, Leitungen, Verschlüsse, Wartungsluken und Auspuffmanschetten.",
+        "Bewegte Flammen mit mehreren Schichten und Glutpartikeln ersetzen starre Feuerdreiecke.",
+        "Kleinere Brandspuren und unregelmäßige Trümmer mit sichtbaren Metallkanten.",
+        "Kompakte Auswahlwinkel und entzerrte Lebensbalken in Fahrzeuggruppen."
+      ]
+    },
+    {
+      "version": "0.12",
+      "date": "02.10.2026",
+      "title": "Modelle und Updateinfo",
+      "changes": [
+        "Neue Updateinfo im Haupt- und Pausenmenü: alle Versionen mit Datum und Änderungen.",
+        "Kräftigere räumliche Modellierung durch abgeschrägte Metallkanten, abgestufte Oberflächen und gerundete Tankbeleuchtung.",
+        "Feinere Auswahlmarkierungen: Gebäudeecken und flache Fahrzeugbögen statt dicker Kreise.",
+        "Kompakte Energie-Treffer und kürzere Funken lassen Fahrzeuge besser sichtbar.",
+        "Solarit-Kristalle variieren stärker in Form, Größe, Neigung und Anordnung.",
+        "Die Versionsanzeige im Menü verwendet jetzt denselben Versionsstand wie die Updateinfo."
+      ]
+    },
+    {
+      "version": "0.11",
+      "date": "01.10.2026",
+      "title": "Dauerhafte Schlachtspuren",
+      "changes": [
+        "Wracks, typisierte Gebäuderuinen und schwere Krater bleiben missionslang innerhalb fester Speicherbudgets.",
+        "Zerstörungsspuren überleben Speichern und Laden; alte Spielstände bleiben verwendbar.",
+        "Feuer und Rauch klingen über mehrere Phasen ab; Rauch ist in großen Gefechten begrenzt.",
+        "Formabhängige Schatten, massive Fahrzeugfronten und zusätzliche Industrie-Makrodetails.",
+        "Auswahl und Lebensbalken liegen über Effekten; zerstörte Auswahlen werden sofort entfernt."
+      ]
+    },
+    {
+      "version": "0.10",
+      "date": "01.10.2026",
+      "title": "Stil und Lesbarkeit",
+      "changes": [
+        "Gebäudeformen, Teamflächen, Fahrzeugmasse und Bauanimationen weiter ausgearbeitet.",
+        "Auswahlporträts, Gruppenübersicht, Bauzeiten und dünner Produktionsfortschritt ergänzt.",
+        "Fahrzeugchassis und typisierte Gebäuderuinen nach Zerstörung.",
+        "Lokale Befehle mit Eigentümer- und Sichtprüfung; explizite Spieler- und Teamzuordnung."
+      ]
+    },
+    {
+      "version": "0.9",
+      "date": "01.10.2026",
+      "title": "Combat-VFX",
+      "changes": [
+        "Getrennte Präsentationsprofile für Waffenfamilien mit eigenen Mündungsfeuern, Trails und Sounds.",
+        "Mehrschichtige Explosionen, schwere Einschlagskrater und besondere Baukern-Überladung.",
+        "Schadensstufen mit Rauch, Feuer, Warnsignalen und Funken."
+      ]
+    },
+    {
+      "version": "0.8",
+      "date": "01.10.2026",
+      "title": "Visual Polish Pass 2",
+      "changes": [
+        "Ereignisgesteuerte Treffer-, Schuss- und Zerstörungseffekte.",
+        "Kamerastoß und Effektqualität in den Optionen.",
+        "Aktivere Industrie, Baufeedback, Hologrammvorschau, Fahrstaub und begrenzte Trümmer.",
+        "Zusätzliche eigene Kampfgeräusche und Motor-Ambience."
+      ]
+    },
+    {
+      "version": "0.7",
+      "date": "01.10.2026",
+      "title": "Teamfarben und Identität",
+      "changes": [
+        "Warme Wüstenpalette: Sand, Ocker und Braun; eigene Objekte Cyan, Gegner Rot.",
+        "Teamflächen und zusätzliche Kennzeichen an Gebäuden und Fahrzeugen.",
+        "Sichtbare Gegner können inspiziert werden, ohne eigene Befehle zu erhalten.",
+        "Gespeicherte Farbpaletten und gleichwertige Teamkennung in beiden Grafikmodi."
+      ]
+    },
+    {
+      "version": "0.6",
+      "date": "01.10.2026",
+      "title": "Terrain und Industrie",
+      "changes": [
+        "Geschichtetes Terrain, detaillierte Gebäudemodelle und gemeinsame Modern-/Classic-Art.",
+        "Bauphasen, kritische Brände, Fahrspuren und Fertigstellungspulse.",
+        "Kristallfelder zeigen verbleibende Ressourcendichte."
+      ]
+    },
+    {
+      "version": "0.5",
+      "date": "01.10.2026",
+      "title": "Automatisches Sammeln und Verteidigen",
+      "changes": [
+        "Sammler suchen selbst Ressourcen, sammeln und entladen wiederholt an der Raffinerie.",
+        "Bewaffnete Fahrzeuge reagieren automatisch auf sichtbare Bedrohungen, auch während der Fahrt.",
+        "Stoppen bleibt eine bewusste Unterbrechung; verdeckte Gegner werden nicht automatisch angegriffen."
+      ]
+    },
+    {
+      "version": "0.4",
+      "date": "01.10.2026",
+      "title": "Details und Steuerung",
+      "changes": [
+        "Mehr technische Details an Fahrzeugen, Gebäuden und der Landschaft.",
+        "Rechte Maustaste ziehen verschiebt die Karte; kurzer Rechtsklick erteilt Befehle.",
+        "Sammelfeld und Abladen können gezielt angewiesen werden."
+      ]
+    },
+    {
+      "version": "0.3",
+      "date": "01.10.2026",
+      "title": "Intro und Startmenü",
+      "changes": [
+        "Animiertes Intro mit Landung, Titel und jederzeitiger Überspringen-Funktion.",
+        "Bewegter Menühintergrund und erneut abspielbares Intro.",
+        "Eigene Titelmusik First Signal und Übergang zur dynamischen Spielmusik."
+      ]
+    },
+    {
+      "version": "0.2",
+      "date": "01.10.2026",
+      "title": "Spielbarer Missionsdurchlauf",
+      "changes": [
+        "Basisbau, bezahlte Produktion, Ressourcenwirtschaft und Gegnerverhalten geprüft und verbessert.",
+        "Bedienung, Darstellung und portabler Windows-Start weiter abgesichert."
+      ]
+    },
+    {
+      "version": "0.1",
+      "date": "01.10.2026",
+      "title": "Erste eigenständige Version",
+      "changes": [
+        "ASHLINE mit erster spielbarer Mission im Veyra-Becken.",
+        "Basisbau, Solarit, Fahrzeuge, Kampf, Sichtsystem und taktische Übersicht.",
+        "Modern Retro und Classic Retro sowie eigene Musik und Geräusche."
+      ]
+    }
+  ]
+}

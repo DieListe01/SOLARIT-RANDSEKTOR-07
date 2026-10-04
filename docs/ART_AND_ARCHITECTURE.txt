@@ -1,0 +1,2156 @@
+Du bist Art Director, Technical Artist, UI/UX Designer, VFX Designer, RTS Gameplay Programmer und Multiplayer-Architekt.
+
+Du arbeitest an einem modernen Retro-RTS mit dem Projektnamen:
+
+ASHLINE
+
+Das Spiel ist spielerisch von frühen klassischen Basisbau-RTS-Spielen inspiriert, insbesondere von der klaren Lesbarkeit, Basisstruktur, Ressourcensammlung und taktischen Übersicht klassischer 90er-Jahre-RTS.
+
+Es darf keine geschützten Originalgrafiken, Originalnamen, Originalsounds, Originalmusik, Originalfraktionen oder Originalkarten bestehender Spiele kopieren.
+
+Ziel ist eine eigenständige visuelle Identität.
+
+WICHTIG:
+
+Der aktuelle grafische Stand wirkt zu:
+
+- leer
+- steril
+- flach
+- detailarm
+- technisch
+- prototypartig
+
+Diese Richtung muss korrigiert werden.
+
+Das Spiel soll deutlich mehr visuelle Dichte, Materialität, Atmosphäre, Bewegung und RTS-Charakter bekommen.
+
+Gleichzeitig muss die gesamte Architektur von Anfang an so aufgebaut werden, dass später Multiplayer möglich ist.
+
+============================================================
+1. VISUELLES HAUPTZIEL
+============================================================
+
+ASHLINE soll aussehen wie ein hochwertiges verlorenes Sci-Fi-RTS der 1990er, das mit heutiger Technik neu erschaffen wurde.
+
+Es soll NICHT aussehen wie:
+
+- eine moderne Minimal-UI
+- ein Mobile Game
+- ein flacher Prototyp
+- ein abstraktes Strategiespiel
+- ein generischer Tilemap-Test
+
+Es soll aussehen wie:
+
+- ein echtes RTS
+- industriell
+- staubig
+- fremdartig
+- gefährlich
+- mechanisch
+- ressourcengetrieben
+- militärisch
+- atmosphärisch
+
+============================================================
+2. VISUELLE LEITIDEE
+============================================================
+
+Die Welt ist eine fremde, lebensfeindliche Kolonialwelt.
+
+Schlüsselbegriffe:
+
+ASH
+
+DUST
+
+HEAT
+
+METAL
+
+ENERGY
+
+MINERALS
+
+WAR
+
+INDUSTRY
+
+COLONY
+
+Die Welt muss wirken, als würden dort tatsächlich schwere Maschinen, Förderanlagen, Militärfahrzeuge und Energieanlagen betrieben.
+
+============================================================
+3. MODERN RETRO ALS STANDARD
+============================================================
+
+Standardmodus:
+
+MODERN RETRO
+
+Auflösung:
+
+1920 × 1080
+
+Der Look bleibt klar 2D / Retro-inspiriert.
+
+Aber mit:
+
+- höherer Detaildichte
+- mehr Animation
+- mehr Materialgefühl
+- feinerer Beleuchtung
+- kleinen atmosphärischen Partikeln
+- besseren Schatten
+- abwechslungsreicherem Terrain
+- hochwertigen Sprite-Animationen
+
+Kein Fotorealismus.
+
+Kein 3D-Zwang.
+
+Keine übertriebene moderne Shaderästhetik.
+
+============================================================
+4. CLASSIC RETRO MODE
+============================================================
+
+Der Classic-Retro-Modus darf NICHT als grafisch abgespeckte Version verstanden werden.
+
+WICHTIG:
+
+Dieselbe Welt bleibt sichtbar.
+
+Dieselben Objekte bleiben sichtbar.
+
+Dieselben Effekte bleiben sichtbar.
+
+Dieselben Gebäudedetails bleiben grundsätzlich erhalten.
+
+Nur die Darstellung wird:
+
+- gröber
+- pixeliger
+- farblich stärker reduziert
+- in niedrigerer interner Auflösung gerendert
+- mit einfacheren Shading-Stufen dargestellt
+
+Empfehlung:
+
+640 × 360
+
+oder:
+
+480 × 270
+
+Nearest Neighbor.
+
+Integer Scaling.
+
+Keine bilineare Filterung.
+
+============================================================
+5. RETRO-MODUS-PHILOSOPHIE
+============================================================
+
+Nicht:
+
+Modern Mode = schön
+Retro Mode = simpel
+
+Sondern:
+
+Modern Mode = detailreiche moderne Retro-Art
+
+Retro Mode = dieselbe detailreiche Welt als echte Pixelversion
+
+Beispiele:
+
+Modern:
+kleine Metallnieten sichtbar.
+
+Retro:
+Nieten werden zu einzelnen Pixelclustern.
+
+Modern:
+weicher Rauch.
+
+Retro:
+pixelige Rauchwolken.
+
+Modern:
+feine Gebäudeschatten.
+
+Retro:
+klar abgestufte Pixelflächen.
+
+============================================================
+6. TERRAIN – HAUPTPRIORITÄT
+============================================================
+
+Der Boden benötigt wesentlich mehr Leben.
+
+Jede Terrainart braucht mindestens:
+
+- Basetextur
+- Farbvariation
+- Mikrodetails
+- Makrodetails
+- Randübergänge
+- sichtbare Abnutzung
+- atmosphärische Partikel
+
+============================================================
+7. TERRAIN-MIKRODETAILS
+============================================================
+
+Nutze:
+
+- kleine Steine
+- Geröll
+- Risse
+- Staubspuren
+- Mineraladern
+- Krater
+- Schürfspuren
+- Fahrzeugspuren
+- dunkle verbrannte Stellen
+- trockene Bodenspalten
+- kleine Metallreste
+
+Diese dürfen zufällig verteilt werden.
+
+Aber:
+
+niemals Gameplay-Lesbarkeit stören.
+
+============================================================
+8. TERRAIN-MAKRODETAILS
+============================================================
+
+Größere visuelle Strukturen:
+
+- Dünenzüge
+- Plateaugrenzen
+- alte Krater
+- Ressourcenbecken
+- Felsinseln
+- natürliche Engstellen
+- abgesunkene Flächen
+- alte Industrieareale
+- trockene Rinnen
+- Schuttfelder
+
+============================================================
+9. TERRAIN-ÜBERGÄNGE
+============================================================
+
+Keine harten sichtbaren Quadratkanten.
+
+Verwende:
+
+- Blend Tiles
+- Randvarianten
+- Overlays
+- unregelmäßige Kanten
+- Schmutzmasken
+- Felsausläufer
+- kleine Übergangsobjekte
+
+============================================================
+10. RESSOURCENFELDER
+============================================================
+
+Ressourcen müssen visuell extrem attraktiv wirken.
+
+Der Spieler soll sofort denken:
+
+„Da muss ich hin.“
+
+Nutze:
+
+- verschieden große Kristalle
+- dichte Cluster
+- kleinere Splitter
+- dezentes Glimmen
+- leicht pulsierende Energie
+- unterschiedliche Höhen
+- Schatten
+- leichte Partikeleffekte
+
+Ressourcenfeld darf nicht aussehen wie:
+
+eine Ansammlung identischer Icons.
+
+============================================================
+11. RESSOURCEN-ABBAU
+============================================================
+
+Beim Harvesting:
+
+- Kristalle werden sichtbar weniger
+- Partikel lösen sich
+- kleine Energieblitze
+- Förderlaser oder Förderarme
+- Staubentwicklung
+- Geräusch
+- sichtbare Beladung des Harvesters
+
+============================================================
+12. BAUZONEN
+============================================================
+
+Baubare Flächen sollen klar lesbar sein.
+
+Nicht durch grelle Raster.
+
+Stattdessen:
+
+- andere Bodentextur
+- Fundamentplatten
+- technische Linien
+- subtile Markierungen
+- bereits erschlossene Zonen
+
+============================================================
+13. GEBÄUDE-DESIGN
+============================================================
+
+Jedes Gebäude braucht:
+
+- Silhouette
+- Funktion
+- industrielle Logik
+- klare Fraktionsidentität
+- visuelle Hierarchie
+
+Gebäude dürfen nicht wie einfache Kästen aussehen.
+
+============================================================
+14. GEBÄUDE-DETAILS
+============================================================
+
+Verwende:
+
+- Panellinien
+- Wartungsklappen
+- Lüftungsschlitze
+- Kühlrippen
+- Tanks
+- Antennen
+- Stromleitungen
+- Rohre
+- Hebevorrichtungen
+- Tore
+- Warnmarkierungen
+- Fraktionsfarben
+- Energieanzeigen
+- Statuslichter
+- Kühlkörper
+- Sensoren
+- Kontrollmodule
+
+============================================================
+15. GEBÄUDE-FUNKTION MUSS SICHTBAR SEIN
+============================================================
+
+Power Plant:
+
+sichtbare Energieerzeugung.
+
+Refinery:
+
+sichtbarer Ein-/Ausfahrtsbereich.
+
+Factory:
+
+große Tore.
+
+Radar:
+
+Antennen / Scanner.
+
+Repair:
+
+Kran / Wartungsarme.
+
+Defense:
+
+klare Waffenplattform.
+
+Research:
+
+Sensoren / Energiekerne.
+
+============================================================
+16. GEBÄUDE-ANIMATION
+============================================================
+
+Jedes Gebäude braucht mindestens eine subtile Idle-Animation.
+
+Beispiele:
+
+- Lüfter drehen sich
+- Antenne bewegt sich
+- Licht blinkt
+- Rauch entweicht
+- Energie pulsiert
+- Türen bewegen sich
+- Transportband läuft
+- Kühlmodul fährt auf/zu
+
+============================================================
+17. BAUANIMATION
+============================================================
+
+Gebäude darf nicht instant erscheinen.
+
+Phasen:
+
+GHOST PREVIEW
+
+FOUNDATION
+
+FRAME
+
+SYSTEMS
+
+FINAL BUILD
+
+ONLINE
+
+Visuell:
+
+- Bodenmarkierung
+- Konstruktionsrahmen
+- Funken
+- Partikel
+- kleine Drohnen optional
+- Materialisierung / Montage
+- Statuslicht
+
+============================================================
+18. GEBÄUDE-SCHADENSSTUFEN
+============================================================
+
+Mindestens:
+
+HEALTHY
+
+DAMAGED
+
+CRITICAL
+
+DESTROYED
+
+Visuell:
+
+HEALTHY:
+normal.
+
+DAMAGED:
+Rauch, kleinere Schäden.
+
+CRITICAL:
+starker Rauch, Funken, Warnlichter.
+
+DESTROYED:
+Explosion + Ruine.
+
+============================================================
+19. EINHEITEN-DESIGN
+============================================================
+
+Einheiten brauchen deutlich stärkere Silhouetten.
+
+Sofort unterscheidbar:
+
+SCOUT
+
+HARVESTER
+
+LIGHT TANK
+
+HEAVY TANK
+
+ARTILLERY
+
+MISSILE UNIT
+
+ENGINEER
+
+DRONE
+
+============================================================
+20. EINHEITEN-MATERIAL
+============================================================
+
+Nutze:
+
+- Stahl
+- Panzerplatten
+- Ketten
+- Turm
+- Laufwerk
+- Sensoren
+- Antennen
+- Warnstreifen
+- Fraktionsmarkierung
+- Schmutz
+- Staub
+- leichte Kratzer
+
+============================================================
+21. EINHEITEN-BEWEGUNG
+============================================================
+
+Jede Bewegung braucht Feedback.
+
+Beispiele:
+
+Kettenfahrzeug:
+Staub + Kettenspur.
+
+Hover:
+Luftverwirbelung + leichter Glow.
+
+Scout:
+kleine schnelle Staubspur.
+
+Harvester:
+schwerer, langsamer, massiver.
+
+============================================================
+22. TURM- UND KÖRPERROTATION
+============================================================
+
+Wenn Einheit Turm besitzt:
+
+BODY ROTATION
+
+und
+
+TURRET ROTATION
+
+getrennt.
+
+Turm darf Ziel verfolgen, während Fahrzeug fährt.
+
+============================================================
+23. MÜNDUNGSFEUER
+============================================================
+
+Jede Waffenklasse benötigt eigenen Muzzle Flash.
+
+Kinetisch:
+kurzer heller Blitz.
+
+Rakete:
+Flamme + Rauch.
+
+Energie:
+Lichtimpuls.
+
+Artillerie:
+großer Flash + Staubstoß.
+
+============================================================
+24. PROJEKTILE
+============================================================
+
+Projektile müssen klar lesbar sein.
+
+Nicht zu klein.
+
+Nicht zu schnell.
+
+Nutze:
+
+- Tracer
+- Rauchspur
+- Energieglühen
+- Schatten optional
+- Impact Spark
+
+============================================================
+25. TREFFERFEEDBACK
+============================================================
+
+Treffer braucht:
+
+- Flash
+- kleine Partikel
+- Funken
+- Staub
+- Sound
+- Damage-Reaktion
+
+Optional:
+
+sehr kurzer Hit Stop nur bei besonders schweren Waffen.
+
+============================================================
+26. EXPLOSIONEN
+============================================================
+
+Mindestens verschiedene Explosionen für:
+
+Infanterie
+
+kleines Fahrzeug
+
+Tank
+
+Gebäude
+
+großes Gebäude
+
+Nicht immer denselben Effekt verwenden.
+
+============================================================
+27. RAUCH
+============================================================
+
+Rauch ist wichtig.
+
+Aber:
+
+nicht zu viel.
+
+Nutze:
+
+- kleine Schadenrauchwolken
+- Motorrauch
+- Fabrikrauch
+- Explosionsrauch
+- brennende Ruinen
+
+============================================================
+28. FEUER
+============================================================
+
+Feuer nur bei stark beschädigten Objekten.
+
+Keine dauernde Effektüberladung.
+
+============================================================
+29. SCHATTEN
+============================================================
+
+Alle wichtigen Objekte benötigen Schatten.
+
+Einheiten:
+
+kleine, klare Schatten.
+
+Gebäude:
+
+größere stilisierte Schatten.
+
+Kristalle:
+
+scharfe kleine Schatten.
+
+Dadurch entsteht Tiefe.
+
+============================================================
+30. LICHT
+============================================================
+
+Keine komplexe Echtzeitbeleuchtung nötig.
+
+Nutze:
+
+- gebackene Sprite-Highlights
+- leichte Glows
+- Energieakzente
+- gerichtete Schatten
+
+============================================================
+31. UMGEBUNGSPARTIKEL
+============================================================
+
+Subtile Atmosphäre:
+
+- Staub
+- kleine Sandpartikel
+- Asche
+- Wind
+- Hitzeverzerrung
+- vereinzelte elektrische Partikel
+
+Nur gering dosieren.
+
+============================================================
+32. HITZE
+============================================================
+
+Auf heißen Karten optional:
+
+leichter Heat Haze über:
+
+- Power Plants
+- Fabriken
+- heißen Bodenflächen
+
+Im Retro-Modus:
+
+pixelige Flimmeranimation.
+
+============================================================
+33. UI – NEUAUSRICHTUNG
+============================================================
+
+UI darf nicht wie modernes SaaS-Interface aussehen.
+
+Sie muss klar RTS sein.
+
+Nutze:
+
+- technische Rahmen
+- metallische Panels
+- klare Tabs
+- Fraktionsakzente
+- Statuslichter
+- technische Linien
+- klare Produktionsicons
+
+============================================================
+34. UI-DICHTE
+============================================================
+
+Die UI soll mehr Informationen zeigen, aber nicht überladen wirken.
+
+Wichtig:
+
+- Credits
+- Power
+- Selected Units
+- Build Menu
+- Production
+- Minimap
+- Alerts
+- Objectives
+
+============================================================
+35. BUILD PANEL
+============================================================
+
+Nicht nur Textbuttons.
+
+Jedes Bauelement:
+
+- Icon
+- Name
+- Cost
+- Build Time
+- Power
+- Status
+- Progress
+- Tooltip
+
+============================================================
+36. UNIT PANEL
+============================================================
+
+Bei Auswahl:
+
+- Portrait/Icon
+- Name
+- Health
+- Armor
+- Weapon
+- Status
+- Current Order
+
+Mehrfachauswahl:
+
+Unit Grid.
+
+============================================================
+37. MINIMAP
+============================================================
+
+Minimap ist ein visuell wichtiges Element.
+
+Sie bekommt:
+
+- markanten Rahmen
+- Scanner-Look
+- Fraktionsfarben
+- Kamera-Rechteck
+- Ressourcenmarker
+- Alarm-Pings
+- Radarstatus
+
+============================================================
+38. WARNUNGEN
+============================================================
+
+Base Under Attack.
+
+Low Power.
+
+Unit Lost.
+
+Harvester Under Attack.
+
+Construction Complete.
+
+Nie nur als Text.
+
+Zusätzlich:
+
+- kurzer Sound
+- UI-Highlight
+- Minimap Ping
+
+============================================================
+39. CURSOR
+============================================================
+
+Eigene Cursor für:
+
+SELECT
+
+MOVE
+
+ATTACK
+
+REPAIR
+
+HARVEST
+
+BUILD
+
+INVALID
+
+============================================================
+40. AUSWAHL-MARKIERUNG
+============================================================
+
+Ausgewählte Einheit:
+
+- klare Bodenmarkierung
+- Healthbar
+- kleines Statusicon
+- optional Fraktionsring
+
+Nicht zu modern / neonlastig.
+
+============================================================
+41. FOG OF WAR
+============================================================
+
+Fog muss atmosphärisch sein.
+
+UNKNOWN:
+fast vollständig dunkel.
+
+EXPLORED:
+entsättigt / abgedunkelt.
+
+VISIBLE:
+voll sichtbar.
+
+Kein simples schwarzes Rechteck.
+
+============================================================
+42. MODERN RETRO UND RETRO MÜSSEN INHALTLICH IDENTISCH BLEIBEN
+============================================================
+
+Dies gilt explizit für:
+
+Terrain
+
+Ressourcen
+
+Einheiten
+
+Gebäude
+
+VFX
+
+Fog
+
+UI
+
+Minimap
+
+Nur Detailauflösung und Rendering ändern sich.
+
+============================================================
+43. FX-PROFILE
+============================================================
+
+Erstelle drei FX-Profile:
+
+LOW
+
+MEDIUM
+
+HIGH
+
+Aber:
+
+Gameplay-Relevanz bleibt immer sichtbar.
+
+Beispielsweise Muzzle Flash niemals vollständig abschalten.
+
+============================================================
+44. SCREEN SHAKE
+============================================================
+
+Option:
+
+OFF
+
+LOW
+
+NORMAL
+
+Nur:
+
+- schwere Artillerie
+- große Explosion
+- Basiszerstörung
+
+============================================================
+45. SOUND + VISUAL FEEDBACK VERKNÜPFEN
+============================================================
+
+Jede wichtige Aktion braucht:
+
+Visual Feedback
+
++
+
+Audio Feedback
+
+Beispiel:
+
+Construction Complete:
+
+Gebäudelicht
+
++
+
+kurzer Sound
+
++
+
+UI Meldung.
+
+============================================================
+46. MULTIPLAYER-VORBEREITUNG – GRUNDREGEL
+============================================================
+
+Das Spiel wird zunächst weiterhin als Singleplayer entwickelt.
+
+ABER:
+
+Die gesamte Gameplay-Architektur muss von Anfang an so aufgebaut sein, dass später Multiplayer implementiert werden kann.
+
+WICHTIG:
+
+Keine Singleplayer-Shortcuts verwenden, die Multiplayer später praktisch unmöglich machen.
+
+============================================================
+47. MULTIPLAYER-ZIELBILD
+============================================================
+
+Später sollen mindestens möglich sein:
+
+1 vs 1
+
+2 vs 2
+
+Free For All
+
+Co-op gegen AI
+
+Optional später:
+
+3 vs 3
+
+============================================================
+48. MULTIPLAYER-NETZWERKMODELL
+============================================================
+
+Architektur vorbereiten für:
+
+AUTHORITATIVE HOST
+
+oder:
+
+DEDICATED SERVER
+
+Der Client darf nicht alleinige Wahrheit über Gameplayzustand besitzen.
+
+Singleplayer soll intern ebenfalls möglichst über dieselben Command-Strukturen arbeiten.
+
+============================================================
+49. COMMAND-BASED GAMEPLAY
+============================================================
+
+Alle Spieleraktionen sollen möglichst als Commands dargestellt werden.
+
+Beispiele:
+
+MOVE_COMMAND
+
+ATTACK_COMMAND
+
+BUILD_COMMAND
+
+PRODUCE_COMMAND
+
+STOP_COMMAND
+
+REPAIR_COMMAND
+
+HARVEST_COMMAND
+
+RALLY_COMMAND
+
+Beispiel:
+
+{
+    "player_id": 1,
+    "command": "move",
+    "unit_ids": [12,13,14],
+    "target": [32,44],
+    "tick": 912
+}
+
+Singleplayer darf dieselben Commands direkt lokal verarbeiten.
+
+============================================================
+50. KEINE DIREKTE UI-MANIPULATION VON GAME STATE
+============================================================
+
+UI darf niemals direkt:
+
+unit.position verändern
+
+credits erhöhen
+
+health setzen
+
+building erzeugen
+
+Stattdessen:
+
+UI
+
+↓
+
+Command
+
+↓
+
+Game Simulation
+
+↓
+
+State Change
+
+============================================================
+51. EIGENTUM
+============================================================
+
+Jede Einheit und jedes Gebäude benötigt:
+
+owner_id
+
+team_id
+
+faction_id
+
+Diese Werte niemals implizit aus Farbe oder Node-Hierarchie ableiten.
+
+============================================================
+52. PLAYER OBJECT
+============================================================
+
+Jeder Spieler benötigt eigenes Datenobjekt:
+
+player_id
+
+team_id
+
+faction_id
+
+credits
+
+power
+
+unit_count
+
+building_count
+
+tech_state
+
+visibility_state
+
+============================================================
+53. PLAYER-ID
+============================================================
+
+Nie hart codieren:
+
+Player = 0
+
+Enemy = 1
+
+Stattdessen:
+
+dynamische player_id.
+
+============================================================
+54. TEAM-SYSTEM
+============================================================
+
+Teambeziehungen vorbereiten:
+
+ALLY
+
+NEUTRAL
+
+ENEMY
+
+Dadurch später möglich:
+
+2v2
+
+FFA
+
+Co-op
+
+Mission NPCs.
+
+============================================================
+55. TARGETING
+============================================================
+
+Angriffe prüfen:
+
+owner/team relationship.
+
+Nicht:
+
+if target != player.
+
+Sondern:
+
+is_hostile_to(target.owner_id)
+
+============================================================
+56. FOG OF WAR PRO SPIELER
+============================================================
+
+Fog darf NICHT global sein.
+
+Jeder Spieler benötigt eigenen Sichtzustand.
+
+Beispiel:
+
+visibility[player_id][cell]
+
+Dadurch später:
+
+Multiplayer-Fog.
+
+============================================================
+57. VISION SHARING
+============================================================
+
+Später optional:
+
+Alliierte Spieler teilen Sicht.
+
+Dafür Architektur vorbereiten.
+
+============================================================
+58. RESSOURCEN PRO SPIELER
+============================================================
+
+Credits immer Spielerbezogen.
+
+Nicht globale Variable:
+
+credits.
+
+Sondern:
+
+players[player_id].credits
+
+============================================================
+59. POWER PRO SPIELER
+============================================================
+
+Power ebenfalls spielerbezogen.
+
+============================================================
+60. TECH TREE PRO SPIELER
+============================================================
+
+Tech-Freischaltung pro Spieler speichern.
+
+============================================================
+61. PRODUKTION PRO SPIELER
+============================================================
+
+Queues gehören Gebäude.
+
+Gebäude gehört Player.
+
+Keine globale Queue.
+
+============================================================
+62. UNIT IDs
+============================================================
+
+Jede Unit benötigt eindeutige ID.
+
+Nicht Node-Referenz als alleinige Identität verwenden.
+
+Beispiel:
+
+unit_id = 1034
+
+============================================================
+63. BUILDING IDs
+============================================================
+
+Jedes Gebäude benötigt eindeutige ID.
+
+============================================================
+64. ENTITY REGISTRY
+============================================================
+
+Zentrales Registry-System:
+
+entities_by_id
+
+units_by_id
+
+buildings_by_id
+
+Projectiles optional.
+
+============================================================
+65. GAME TICK
+============================================================
+
+Simulation soll klaren Tick besitzen.
+
+Beispiel:
+
+20
+
+30
+
+oder:
+
+60 Ticks pro Sekunde.
+
+Multiplayerfähigkeit berücksichtigen.
+
+Keine kritische Spiellogik nur in Renderframes.
+
+============================================================
+66. DETERMINISMUS
+============================================================
+
+So deterministisch wie sinnvoll entwickeln.
+
+Dazu:
+
+- fester RNG
+- zentraler Seed
+- keine zufälligen uncontrolled calls
+- klare Update-Reihenfolge
+
+Noch kein vollständiger Lockstep-Zwang.
+
+Aber Architektur nicht verhindern.
+
+============================================================
+67. RNG
+============================================================
+
+Kein randomize() überall.
+
+Stattdessen:
+
+GameRNG
+
+MapRNG
+
+CombatRNG
+
+VisualRNG.
+
+Wichtig:
+
+VisualRNG darf Gameplay nicht beeinflussen.
+
+============================================================
+68. VISUELLE EFFEKTE SIND NICHT GAME STATE
+============================================================
+
+Staub
+
+Funken
+
+Rauch
+
+Partikel
+
+Screen Shake
+
+dürfen keinen Gameplayzustand verändern.
+
+Wichtig für Multiplayer-Replikation.
+
+============================================================
+69. NETZWERKRELEVANTE DATEN
+============================================================
+
+Gameplay-relevant:
+
+Position
+
+Health
+
+Target
+
+Command
+
+Resource Amount
+
+Credits
+
+Production
+
+Ownership
+
+Visibility
+
+Objectives.
+
+Nicht gameplay-relevant:
+
+Staubpartikel
+
+Rauchvariation
+
+Animation Noise
+
+Screen Shake.
+
+============================================================
+70. INPUT-ABSTRAKTION
+============================================================
+
+Input darf nicht direkt Einheiten bewegen.
+
+Keyboard / Mouse
+
+↓
+
+Input Controller
+
+↓
+
+Game Command
+
+↓
+
+Simulation.
+
+============================================================
+71. SELECTION IST LOKAL
+============================================================
+
+Auswahl des Spielers ist Client/UI-Zustand.
+
+Muss nicht vollständig synchronisiert werden.
+
+Aber:
+
+daraus resultierende Commands müssen synchronisierbar sein.
+
+============================================================
+72. KAMERA IST LOKAL
+============================================================
+
+Kamera nie Teil des synchronisierten Game State.
+
+============================================================
+73. UI IST LOKAL
+============================================================
+
+UI State ebenfalls lokal.
+
+============================================================
+74. CHAT VORBEREITEN
+============================================================
+
+Später Multiplayer:
+
+Chat.
+
+Architektur vorbereiten:
+
+TEAM
+
+ALL
+
+SYSTEM.
+
+Noch nicht implementieren müssen.
+
+============================================================
+75. PINGS
+============================================================
+
+Map Pings bereits als neutrales Event-System vorbereiten.
+
+Später Netzwerkübertragung möglich.
+
+============================================================
+76. LOBBY VORBEREITUNG
+============================================================
+
+Noch keine Lobby implementieren.
+
+Aber Datenmodell vorbereiten:
+
+LobbyPlayer
+
+player_id
+
+display_name
+
+team
+
+faction
+
+ready_state
+
+color
+
+slot.
+
+============================================================
+77. MAP PLAYER SLOTS
+============================================================
+
+Maps müssen Spieler-Slots definieren können.
+
+Beispiel:
+
+{
+    "slot": 1,
+    "start_position": [12,14],
+    "team": 1
+}
+
+============================================================
+78. SPAWN POINTS
+============================================================
+
+Nicht mehr:
+
+player_start
+
+sondern:
+
+player_starts[]
+
+============================================================
+79. MAP-METADATA
+============================================================
+
+Map-Datei vorbereiten mit:
+
+min_players
+
+max_players
+
+recommended_players
+
+team_layout
+
+starting_resources.
+
+============================================================
+80. MULTIPLAYER-MAPS
+============================================================
+
+Spätere Maps sollen möglich sein für:
+
+1v1
+
+2v2
+
+FFA
+
+Co-op.
+
+============================================================
+81. GAME MODE
+============================================================
+
+Vorbereiten:
+
+GameMode
+
+CAMPAIGN
+
+SKIRMISH
+
+MULTIPLAYER
+
+COOP.
+
+============================================================
+82. VICTORY CONDITIONS
+============================================================
+
+Victory nicht hart an Spieler 1 binden.
+
+Team-/Spieler-basiert.
+
+Beispiel:
+
+destroy_all_enemy_command_centers
+
+last_team_alive
+
+objective_completed.
+
+============================================================
+83. AI ALS PLAYER
+============================================================
+
+Ganz wichtig:
+
+AI soll möglichst als normaler Player behandelt werden.
+
+AI erzeugt dieselben Commands wie Mensch.
+
+Nicht:
+
+AI manipuliert Einheiten direkt.
+
+Sondern:
+
+AI Controller
+
+↓
+
+Commands
+
+↓
+
+Game Simulation.
+
+============================================================
+84. VORTEIL DER AI-AS-PLAYER-ARCHITEKTUR
+============================================================
+
+Dadurch wird später einfach:
+
+Human vs AI
+
+Human + Human vs AI
+
+AI vs AI
+
+2v2
+
+Replay.
+
+============================================================
+85. REPLAY-VORBEREITUNG
+============================================================
+
+Command-basierte Architektur soll später Replays ermöglichen.
+
+Speicherbar:
+
+initial seed
+
+map
+
+players
+
+commands
+
+ticks.
+
+Noch nicht vollständig implementieren.
+
+============================================================
+86. DESYNC-DEBUGGING
+============================================================
+
+Vorbereiten:
+
+Game State Hash.
+
+Später Multiplayer Debug:
+
+Tick
+
+Checksum
+
+Entity Count
+
+Credits Hash.
+
+============================================================
+87. SAVEGAME UND MULTIPLAYER
+============================================================
+
+Savegame-System nicht direkt an Singleplayer koppeln.
+
+Serialisierung von Game State allgemein halten.
+
+============================================================
+88. AUTHORITY
+============================================================
+
+Gameplay State soll später authority-basiert sein.
+
+Nicht Client vertraut Client.
+
+============================================================
+89. ANTI-CHEAT
+============================================================
+
+Noch keine Anti-Cheat-Implementierung nötig.
+
+Aber Architektur so bauen, dass Clients später nicht beliebig:
+
+Credits
+
+Health
+
+Units
+
+verändern können.
+
+============================================================
+90. NETWORK DEBUG OVERLAY
+============================================================
+
+Schon Platzhalter/Architektur vorbereiten für später:
+
+Ping
+
+Tick
+
+Simulation Delay
+
+Packet Loss
+
+Desync State.
+
+Im Singleplayer versteckt.
+
+============================================================
+91. PERFORMANCE FÜR MULTIPLAYER
+============================================================
+
+Nicht pro Entity pro Frame unnötig alles replizieren.
+
+Gameplaydaten klar strukturieren.
+
+Entity Updates später:
+
+event-basiert
+
+oder tick-basiert.
+
+============================================================
+92. MULTIPLAYER UND PATHFINDING
+============================================================
+
+Pathfinding muss reproduzierbar genug sein.
+
+Einheit erhält Command-Ziel.
+
+Server/Host entscheidet gültige Bewegung.
+
+Client darf später Prediction verwenden.
+
+Jetzt noch nicht nötig.
+
+============================================================
+93. POSITIONSSYSTEM
+============================================================
+
+Keine visuellen Spritepositionen als einzige Wahrheit.
+
+Trenne:
+
+Simulation Position
+
+Rendering Position.
+
+============================================================
+94. INTERPOLATION
+============================================================
+
+Rendering darf Positionen weich interpolieren.
+
+Simulation bleibt tick-basiert.
+
+Sehr wichtig für späteren Netzwerkbetrieb.
+
+============================================================
+95. VISUAL UPDATE
+============================================================
+
+Game State
+
+↓
+
+Render Representation.
+
+Nicht umgekehrt.
+
+============================================================
+96. ANIMATION UND MULTIPLAYER
+============================================================
+
+Animation darf aus State abgeleitet werden.
+
+Beispiele:
+
+MOVE
+
+ATTACK
+
+IDLE
+
+DAMAGED.
+
+Nicht Animation entscheidet, ob Schaden entsteht.
+
+============================================================
+97. WAFFEN-TIMING
+============================================================
+
+Damage wird von Simulation bestimmt.
+
+Animation und Muzzle Flash folgen.
+
+Nicht:
+
+Animation-Event allein verändert Health.
+
+============================================================
+98. PARTIKEL UND NETZWERK
+============================================================
+
+Partikel lokal erzeugen.
+
+Nur relevantes Event synchronisieren:
+
+PROJECTILE_IMPACT
+
+BUILDING_DESTROYED
+
+Dann Client erzeugt Effekt.
+
+============================================================
+99. SOUND UND NETZWERK
+============================================================
+
+Sound ebenfalls aus Events ableiten.
+
+Nicht jede Audiodatei netzwerkseitig übertragen.
+
+============================================================
+100. MULTIPLAYER-READY DEFINITION
+============================================================
+
+Ein System gilt nur als multiplayer-ready, wenn:
+
+- Player Ownership sauber ist
+- keine Player-1-Hardcodes existieren
+- Commands statt direkte UI-Manipulation genutzt werden
+- AI dieselben Commands nutzt
+- Game State serialisierbar ist
+- Rendering vom State getrennt ist
+- Fog pro Player funktioniert
+- Ressourcen pro Player funktionieren
+- IDs eindeutig sind
+
+============================================================
+101. VISUAL-QUALITY-GATE
+============================================================
+
+Ein visueller Bereich gilt erst als fertig, wenn:
+
+- nicht leer
+- nicht steril
+- Material lesbar
+- Schatten vorhanden
+- Animation vorhanden, wenn sinnvoll
+- Effekte vorhanden, wenn sinnvoll
+- Retro-Version ebenfalls lesbar
+- RTS-Charakter klar
+
+============================================================
+102. TERRAIN-QUALITY-GATE
+============================================================
+
+Terrain gilt erst als fertig, wenn:
+
+- mindestens mehrere Varianten sichtbar
+- keine großen sterilen Flächen
+- Übergänge glaubwürdig
+- strategische Zonen lesbar
+- Mikrodetails vorhanden
+- Makrodetails vorhanden
+
+============================================================
+103. UNIT-QUALITY-GATE
+============================================================
+
+Unit gilt erst als fertig, wenn:
+
+- Silhouette eindeutig
+- Front/Heck erkennbar
+- Fraktion erkennbar
+- Bewegung animiert
+- Schatten vorhanden
+- Angriff visuell klar
+- Tod visuell klar
+
+============================================================
+104. BUILDING-QUALITY-GATE
+============================================================
+
+Building gilt erst als fertig, wenn:
+
+- Funktion visuell verständlich
+- mehrere Details vorhanden
+- Teamfarbe vorhanden
+- mindestens eine Idle-Animation
+- Damage States vorhanden
+- Bauanimation vorhanden
+- Zerstörung vorhanden
+
+============================================================
+105. UI-QUALITY-GATE
+============================================================
+
+UI gilt erst als fertig, wenn:
+
+- keine Platzhaltertextlisten
+- Icons vorhanden
+- Hover vorhanden
+- Disabled vorhanden
+- Active vorhanden
+- Progress vorhanden
+- Minimap klar integriert
+- Fraktionsstil sichtbar
+
+============================================================
+106. RETRO-QUALITY-GATE
+============================================================
+
+Retro gilt erst als fertig, wenn:
+
+- echte niedrige interne Auflösung
+- Nearest Neighbor
+- keine unscharfen Pixel
+- Details weiterhin sichtbar
+- Effekte weiterhin sichtbar
+- UI lesbar
+- kein bloßer „Pixel-Filter“
+
+============================================================
+107. MULTIPLAYER-QUALITY-GATE
+============================================================
+
+Jedes neue Gameplay-System muss geprüft werden:
+
+Ist owner_id vorhanden?
+
+Ist team_id berücksichtigt?
+
+Ist Command-Struktur vorhanden?
+
+Ist Game State serialisierbar?
+
+Ist Rendering getrennt?
+
+Kann AI dasselbe System verwenden?
+
+Kann Fog pro Player funktionieren?
+
+Wenn nein:
+
+System nicht als fertig markieren.
+
+============================================================
+108. PRIORITÄTEN AB SOFORT
+============================================================
+
+PRIORITÄT 1
+
+Terrain + visuelle Dichte.
+
+PRIORITÄT 2
+
+Gebäudequalität.
+
+PRIORITÄT 3
+
+Einheitenqualität.
+
+PRIORITÄT 4
+
+Kampf- und Baueffekte.
+
+PRIORITÄT 5
+
+RTS-UI.
+
+PRIORITÄT 6
+
+Classic-Retro-Qualität.
+
+PRIORITÄT 7
+
+Multiplayer-ready Gameplay-Architektur.
+
+PRIORITÄT 8
+
+zusätzliche Inhalte.
+
+============================================================
+109. SOFORTIGE UMBAU-REIHENFOLGE
+============================================================
+
+1.
+
+Aktuelles Terrain vollständig überarbeiten.
+
+2.
+
+Mehr Terrainvarianten erzeugen.
+
+3.
+
+Übergänge verbessern.
+
+4.
+
+Ressourcenfelder visuell neu bauen.
+
+5.
+
+Gebäude-Sprites detaillieren.
+
+6.
+
+Gebäudeanimationen hinzufügen.
+
+7.
+
+Einheiten-Sprites überarbeiten.
+
+8.
+
+Staub, Schatten und Bewegungseffekte hinzufügen.
+
+9.
+
+Kampf-VFX verbessern.
+
+10.
+
+Zerstörung verbessern.
+
+11.
+
+UI-Panels überarbeiten.
+
+12.
+
+Minimap aufwerten.
+
+13.
+
+Retro-Rendering korrigieren.
+
+14.
+
+Owner/Team-System prüfen.
+
+15.
+
+Commands einführen bzw. vereinheitlichen.
+
+16.
+
+AI auf Command-System umstellen.
+
+17.
+
+Fog pro Player prüfen.
+
+18.
+
+Entity IDs prüfen.
+
+============================================================
+110. WICHTIGE ENTWICKLUNGSREGEL
+============================================================
+
+Keine weiteren großen Features hinzufügen, solange das bestehende Kernspiel visuell noch wie ein Prototyp aussieht.
+
+Zuerst:
+
+Qualität der vorhandenen Welt erhöhen.
+
+============================================================
+111. WICHTIGE MULTIPLAYER-REGEL
+============================================================
+
+Multiplayer jetzt noch NICHT vollständig implementieren.
+
+Keine Zeit verschwenden mit:
+
+- Lobby
+- Matchmaking
+- NAT Punchthrough
+- Dedicated Server Browser
+- Accountsystem
+
+Jetzt nur:
+
+Architektur multiplayer-ready machen.
+
+============================================================
+112. SPÄTERE MULTIPLAYER-PHASE
+============================================================
+
+Nach stabilem Singleplayer:
+
+PHASE MP1
+
+Local Network Host/Join.
+
+PHASE MP2
+
+1v1.
+
+PHASE MP3
+
+2v2.
+
+PHASE MP4
+
+Co-op vs AI.
+
+PHASE MP5
+
+Dedicated Server optional.
+
+============================================================
+113. MULTIPLAYER-TESTSZENARIEN SPÄTER
+============================================================
+
+1v1:
+
+zwei menschliche Spieler.
+
+2v2:
+
+vier menschliche Spieler.
+
+Co-op:
+
+zwei Menschen gegen zwei AI.
+
+Spectator optional später.
+
+============================================================
+114. ART-DIRECTION-ENDZIEL
+============================================================
+
+Ein Screenshot aus dem Spiel soll bereits ohne Bewegung vermitteln:
+
+- Ressourcenreichtum
+- militärische Spannung
+- Basisbau
+- industrielle Aktivität
+- fremde Welt
+- Retro-Sci-Fi
+
+Der Spieler soll Lust bekommen, den nächsten Panzer zu bauen.
+
+============================================================
+115. FINALER LEITSATZ
+============================================================
+
+ASHLINE darf nicht aussehen wie ein sauberer Prototyp.
+
+Es soll aussehen wie ein fertiges, atmosphärisches, detailreiches Retro-RTS.
+
+Modern Retro:
+
+reich, detailreich, dynamisch.
+
+Classic Retro:
+
+dieselbe Welt, nur grobpixeliger.
+
+Gameplay:
+
+singleplayer first.
+
+Architektur:
+
+multiplayer-ready from day one.
+
+UMSETZUNGSSTAND 0.10 / STYLE CONSOLIDATION
+Die bestehende Richtung wird durch docs/STYLE_CONSOLIDATION.txt und den dokumentierten Stand in README.md, ROADMAP.md und QA.md konsistent ergänzt. Warme Welt, dynamische Teamfarben, gemeinsame Modern-/Classic-Art, typeigene Ruinen und kosmetische Ereignis-VFX bleiben verbindlich. Lokale Command-Grenze und Entity-Identitätsfelder jetzt umgesetzt; fertiger Netzwerk-Mehrspielermodus wird nicht behauptet.
+
+
+UMSETZUNGSSTAND 0.11 / READABILITY & PERSISTENT DESTRUCTION
+Die zeitliche Ablaufgrenze der Ruinen/Krater aus früheren Versionen wird durch missionslange, budgetierte und separat gespeicherte lokale Spuren ersetzt. Maßgeblich: docs/PERSISTENT_DESTRUCTION_IMPLEMENTATION.md (128 Reste, 80 Krater, 220 Transients, 8/16/24 Rauchquellen). Rein kosmetisch, ohne Collision/Pathfinding/Authority-Einfluss. Gemeinsamer Modern-/Classic-Datenbestand.
+
+
+UMSETZUNGSSTAND 0.12 / MODELLE UND UPDATEINFO
+Bestehende Art durch Oberflächenbevels, Zylinderschattierung und zusätzliche Höhenebenen ergänzt. Dünne Ecken-/Bogenmarkierungen ersetzen große Auswahlkreise. Energie-Impacts kompakt statt langer radialer Linien. Kristallformen lokal variiert. Historie im Haupt-/Pausenmenü, versioniert über data/update_history.json. Kein Einfluss auf die Simulation.
+
+0.13 / 02.10.2026
+Objektinfo ist ein pausiertes, scrollbar angelegtes UI-Fenster. Auswahlzusammenfassung und technische Daten greifen auf Definition und Instanz zurück; Feindinfos nur bei Sichtbarkeit. Reparaturbefehle laufen weiter über Simulation.submit_command und den authentifizierten lokalen Issuer. Gebäudeflag bleibt vorhanden. Fahrzeugreparatur prüft alle Akteure/Serviceziele vor jeder Mutation und verwendet einen internen Serviceauftrag zum erreichbaren Hangarperimeter. Sammler warten mit diesem Auftrag bis zur vollen HP; andere Aufträge ersetzen den Serviceauftrag. Heilungsrate und Preis bleiben unverändert. Grafikdaten und HUD-Lebensbalken bleiben vom Simulationszustand getrennt.
+
+0.14 / 02.10.2026
+Gebäude speichern rotation als ganzzahligen Vierteldrehindex 0..3. building_footprint/footprint liefern Rasterdimensionen; Bauprüfung, Reservierung, Picking, Auswahl, Hangarzugänge, Produktionsausgänge, Zerstörung und Restore nutzen diese. Definitionen behalten ihre kanonischen Größen für den gedrehten Art-Renderpfad. Baupakete validieren Winkel vor der Mutation. Altsaves behandeln fehlende Winkel als 0; KI-Erinnerungen behalten Winkel nur aus sichtbaren Beobachtungen. Gebäude können nur vor dem Platzieren gedreht werden.
+Audio-Varianten sind lokal erzeugt und über lokale Rundlaufzähler ausgewählt; keine Simulations-RNG-Nutzung. Cue-Abstände gelten pro Waffenklang, der Pool ist auf 24 begrenzt und SFX wird limitiert. Entfernung dämpft bereits sichtbare Kampfereignisse, versteckte Ereignisse geben weiterhin keine Audioinformationen preis.
+
+
+0.15 / 02.10.2026
+Solarit-Auslagerungen in einen transparenten Mehrvarianten-Atlas reduzieren die Primitive-Zahl pro Rohstofffeld. IndustrialArt erhält eine crowdsensitive Silhouettenvariante für nicht ausgewählte Fahrzeuge und entfernte Zoomstufen; Einzel-/Kleingruppenansicht erhält detaillierte Modelle. WorldRenderer reduziert in derselben LOD-Stufe überschüssige Bodendetails, während der gebackene Geländesprite die Grundtextur behält. Die Einsatzvorbereitung ersetzt das überlagernde Briefing durch eine eigenständige Menüansicht.
+
+
+0.16 / 02.10.2026
+Der Generator für assets/solarit_atlas.png weist jede der vier Formvarianten und drei Dichtestufen explizit ihrer 32×32-Quellkachel zu. Kristalle und Alpha-Silhouette werden innerhalb dieser Kachel gezeichnet, bevor der Atlas skaliert wird. Damit enthalten alle vom WorldRenderer abgetasteten UV-Kacheln Kristallpixel; die Dichte wird weiterhin durch die gewählte Zeile bestimmt.
+
+
+0.17 / 02.10.2026
+WorldRenderer cached mobile hull artwork in 256×256 transparent textures by unit state, interpolates previous/current transform snapshots for drawing only, and draws moving tread strakes as a dynamic overlay. Static rock and ground marks are prebuilt into 16×16 ArrayMesh chunks and submitted only when visible; resource atlas cells remain live so depletion stays accurate. Track segments use draw_multiline_colors. Building geometry and high-density combat VFX remain uncached pending a split between stable structure and animated overlays; see docs/QA.md for measured limits.
