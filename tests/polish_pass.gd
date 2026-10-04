@@ -119,6 +119,9 @@ func run() -> void:
 	check(game.get_window().mode==Window.MODE_FULLSCREEN,"Fullscreen mode applies from the options dropdown")
 	var restore_mode_index := 2 if original_mode==Window.MODE_FULLSCREEN else (1 if original_borderless else 0)
 	mode_option.select(restore_mode_index); mode_option.item_selected.emit(restore_mode_index)
+	# Windows applies display-mode transitions asynchronously; let the OS settle
+	# before asserting that the original mode has been restored.
+	await create_timer(0.25).timeout
 	if original_mode not in [Window.MODE_WINDOWED,Window.MODE_FULLSCREEN] or original_borderless:
 		game.get_window().mode=original_mode; game.get_window().borderless=original_borderless; game.persist_settings()
 	check(game.get_window().mode==original_mode and game.get_window().borderless==original_borderless,"Window mode restores after test ("+str(original_mode)+" → "+str(game.get_window().mode)+")")
