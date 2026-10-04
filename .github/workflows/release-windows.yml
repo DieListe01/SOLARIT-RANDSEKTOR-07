@@ -45,6 +45,12 @@ jobs:
       - name: Install export template
         run: python tools/fetch_windows_template.py
 
+      - name: Import project and register script classes
+        shell: pwsh
+        run: |
+          & .\tools\Godot_v4.7.2-stable_win64_console.exe --headless --editor --path . --quit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Run full regression suite
         shell: pwsh
         run: .\Test-Ashline.ps1
