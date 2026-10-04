@@ -33,7 +33,7 @@ jobs:
         shell: pwsh
         run: |
           $archive = Join-Path $env:RUNNER_TEMP 'godot-console.zip'
-          $url = 'https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win64_console.exe.zip'
+          $url = 'https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win64.exe.zip'
           Invoke-WebRequest -Uri $url -OutFile $archive
           Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $PWD 'tools') -Force
           $engine = Get-ChildItem tools -Filter '*win64_console.exe' | Select-Object -First 1
