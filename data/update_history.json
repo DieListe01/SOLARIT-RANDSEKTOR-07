@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36",
+  "current_version": "0.36.1",
   "entries": [
+    {
+      "version": "0.36.1",
+      "date": "04.10.2026",
+      "title": "SOLARIT-Setup und zuverlässige Release-Prüfung",
+      "changes": [
+        "Version 0.36.1 enthält die persistente Kommandantenanzeige, den direkten Spielerwechsel und dieselbe Profilquelle für Multiplayer und Highscores.",
+        "Die GitHub-Release-Prüfung rendert Multiplayer-Testbilder gezielt und verwendet einen Dummy-Audiotreiber, damit Software-Grafik und fehlende Audiogeräte den Test nicht verfälschen.",
+        "Der Windows-Installer wird mit SHA-256-Prüfsumme und Versionsmanifest im bestehenden öffentlichen Release-Kanal veröffentlicht."
+      ]
+    },
     {
       "version": "0.36",
       "date": "04.10.2026",

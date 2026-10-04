@@ -36,8 +36,11 @@ func _initialize() -> void:
 func run() -> void:
 	game=load("res://scenes/main.tscn").instantiate()
 	surface=SubViewport.new(); surface.name="TestSurface"
-	surface.size=Vector2i(1920,1080); surface.render_target_update_mode=SubViewport.UPDATE_ALWAYS
+	# Network assertions inspect scene state; draw the large test viewport only for captures.
+	# Continuous software rendering on hosted CI can otherwise delay command delivery.
+	surface.size=Vector2i(1920,1080); surface.render_target_update_mode=SubViewport.UPDATE_DISABLED
 	root.add_child(surface); surface.add_child(game)
+	game.viewport.render_target_update_mode=SubViewport.UPDATE_DISABLED
 	game.commander_profile.path = "user://network_profile_" + mode + ".json"
 	game.commander_profile.load_profile()
 	game.commander_profile.set_nickname("DIRK" if mode == "host" else "RAVEN")
@@ -102,7 +105,7 @@ func run() -> void:
 				finishing=true; probe.rpc_id(online.client_peer_id,"finish")
 			if probe.confirmed:
 				print("NETWORK GAME HOST: %d checks; lobby, chat, own commands, outcome and rematch passed"%checks)
-				online.leave(false); game.queue_free(); await process_frame; quit(0); return
+				online.leave(false); game.music.shutdown(); game.queue_free(); await process_frame; await create_timer(0.15).timeout; quit(0); return
 		if mode=="host" and ending and not online.mission_started: rematching=true
 		await create_timer(0.025).timeout
 	check(false,"timeout in %s: snapshots=%d reports=%d ending=%s rematch=%s second=%s reconnected=%s"%[mode,snapshots,reports,ending,rematching,second_started,reconnected])
@@ -141,6 +144,8 @@ func on_snapshot(snapshot: Dictionary) -> void:
 			await create_timer(0.025).timeout
 		if not check(authoritative_report_received,"host sends the full versioned match report to the duel client"): return
 		await create_timer(0.12).timeout
+		surface.render_target_update_mode=SubViewport.UPDATE_ONCE
+		game.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 		RenderingServer.force_draw(false)
 		surface.get_texture().get_image().save_png("res://test-output/network-duel-victory.png")
 		game.online.request_rematch()
@@ -156,9 +161,11 @@ func finish_client() -> void:
 	game.toggle_chat()
 	await process_frame
 	await create_timer(0.12).timeout
+	surface.render_target_update_mode=SubViewport.UPDATE_ONCE
+	game.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 	RenderingServer.force_draw(false)
 	surface.get_texture().get_image().save_png("res://test-output/network-duel-chat.png")
 	probe.rpc_id(1,"confirm")
 	print("NETWORK GAME CLIENT: %d checks; %d filtered snapshots; chat and rematch verified"%[checks,snapshots])
 	await create_timer(0.3).timeout
-	game.online.leave(false); game.queue_free(); await process_frame; quit(0)
+	game.online.leave(false); game.music.shutdown(); game.queue_free(); await process_frame; await create_timer(0.15).timeout; quit(0)

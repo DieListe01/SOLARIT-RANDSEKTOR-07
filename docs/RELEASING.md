@@ -11,7 +11,7 @@ Erstelle ein fein abgestimmtes persönliches Zugriffstoken, das nur für `DieLis
 
 ## Eine Version veröffentlichen
 
-Aktualisiere `current_version` und ergänze einen datierten Eintrag in `data/update_history.json`. Committe und pushe die Änderungen im privaten Quell-Repository, danach einen passenden Tag wie `v0.36`. GitHub Actions prüft die Versionsnummer, führt `Test-Solarit.ps1` aus, exportiert das Spiel mit Godot 4.7.2 und baut den benutzerbezogenen Inno-Setup-Installer. Anschließend veröffentlicht der Workflow Installer, SHA-256-Datei und Manifest in `DieListe01/ASHLINE-Releases`.
+Aktualisiere `current_version` und ergänze einen datierten Eintrag in `data/update_history.json`. Committe und pushe die Änderungen im privaten Quell-Repository, danach einen passenden Tag wie `v0.36.1`. GitHub Actions prüft die Versionsnummer, führt `Test-Solarit.ps1` aus, exportiert das Spiel mit Godot 4.7.2 und baut den benutzerbezogenen Inno-Setup-Installer. Anschließend veröffentlicht der Workflow Installer, SHA-256-Datei und Manifest in `DieListe01/ASHLINE-Releases`.
 
 Das Spiel verwendet `DieListe01/ASHLINE-Releases` als Updatekanal. Es liest das aktuelle öffentliche Release, prüft Manifest und Installer-Prüfsumme und fragt vor dem Start des Installers ausdrücklich nach. Spielstände bleiben im Godot-Benutzerordner; der Installer schreibt nach `%LOCALAPPDATA%\Programs\SOLARIT-RANDSEKTOR-07`.
 

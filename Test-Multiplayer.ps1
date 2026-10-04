@@ -11,7 +11,7 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
     $peers = @()
     try {
         foreach ($role in @('host', 'client')) {
-            $arguments = @('--path', ('"{0}"' -f $gameRoot), '--script', $Script)
+            $arguments = @('--path', ('"{0}"' -f $gameRoot), '--script', $Script, '--audio-driver', 'Dummy')
             if ($Headless) { $arguments += '--headless' }
             else { $arguments += @('--rendering-method', 'gl_compatibility', '--windowed', '--resolution', '1280x720') }
             $arguments += @('--', $role, $TestPort)
