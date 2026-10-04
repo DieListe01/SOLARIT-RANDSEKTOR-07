@@ -1,4 +1,4 @@
-"""Original ASHLINE synthesis. Standard library only; no samples or borrowed melodies."""
+"""Original SOLARIT: RANDSEKTOR 07 synthesis. Standard library only; no samples or borrowed melodies."""
 from pathlib import Path
 import math, random, wave, array
 

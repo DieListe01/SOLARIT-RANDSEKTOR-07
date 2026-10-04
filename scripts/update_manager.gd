@@ -4,7 +4,7 @@ class_name UpdateManager
 signal update_check_finished(result: Dictionary)
 signal installer_download_finished(success: bool, message: String)
 
-const INSTALLER_PREFIX := "ASHLINE-Setup-"
+const INSTALLER_PREFIX := "SOLARIT-RANDSEKTOR-07-Setup-"
 const MAX_INSTALLER_BYTES := 300 * 1024 * 1024
 
 var current_version := "0.0"
@@ -46,7 +46,7 @@ func check_for_update() -> bool:
 	if busy or not can_check(): return false
 	busy=true
 	latest_version=""; latest_notes=""; release_assets=[]
-	var error:=api_request.request("https://api.github.com/repos/%s/releases/latest"%repository,["Accept: application/vnd.github+json","User-Agent: ASHLINE-Game"])
+	var error:=api_request.request("https://api.github.com/repos/%s/releases/latest"%repository,["Accept: application/vnd.github+json","User-Agent: SOLARIT: RANDSEKTOR 07-Game"])
 	if error!=OK:
 		busy=false
 		update_check_finished.emit({"ok":false,"available":false,"message":"GitHub ist gerade nicht erreichbar."})
@@ -74,7 +74,7 @@ func _on_api_completed(result: int, response_code: int, _headers: PackedStringAr
 
 func begin_installer_download() -> bool:
 	if busy or latest_version.is_empty() or not is_newer_version(latest_version,current_version): return false
-	var manifest_name: String="ASHLINE-%s-release.json"%latest_version
+	var manifest_name: String="SOLARIT-RANDSEKTOR-07-%s-release.json"%latest_version
 	var manifest_asset:=find_asset(manifest_name)
 	if manifest_asset.is_empty():
 		installer_download_finished.emit(false,"Das Prüfsummen-Manifest fehlt im Release.")
@@ -86,7 +86,7 @@ func begin_installer_download() -> bool:
 	busy=true
 	transfer_request.download_file=""
 	transfer_request.body_size_limit=1024*1024
-	var error:=transfer_request.request(url,["Accept: application/octet-stream","User-Agent: ASHLINE-Game"])
+	var error:=transfer_request.request(url,["Accept: application/octet-stream","User-Agent: SOLARIT: RANDSEKTOR 07-Game"])
 	if error!=OK:
 		busy=false
 		installer_download_finished.emit(false,"Das Update-Manifest konnte nicht geladen werden.")
@@ -130,7 +130,7 @@ func _on_transfer_completed(result: int, response_code: int, _headers: PackedStr
 		installer_path=update_dir.path_join(expected_name)
 		transfer_request.download_file=installer_path
 		transfer_request.body_size_limit=MAX_INSTALLER_BYTES
-		var error:=transfer_request.request(installer_url,["Accept: application/octet-stream","User-Agent: ASHLINE-Game"])
+		var error:=transfer_request.request(installer_url,["Accept: application/octet-stream","User-Agent: SOLARIT: RANDSEKTOR 07-Game"])
 		if error!=OK:
 			busy=false
 			transfer_request.download_file=""

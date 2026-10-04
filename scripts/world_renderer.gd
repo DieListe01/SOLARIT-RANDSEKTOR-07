@@ -335,7 +335,7 @@ func _process(dt: float) -> void:
 	elif sim!=null and track_timer<=0:
 		track_timer=0.2
 		for e in sim.entities.values():
-			if e.building or not sim.is_visible(e,0) or sim.factions[e.owner]=="lumen": continue
+			if e.building or not sim.is_visible(e,sim.view_owner) or sim.factions[e.owner]=="lumen": continue
 			var old: Vector2 = previous_positions.get(e.id,e.pos)
 			if float(previous_speeds.get(e.id,0))>25 and e.velocity.length()<8:
 				combat_fx.emit_effect("dust",{"pos":e.pos,"weapon":""})
@@ -381,7 +381,7 @@ func _process(dt: float) -> void:
 		for y in sim.grid.height:
 			for x in sim.grid.width:
 				var index := y*sim.grid.width+x
-				var alpha := 1.0 if sim.explored[0][index]==0 else (0.62 if sim.fog[0][index]==0 else 0.0)
+				var alpha := 1.0 if sim.explored[sim.view_owner][index]==0 else (0.62 if sim.fog[sim.view_owner][index]==0 else 0.0)
 				mask.set_pixel(x,y,Color(0.12,0.085,0.065,alpha))
 		if fog_texture==null: fog_texture=ImageTexture.create_from_image(mask)
 		else: fog_texture.update(mask)
@@ -438,7 +438,7 @@ func _draw() -> void:
 			var c := Vector2i(x,y)
 			var index := y*g.width+x
 			var rect := Rect2(Vector2(c*g.tile),Vector2.ONE*g.tile)
-			if sim.explored[0][index]==0: continue
+			if sim.explored[sim.view_owner][index]==0: continue
 			var remaining := float(sim.grid.resources.get(sim.grid.key(c),0))
 			if remaining>0 and g.type_at(c)==3 and profile_enabled: profile_solarit_count+=1
 			if debug: draw_rect(rect,Color(0.1,0.8,0.65,0.15),false,1)
@@ -462,10 +462,10 @@ func _draw() -> void:
 		profile_ground_fx_ms=float(Time.get_ticks_usec()-ground_fx_started)/1000.0
 		profile_wrecks_ms=combat_fx.profile_wrecks_ms+float(Time.get_ticks_usec()-ground_batch_started)/1000.0
 		profile_ruin_count=combat_fx.ruins.size()
-	for memory in sim.known[0].values():
+	for memory in sim.known[sim.view_owner].values():
 		if memory.building:
 			var c := g.cell(memory.pos)
-			if g.inside(c) and sim.fog[0][c.y*g.width+c.x]==0:
+			if g.inside(c) and sim.fog[sim.view_owner][c.y*g.width+c.x]==0:
 				var d: Dictionary = sim.db.buildings[memory.kind]
 				draw_rect(Rect2(memory.pos-Vector2(sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[0],sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[1])*g.tile*0.5,Vector2(sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[0],sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[1])*g.tile),Color("3c3023"))
 	var sorted := sim.entities.values()
@@ -474,7 +474,7 @@ func _draw() -> void:
 		var tread_points := PackedVector2Array()
 		var tread_colors := PackedColorArray()
 		for e in sorted:
-			if e.building or (e.owner!=0 and not sim.is_visible(e,0)): continue
+			if e.building or (e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner)): continue
 			var visual := interpolated_entity(e)
 			if visual.velocity.length()<=5 or sim.factions[visual.owner] in ["drift","lumen"]: continue
 			var length := 28.0 if visual.kind=="harvester" else (30.0 if visual.kind=="lancer" else (25.0 if visual.kind=="siege" else 22.0))
@@ -490,11 +490,11 @@ func _draw() -> void:
 	var object_profile_started := 0
 	visible_mobile_count=0; visible_building_count=0
 	for e in sorted:
-		if e.building or (e.owner!=0 and not sim.is_visible(e,0)): continue
+		if e.building or (e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner)): continue
 		var visual := interpolated_entity(e)
 		if absf(visual.pos.x-camera.x)<=half.x+120 and absf(visual.pos.y-camera.y)<=half.y+120: visible_mobile_count+=1
 	for e in sorted:
-		if e.owner!=0 and not sim.is_visible(e,0): continue
+		if e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner): continue
 		var visual := interpolated_entity(e)
 		if absf(visual.pos.x-camera.x)>half.x+120 or absf(visual.pos.y-camera.y)>half.y+120: continue
 		if e.building: visible_building_count+=1
@@ -520,13 +520,13 @@ func _draw() -> void:
 			if not e.building:
 				var last: Vector2 = visual.pos
 				for point in e.path: draw_line(last,point,Color("a2e48a"),1); last=point
-			elif e.owner==0:
+			elif e.owner==sim.view_owner:
 				draw_arc(e.pos,float(sim.db.rules.build_radius)*g.tile,0,TAU,64,Color(0.5,0.9,0.8,0.15),1)
 	var combat_fx_started := Time.get_ticks_usec() if profile_enabled else 0
 	var projectile_started := Time.get_ticks_usec() if profile_enabled else 0
 	for p in sim.projectiles:
 		var c := g.cell(p.pos)
-		if not g.inside(c) or sim.fog[0][c.y*g.width+c.x]==0: continue
+		if not g.inside(c) or sim.fog[sim.view_owner][c.y*g.width+c.x]==0: continue
 		if profile_enabled: profile_projectile_count+=1
 		combat_fx.draw_projectile(self,p,vfx_budget_tier)
 	if profile_enabled: profile_projectiles_ms=float(Time.get_ticks_usec()-projectile_started)/1000.0
@@ -534,7 +534,7 @@ func _draw() -> void:
 	for fx in sim.effects:
 		if fx.get("event_backed",false): continue
 		var c := g.cell(fx.pos)
-		if not g.inside(c) or sim.fog[0][c.y*g.width+c.x]==0: continue
+		if not g.inside(c) or sim.fog[sim.view_owner][c.y*g.width+c.x]==0: continue
 		if profile_enabled: profile_impact_count+=1
 		var age: float = 1-fx.life/fx.max_life
 		draw_modern_explosion(fx.pos,fx.radius,age,vfx_budget_tier)
@@ -574,7 +574,7 @@ func _draw() -> void:
 	# World status is deliberately above explosions, smoke and fog.
 	var occupied_bars: Array[Rect2] = []
 	for e in sorted:
-		if e.owner!=0 and not sim.is_visible(e,0): continue
+		if e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner): continue
 		if absf(e.pos.x-camera.x)>half.x+120 or absf(e.pos.y-camera.y)>half.y+120: continue
 		var visual := interpolated_entity(e)
 		if selected.has(e.id) or health_mode=="always" or (health_mode=="damaged" and e.hp<e.max_hp):
@@ -595,9 +595,9 @@ func _draw() -> void:
 				draw_rect(Rect2(p,Vector2(w*maxf(0,e.hp/e.max_hp),4)),TeamIdentity.health(e.hp/e.max_hp))
 		if selected.has(e.id):
 			draw_selection(visual)
-			if e.owner==0 and e.kind=="repair" and e.complete:
-				draw_arc(visual.pos,100,0,TAU,64,Color(sim.team_color(0),0.2),0.8,true)
-			if e.owner==0 and e.building and e.kind=="factory":
+			if e.owner==sim.view_owner and e.kind=="repair" and e.complete:
+				draw_arc(visual.pos,100,0,TAU,64,Color(sim.team_color(sim.view_owner),0.2),0.8,true)
+			if e.owner==sim.view_owner and e.building and e.kind=="factory":
 				draw_line(e.pos,e.rally,Color(0.5,0.95,0.75,0.45),1)
 				draw_line(e.rally,e.rally-Vector2(0,24),sim.team_color(e.owner),2)
 				smooth_polygon(PackedVector2Array([e.rally-Vector2(0,24),e.rally+Vector2(16,-19),e.rally-Vector2(0,14)]),sim.team_color(e.owner))
@@ -607,9 +607,9 @@ func _draw() -> void:
 		var d: Dictionary = sim.db.buildings[placement]
 		var footprint := sim.building_footprint(placement,placement_rotation)
 		var rect := Rect2(Vector2(placement_cell*g.tile),Vector2(footprint[0],footprint[1])*g.tile)
-		var valid := sim.build_reason(placement,0,placement_cell,placement_rotation)==""
+		var valid := sim.build_reason(placement,sim.view_owner,placement_cell,placement_rotation)==""
 		var color := Color(0.3,0.95,0.7,0.5) if valid else Color(1,0.3,0.23,0.5)
-		var ghost := {"owner":0,"pos":rect.get_center(),"kind":placement,"complete":true,"hp":1.0,"max_hp":1.0,"turret":0.0,"rotation":placement_rotation}
+		var ghost := {"owner":sim.view_owner,"pos":rect.get_center(),"kind":placement,"complete":true,"hp":1.0,"max_hp":1.0,"turret":0.0,"rotation":placement_rotation}
 		industrial_art.opacity=0.35
 		industrial_art.building(self,ghost,Vector2(d.footprint[0],d.footprint[1])*g.tile,color,elapsed)
 		industrial_art.opacity=1.0
@@ -758,7 +758,7 @@ func draw_fog_dust(from: Vector2i, to: Vector2i) -> void:
 		var cell := Vector2i(maxi(0,from.x)+(i*17)%maxi(1,to.x-from.x),maxi(0,from.y)+(i*11)%maxi(1,to.y-from.y))
 		if not sim.grid.inside(cell): continue
 		var index := cell.y*sim.grid.width+cell.x
-		if sim.explored[0][index]==0 or sim.fog[0][index]!=0: continue
+		if sim.explored[sim.view_owner][index]==0 or sim.fog[sim.view_owner][index]!=0: continue
 		var p := Vector2(cell*sim.grid.tile)+Vector2(fposmod(elapsed*3+i*7,32),12)
 		draw_line(p,p+Vector2(20,3),Color(0.69,0.47,0.29,0.045),2,true)
 

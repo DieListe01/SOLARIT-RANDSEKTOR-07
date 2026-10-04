@@ -1,4 +1,4 @@
-# ASHLINE – Missionssystem 0.20
+# SOLARIT: RANDSEKTOR 07 – Missionssystem 0.20
 
 Missionen liegen als JSON unter `data/`. Die aktuell spielbaren Einsätze sind `veyra.json`, `dry_vein.json` und `khepri_pass.json`.
 

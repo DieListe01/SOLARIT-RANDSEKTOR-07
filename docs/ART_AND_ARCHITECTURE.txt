@@ -2,7 +2,7 @@ Du bist Art Director, Technical Artist, UI/UX Designer, VFX Designer, RTS Gamepl
 
 Du arbeitest an einem modernen Retro-RTS mit dem Projektnamen:
 
-ASHLINE
+SOLARIT: RANDSEKTOR 07
 
 Das Spiel ist spielerisch von frühen klassischen Basisbau-RTS-Spielen inspiriert, insbesondere von der klaren Lesbarkeit, Basisstruktur, Ressourcensammlung und taktischen Übersicht klassischer 90er-Jahre-RTS.
 
@@ -31,7 +31,7 @@ Gleichzeitig muss die gesamte Architektur von Anfang an so aufgebaut werden, das
 1. VISUELLES HAUPTZIEL
 ============================================================
 
-ASHLINE soll aussehen wie ein hochwertiges verlorenes Sci-Fi-RTS der 1990er, das mit heutiger Technik neu erschaffen wurde.
+SOLARIT: RANDSEKTOR 07 soll aussehen wie ein hochwertiges verlorenes Sci-Fi-RTS der 1990er, das mit heutiger Technik neu erschaffen wurde.
 
 Es soll NICHT aussehen wie:
 
@@ -2105,7 +2105,7 @@ Der Spieler soll Lust bekommen, den nächsten Panzer zu bauen.
 115. FINALER LEITSATZ
 ============================================================
 
-ASHLINE darf nicht aussehen wie ein sauberer Prototyp.
+SOLARIT: RANDSEKTOR 07 darf nicht aussehen wie ein sauberer Prototyp.
 
 Es soll aussehen wie ein fertiges, atmosphärisches, detailreiches Retro-RTS.
 

@@ -213,7 +213,7 @@ Neu geprüft bzw. als Testfall ergänzt:
 - der Schutz des eigenen Baukerns hat weiterhin Vorrang vor einem möglichen Sieg;
 - Wellenfortschritt bleibt in Spielständen erhalten.
 
-Automatischer Test: `tests/mission_system.gd` (über `Test-Ashline.ps1`).
+Automatischer Test: `tests/mission_system.gd` (über `Test-Solarit.ps1`).
 
 Startdiagnose 0.20: Der Quellstart war durch einen doppelt definierten `_input`-Handler blockiert; nach dessen Zusammenführung verhinderte eine als Fehler behandelte Typinferenzwarnung im Renderer den Skript-Compile. Beide Stellen wurden korrigiert. Editor-Parsecheck und Laufzeitstart ohne GDScript-Fehler; Frontend 26/26, UI-Integration 38/38, Updateinfo 31/31. Frischer Windows-Export 0.20.0.0; exportiertes Spiel und Menü mit `--smoke` sowie `--frontend-smoke` jeweils Exit 0. Die Windows-Zertifikatsspeicher-Meldung bleibt bestehen und ist für Offline-Spiel nicht relevant.
 
@@ -225,7 +225,7 @@ Auf NVIDIA RTX 3060 mit Godot 4.7.2, GL Compatibility, 1920×1080: ruhende 40-Fa
 
 Die 36-Wrack-Messung liegt nahe an den 17 FPS des gemeldeten Spielstands und macht Ruinen/Trümmer zum wahrscheinlichen Hauptverursacher dort. Die Messung ist ein isolierter Stresstest; der genaue Anteil in einem echten gespeicherten Einsatz hängt von Sichtbereich, Gebäudezahl und aktiven Effekten ab. Es erfolgte in 0.21 keine Renderoptimierung; Gebäude- und Ruinendarstellung bleiben die nächsten konkreten Optimierungsziele.
 
-Prüfung 0.21: Render-Benchmark mit allen vier Fahrzeugstufen, 40 Fahrzeugen plus Kampf-VFX, 25 Gebäuden und 36 Wracks durchgelaufen; F3-/FPS-Test 10/10 und Updateinfo 32/32. Windows-Export 0.21.0.0 erstellt; `--smoke` mit Exit 0. Der bestehende `build/ASHLINE.exe` konnte nicht überschrieben werden, daher liegt der neue Testbuild separat als `build/ASHLINE-0.21.exe`.
+Prüfung 0.21: Render-Benchmark mit allen vier Fahrzeugstufen, 40 Fahrzeugen plus Kampf-VFX, 25 Gebäuden und 36 Wracks durchgelaufen; F3-/FPS-Test 10/10 und Updateinfo 32/32. Windows-Export 0.21.0.0 erstellt; `--smoke` mit Exit 0. Der bestehende `build/SOLARIT-RANDSEKTOR-07.exe` konnte nicht überschrieben werden, daher liegt der neue Testbuild separat als `build/SOLARIT-RANDSEKTOR-07-0.21.exe`.
 
 ## 0.22 — Gebäudecache für große Basen — 02.10.2026
 
@@ -239,7 +239,7 @@ Bei mehr als zehn gleichzeitig sichtbaren Zerstörungen erhalten Kernexplosionen
 
 RTX 3060, Godot 4.7.2 GL Compatibility, pausierte Szene mit 36 gleichzeitig sichtbaren Zerstörungseffekten: Effekt-Zeichenzeit sank von 40,33 auf 12,38 ms pro Bild (−69 %); Ruinen-/Trümmerpass sank von 9,48 auf 8,10 ms; gesamter gemessener Renderpass sank von 50,66 auf 21,39 ms. Das entspricht rund 47 FPS für diesen isolierten Zeichenpass. 40 bewegte Fahrzeuge plus laufende Kampf-VFX lagen in diesem Lauf bei rund 33 FPS und bleiben ein separater Engpass. Der Stresstest mit 50 zusätzlichen Gebäuden lag bei rund 104 FPS; deren Gebäude-Zeichenpass betrug 0,13 ms. Die große Gebäudemenge ist im isolierten Basistest daher nicht der dominante Kostentreiber.
 
-Prüfung 0.23: GL-Renderbenchmark mit 1/10/20/40 Fahrzeugen, 40 bewegten Fahrzeugen mit Kampf-VFX, 4/50 zusätzlichen Gebäuden sowie 36 gleichzeitigen Zerstörungen bestanden. Updateinfo 34/34 und Performance-Monitor 10/10 bestanden. Windows-Export `build/ASHLINE-0.23.exe` erstellt und `--smoke` mit Exit 0 gestartet. In der isolierten Umgebung kann Godot weiterhin keine `user://`-Logs, Shader-Caches oder Test-Screenshots ablegen; das Spiel und die Render-/UI-Tests laufen trotzdem. Der Export-Presetname wurde nach dem CLI-Aufruf wieder auf `Windows Desktop` gesetzt.
+Prüfung 0.23: GL-Renderbenchmark mit 1/10/20/40 Fahrzeugen, 40 bewegten Fahrzeugen mit Kampf-VFX, 4/50 zusätzlichen Gebäuden sowie 36 gleichzeitigen Zerstörungen bestanden. Updateinfo 34/34 und Performance-Monitor 10/10 bestanden. Windows-Export `build/SOLARIT-RANDSEKTOR-07-0.23.exe` erstellt und `--smoke` mit Exit 0 gestartet. In der isolierten Umgebung kann Godot weiterhin keine `user://`-Logs, Shader-Caches oder Test-Screenshots ablegen; das Spiel und die Render-/UI-Tests laufen trotzdem. Der Export-Presetname wurde nach dem CLI-Aufruf wieder auf `Windows Desktop` gesetzt.
 
 ## 0.24 — Gefechts-Rendering und FPS-Pass — 03.10.2026
 

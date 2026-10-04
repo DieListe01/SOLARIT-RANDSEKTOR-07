@@ -1,6 +1,6 @@
-# ASHLINE-Multiplayer: technische Grundlage
+# SOLARIT: RANDSEKTOR 07-Multiplayer: technische Grundlage
 
-ASHLINE läuft derzeit lokal. Die `Simulation` nimmt Befehle zentral über `submit_command(packet, issuer)` an, schreitet in festen 30-Hz-Ticks fort und kann ihren Zustand als JSON sichern und wiederherstellen. Das ist eine brauchbare Trennlinie für Multiplayer, aber noch kein Netzcode: Transport, Lobby, Identität, Host-Autorität und Synchronisationsprüfungen fehlen.
+SOLARIT: RANDSEKTOR 07 läuft derzeit lokal. Die `Simulation` nimmt Befehle zentral über `submit_command(packet, issuer)` an, schreitet in festen 30-Hz-Ticks fort und kann ihren Zustand als JSON sichern und wiederherstellen. Das ist eine brauchbare Trennlinie für Multiplayer, aber noch kein Netzcode: Transport, Lobby, Identität, Host-Autorität und Synchronisationsprüfungen fehlen.
 
 ## Empfohlener erster Mehrspielermodus
 
@@ -20,7 +20,7 @@ Später kann Lockstep-Berechnung getestet werden. Dafür müssten Physik, Pfadsu
 
 Für eine erste private Testversion eignet sich ein Host-Client-Transport mit UDP und zuverlässigem, geordnetem Kanal für Spielbefehle sowie unzuverlässigem Kanal für häufige Statusupdates. Eine Lobby oder Relay kann NAT-Verbindungen vereinfachen; sie ersetzt keine Host-Prüfungen. Beitrittscodes sollten kurzlebig sein, und Sitzungsdaten dürfen keine lokalen Spielstände oder Update-Zugangsdaten offenlegen.
 
-ASHLINE verwendet aktuell einen lokalen Gegner und eine einzelne Mission. Der kleinste sinnvolle Mehrspielertest ist daher: zwei lokale Spielinstanzen, gemeinsamer Missionsstart, gleichzeitig bestätigte Bau- und Bewegungsbefehle, Host-Neustart/Wiederverbindung, absichtliche ungültige Befehle und mindestens zehn Minuten identische Resultate. Erst danach lohnt sich öffentlicher Matchmaking- oder Dedicated-Server-Betrieb.
+SOLARIT: RANDSEKTOR 07 verwendet aktuell einen lokalen Gegner und eine einzelne Mission. Der kleinste sinnvolle Mehrspielertest ist daher: zwei lokale Spielinstanzen, gemeinsamer Missionsstart, gleichzeitig bestätigte Bau- und Bewegungsbefehle, Host-Neustart/Wiederverbindung, absichtliche ungültige Befehle und mindestens zehn Minuten identische Resultate. Erst danach lohnt sich öffentlicher Matchmaking- oder Dedicated-Server-Betrieb.
 
 ## Nächste umsetzbare Arbeitsschritte
 

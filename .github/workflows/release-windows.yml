@@ -27,7 +27,7 @@ jobs:
           if ($history.current_version -ne $version) {
             throw "Release tag $version does not match data/update_history.json ($($history.current_version))."
           }
-          "ASHLINE_VERSION=$version" >> $env:GITHUB_ENV
+          "SOLARIT_VERSION=$version" >> $env:GITHUB_ENV
 
       - name: Install Godot 4.7.2 console
         shell: pwsh
@@ -53,26 +53,26 @@ jobs:
 
       - name: Run full regression suite
         shell: pwsh
-        run: .\Test-Ashline.ps1
+        run: .\Test-Solarit.ps1
 
       - name: Embed release channel
         shell: pwsh
         run: |
-          $channel = @{ format_version = 1; repository = 'DieListe01/ASHLINE-Releases'; installer_prefix = 'ASHLINE-Setup-'; check_interval_hours = 24 }
+          $channel = @{ format_version = 1; repository = 'DieListe01/ASHLINE-Releases'; installer_prefix = 'SOLARIT-RANDSEKTOR-07-Setup-'; check_interval_hours = 24 }
           $channel | ConvertTo-Json | Set-Content -Encoding utf8 data/update_channel.json
 
       - name: Export Windows game
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force build | Out-Null
-          & .\tools\Godot_v4.7.2-stable_win64_console.exe --headless --path . --export-release 'Windows Desktop' build/ASHLINE.exe
+          & .\tools\Godot_v4.7.2-stable_win64_console.exe --headless --path . --export-release 'Windows Desktop' build/SOLARIT-RANDSEKTOR-07.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & .\tools\Godot_v4.7.2-stable_win64_console.exe --headless --path . --script tools/write_engine_notices.gd
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          (Get-Content docs/Spielstart.txt -Raw).Replace('@VERSION@', $env:ASHLINE_VERSION) | Set-Content -Encoding utf8 build/Spielstart.txt
+          (Get-Content docs/Spielstart.txt -Raw).Replace('@VERSION@', $env:SOLARIT_VERSION) | Set-Content -Encoding utf8 build/Spielstart.txt
 
       - name: Build portable archives
-        run: python tools/package_release.py $env:ASHLINE_VERSION
+        run: python tools/package_release.py $env:SOLARIT_VERSION
 
       - name: Build per-user installer
         shell: pwsh
@@ -81,22 +81,22 @@ jobs:
           $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $compiler)) { $compiler = Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe' }
           if (-not (Test-Path $compiler)) { throw 'Inno Setup compiler was not found.' }
-          & $compiler "/DAppVersion=$env:ASHLINE_VERSION" installer/ASHLINE.iss
+          & $compiler "/DAppVersion=$env:SOLARIT_VERSION" installer/SOLARIT-RANDSEKTOR-07.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Create verified release manifest
         shell: pwsh
         run: |
-          $installer = Get-ChildItem build -Filter "ASHLINE-Setup-$env:ASHLINE_VERSION.exe" | Select-Object -First 1
+          $installer = Get-ChildItem build -Filter "SOLARIT-RANDSEKTOR-07-Setup-$env:SOLARIT_VERSION.exe" | Select-Object -First 1
           if ($null -eq $installer) { throw 'Installer output is missing.' }
           $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          $manifest = @{ version = $env:ASHLINE_VERSION; installer = $installer.Name; sha256 = $hash }
-          $manifest | ConvertTo-Json | Set-Content -Encoding utf8 "build/ASHLINE-$env:ASHLINE_VERSION-release.json"
+          $manifest = @{ version = $env:SOLARIT_VERSION; installer = $installer.Name; sha256 = $hash }
+          $manifest | ConvertTo-Json | Set-Content -Encoding utf8 "build/SOLARIT-RANDSEKTOR-07-$env:SOLARIT_VERSION-release.json"
           "$hash  $($installer.Name)" | Set-Content -Encoding ascii "$($installer.FullName).sha256"
           $history = Get-Content data/update_history.json -Raw | ConvertFrom-Json
-          $entry = $history.entries | Where-Object { $_.version -eq $env:ASHLINE_VERSION } | Select-Object -First 1
+          $entry = $history.entries | Where-Object { $_.version -eq $env:SOLARIT_VERSION } | Select-Object -First 1
           if ($null -eq $entry) { throw 'Release notes are missing from data/update_history.json.' }
-          $notes = "# ASHLINE $($entry.version) — $($entry.title)`n`n" + (($entry.changes | ForEach-Object { "- $_" }) -join "`n")
+          $notes = "# SOLARIT: RANDSEKTOR 07 $($entry.version) — $($entry.title)`n`n" + (($entry.changes | ForEach-Object { "- $_" }) -join "`n")
           Set-Content -Path 'build/release-notes.md' -Value $notes -Encoding utf8
 
       - name: Publish installer to public release feed
@@ -108,7 +108,7 @@ jobs:
             throw 'Add the ASHLINE_RELEASE_TOKEN Actions secret. It needs Contents: Read and write access to DieListe01/ASHLINE-Releases.'
           }
           gh release create $env:GITHUB_REF_NAME --repo DieListe01/ASHLINE-Releases `
-            "build/ASHLINE-Setup-$env:ASHLINE_VERSION.exe" `
-            "build/ASHLINE-Setup-$env:ASHLINE_VERSION.exe.sha256" `
-            "build/ASHLINE-$env:ASHLINE_VERSION-release.json" `
-            --title "ASHLINE $env:ASHLINE_VERSION" --notes-file 'build/release-notes.md'
+            "build/SOLARIT-RANDSEKTOR-07-Setup-$env:SOLARIT_VERSION.exe" `
+            "build/SOLARIT-RANDSEKTOR-07-Setup-$env:SOLARIT_VERSION.exe.sha256" `
+            "build/SOLARIT-RANDSEKTOR-07-$env:SOLARIT_VERSION-release.json" `
+            --title "SOLARIT: RANDSEKTOR 07 $env:SOLARIT_VERSION" --notes-file 'build/release-notes.md'

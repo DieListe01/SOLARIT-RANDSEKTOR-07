@@ -1,6 +1,16 @@
 {
-  "current_version": "0.35",
+  "current_version": "0.36",
   "entries": [
+    {
+      "version": "0.36",
+      "date": "04.10.2026",
+      "title": "Kommandantenprofil und SOLARIT-Setup",
+      "changes": [
+        "Das Hauptmenü zeigt das aktive Kommandantenprofil oben rechts mit einem direkten Link zur bestehenden Identifikationsmaske. Namensänderungen erscheinen sofort und bleiben nach Neustart erhalten.",
+        "Kommandantenakte, Multiplayer-Lobby, Chat und neue Highscore-Einträge verwenden denselben gespeicherten Nickname.",
+        "Windows-Spiel und benutzerbezogener Installer heißen SOLARIT-RANDSEKTOR-07. Der bestehende öffentliche GitHub-Release-Kanal liefert Setup, SHA-256-Prüfsumme und Versionsmanifest."
+      ]
+    },
     {
       "version": "0.35",
       "date": "04.10.2026",
@@ -91,9 +101,9 @@
     {
       "version": "0.27",
       "date": "03.10.2026",
-      "title": "ASHLINE-Menü und Systemoptionen",
+      "title": "SOLARIT: RANDSEKTOR 07-Menü und Systemoptionen",
       "changes": [
-        "Das Hauptmenü behält die Veyra-Wüste, den Planeten, die Basis und die ASHLINE-Farbwelt; Navigation und Zusatzaktionen sind kompakter und klarer gestaffelt.",
+        "Das Hauptmenü behält die Veyra-Wüste, den Planeten, die Basis und die SOLARIT: RANDSEKTOR 07-Farbwelt; Navigation und Zusatzaktionen sind kompakter und klarer gestaffelt.",
         "Die Optionen sind jetzt in Bild, Audio, Steuerung und Gameplay gegliedert. Das integrierte Systempanel dimmt die Szene leicht ab, lässt sie aber sichtbar.",
         "Auflösung, Fensterart, Classic-Retro-Modus, CRT, Effektqualität, Kamerastoß, Lebensbalken und Randscrollen bleiben direkt einstellbar.",
         "Musik- und Effektpegel zeigen ihren Prozentwert. Tastenkürzel erscheinen als lesbare Aktionsliste und lassen sich anklicken oder auf Standard zurücksetzen.",
@@ -385,7 +395,7 @@
       "date": "01.10.2026",
       "title": "Erste eigenständige Version",
       "changes": [
-        "ASHLINE mit erster spielbarer Mission im Veyra-Becken.",
+        "SOLARIT: RANDSEKTOR 07 mit erster spielbarer Mission im Veyra-Becken.",
         "Basisbau, Solarit, Fahrzeuge, Kampf, Sichtsystem und taktische Übersicht.",
         "Modern Retro und Classic Retro sowie eigene Musik und Geräusche."
       ]

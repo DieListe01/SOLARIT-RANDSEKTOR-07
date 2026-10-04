@@ -12,4 +12,4 @@ if (-not (Test-Path -LiteralPath (Join-Path $gameRoot '.godot\global_script_clas
     $importRun = Start-Process -FilePath $enginePath -ArgumentList @('--headless', '--path', ('"' + $gameRoot + '"'), '--editor', '--import', '--quit') -WindowStyle Hidden -Wait -PassThru
     if ($importRun.ExitCode -ne 0) { throw 'Der Godot-Erstimport ist fehlgeschlagen.' }
 }
-& $enginePath --path $gameRoot
+& $enginePath --path $gameRoot --resolution 1920x1080 --fullscreen

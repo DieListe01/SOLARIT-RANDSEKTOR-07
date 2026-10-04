@@ -3,6 +3,10 @@ $gameRoot = $PSScriptRoot
 $enginePath = Join-Path $gameRoot 'tools\Godot_v4.7.2-stable_win64_console.exe'
 $env:APPDATA = Join-Path $gameRoot '.local'
 $env:LOCALAPPDATA = $env:APPDATA
+& $enginePath --headless --path $gameRoot --script 'tests/player_profile.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Kommandantenakte fehlgeschlagen' }
+& $enginePath --headless --path $gameRoot --script 'tests/match_recorder.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Partieberichte fehlgeschlagen' }
 foreach ($testScript in @('regression', 'mission_system', 'playthrough', 'performance', 'audio_integration')) {
     & $enginePath --headless --path $gameRoot --script "tests/$testScript.gd"
     if ($LASTEXITCODE -ne 0) { throw "Test fehlgeschlagen: $testScript" }
@@ -45,3 +49,5 @@ if ($LASTEXITCODE -ne 0) { throw 'Reparatur und Objektinfo fehlgeschlagen' }
 
 & $enginePath --path $gameRoot --script 'tests/rotation_sound.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Rotation und Sound fehlgeschlagen' }
+
+& (Join-Path $gameRoot 'Test-Multiplayer.ps1')

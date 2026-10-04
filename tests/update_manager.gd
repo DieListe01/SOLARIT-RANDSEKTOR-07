@@ -11,10 +11,10 @@ func check(condition: bool, message: String) -> void:
 		push_error("UPDATE MANAGER: "+message)
 
 func _initialize() -> void:
-	check(Manager.repository_is_valid("DieListe01/ASHLINE-Releases"),"public binary feed repository accepted")
-	check(not Manager.repository_is_valid("https://github.com/DieListe01/ASHLINE"),"full URL rejected as repository identifier")
+	check(Manager.repository_is_valid("DieListe01/SOLARIT-RANDSEKTOR-07-Releases"),"public binary feed repository accepted")
+	check(not Manager.repository_is_valid("https://github.com/DieListe01/SOLARIT-RANDSEKTOR-07"),"full URL rejected as repository identifier")
 	check(not Manager.repository_is_valid("DieListe01/../other"),"path traversal rejected")
-	check(not Manager.repository_is_valid("../ASHLINE"),"dot path segment rejected")
+	check(not Manager.repository_is_valid("../SOLARIT: RANDSEKTOR 07"),"dot path segment rejected")
 	check(Manager.normalize_version("v0.35")=="0.35","release tag prefix normalized")
 	check(Manager.is_newer_version("0.35","0.34"),"newer minor release recognized")
 	check(Manager.is_newer_version("1.0","0.99"),"numeric versions compare by components")

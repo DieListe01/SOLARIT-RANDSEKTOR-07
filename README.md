@@ -1,6 +1,6 @@
-# ASHLINE — Das Veyra-Becken
+# SOLARIT: RANDSEKTOR 07
 
-Ein eigenständiges 2D-RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.35 / Updatekanal und Windows-Releases**, 4. Oktober 2026.
+Ein eigenständiges 2D-RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36 / Kommandantenprofil und SOLARIT-Setup**, 4. Oktober 2026.
 
 ## Intro und Startmenü
 
@@ -14,11 +14,11 @@ Das eigene Titelstück **First Signal** läuft bereits beim ersten Programmstart
 
 ## Starten
 
-**Windows-Spiel:** `build/ASHLINE.exe` doppelklicken. Die ausführbare Datei enthält Engine, Spieldaten, Grafik und Audio; eine Godot-Installation ist dafür nicht erforderlich.
+**Windows-Spiel:** `build/SOLARIT-RANDSEKTOR-07.exe` doppelklicken. Die ausführbare Datei enthält Engine, Spieldaten, Grafik und Audio; eine Godot-Installation ist dafür nicht erforderlich.
 
-**Quellprojekt:** `ASHLINE.cmd` startet mit der lokal mitgelieferten Engine. Alternativ `project.godot` mit **Godot 4.7.2 stable, Standard/GDScript** öffnen und F6/F5 drücken. Die Version wurde über die [offizielle Downloadseite](https://godotengine.org/download/windows/) geprüft. Keine Plugins, Python oder zusätzlichen Bibliotheken werden zum Spielen benötigt.
+**Quellprojekt:** `SOLARIT-RANDSEKTOR-07.cmd` startet mit der lokal mitgelieferten Engine. Alternativ `project.godot` mit **Godot 4.7.2 stable, Standard/GDScript** öffnen und F6/F5 drücken. Die Version wurde über die [offizielle Downloadseite](https://godotengine.org/download/windows/) geprüft. Keine Plugins, Python oder zusätzlichen Bibliotheken werden zum Spielen benötigt.
 
-Der portable Quellprojekt-Starter speichert unter `.local/Godot/app_userdata/ASHLINE — Das Veyra-Becken/`. Der exportierte Direktstart verwendet Godots üblichen Benutzerordner unter `%APPDATA%/Godot/app_userdata/`.
+Der portable Quellprojekt-Starter speichert unter `.local/Godot/app_userdata/SOLARIT RANDSEKTOR 07/`. Der exportierte Direktstart verwendet Godots üblichen Benutzerordner unter `%APPDATA%/Godot/app_userdata/`.
 
 ## Erste Partie
 
@@ -86,7 +86,7 @@ Die eigene 120-BPM-Musik besteht pro Fraktionsprofil aus vier synchronen 16-Seku
 - Drei KI-Verhaltensstufen ohne zusätzliche Lebenspunkte, Gratisgeld oder Produktions-Cheats.
 - Pause, Neustart, Quick Save/Load, Start- und Zweiminuten-Autosaves, versionierte JSON-Spielstände, Optionen und Statistik-Debriefing.
 
-**Noch nicht umgesetzt:** die vollständige geplante Kampagne über die ersten drei Einsätze hinaus, interaktives Tutorial, Infanterie, fraktionsspezifische Technologie und Spezialfähigkeiten, Map Editor, Gamepad, öffentliche Modding-Schnittstelle und Multiplayer. Neue Fahrzeuge und Gebäudetechnik werden in den drei vorhandenen Einsätzen schrittweise freigeschaltet.
+**Noch nicht umgesetzt:** die vollständige geplante Kampagne über die ersten drei Einsätze hinaus, interaktives Tutorial, Infanterie, fraktionsspezifische Technologie und Spezialfähigkeiten, Map Editor, Gamepad, öffentliche Modding-Schnittstelle. Neue Fahrzeuge und Gebäudetechnik werden in den drei vorhandenen Einsätzen schrittweise freigeschaltet.
 
 ## Architektur und Prüfung
 
@@ -95,7 +95,7 @@ Die eigene 120-BPM-Musik besteht pro Fraktionsprofil aus vier synchronen 16-Seku
 Tests aus dem Projektverzeichnis starten:
 
 ```powershell
-.\Test-Ashline.ps1
+.\Test-Solarit.ps1
 ```
 
 Die Tests prüfen Wirtschaft, Technik, Produktionsabbrüche, Wege durch die Engstelle, Spielstände, Sichtwissen, Zielverlust bei Projektilen, Sieg/Niederlage und Produktionsausgänge. Die UI-Prüfung rendert echte Godot-Fenster, speist Mausereignisse ein und erstellt Bilder unter `test-output/`. Zusätzlich prüft `tests/frontend.gd` Intro-Start, automatisches Ende, Überspringen, Wiederholung, Classic-Darstellung und den Wechsel zwischen Menü-, Soundtest- und Spielmusik. Ein automatischer Spieldurchlauf demonstriert einen Sieg ohne zusätzliche Einheiten oder Solarit. Der Leistungstest misst 200 Fahrzeuge; seine Messung ist kein pauschaler FPS-Nachweis für andere Hardware.
@@ -106,7 +106,7 @@ Weitere Ergebnisse und Grenzen: `docs/QA.md`. Entwicklungsphasen: `docs/ROADMAP.
 
 ```powershell
 python tools/fetch_windows_template.py
-.\tools\Godot_v4.7.2-stable_win64_console.exe --headless --path . --export-release "Windows Desktop" build/ASHLINE.exe
+.\tools\Godot_v4.7.2-stable_win64_console.exe --headless --path . --export-release "Windows Desktop" build/SOLARIT-RANDSEKTOR-07.exe
 ```
 
 Das Build-Werkzeug lädt ausschließlich das Windows-Release-Template aus dem offiziellen Godot-Archiv per HTTP-Range. Alternativ das Template-Paket über Godots Exportdialog installieren und den benutzerdefinierten Templatepfad im Preset entfernen. Linux und Steam Deck wurden noch nicht getestet; die Laufzeit enthält keine Windows-spezifischen Gameplay-Abhängigkeiten.
@@ -115,7 +115,9 @@ Das Build-Werkzeug lädt ausschließlich das Windows-Release-Template aus dem of
 
 Der private Quellcode liegt in `DieListe01/ASHLINE`. Der Workflow `.github/workflows/release-windows.yml` prüft Tests und Versionsnummer und baut einen Windows-Installer. Öffentlich erscheinen ausschließlich Installer, Prüfsumme und Update-Manifest im separaten Repository `DieListe01/ASHLINE-Releases`; der Updater prüft diesen Feed einmal pro Start. Ein Installer wird erst nach SHA-256-Prüfung gestartet und nur nach ausdrücklicher Bestätigung geöffnet. Details und Einrichtung stehen in `docs/RELEASING.md`.
 
-Der Multiplayer ist noch nicht implementiert. `docs/MULTIPLAYER-ARCHITECTURE.md` beschreibt den empfohlenen Weg: zuerst Koop mit autoritativem Host und geprüften Befehlen, dann Zustandskorrektur und Wiederverbindung. Die lokale Simulation nimmt bereits Befehle zentral an; Lobby und Netzwerktransport fehlen weiterhin.
+Ein lokales Kommandantenprofil mit Nickname, Statistik und Einsatzhistorie wird beim ersten Start angelegt; erreichbar im Hauptmenü und unter Optionen. Für jede nicht abgebrochene Partie gibt es außerdem einen versionierten Bericht mit Zeitreihen und Diagrammen zu Ressourcen, Fahrzeugen, Gebäuden, Produktion und Verlusten beider Seiten. Details: [Kommandantenakte](docs/KOMMANDANTENAKTE.md).
+
+Im Entwicklungsstand sind **1:1-Duell und Online-Koop mit Chat** vorhanden. Start über „MULTIPLAYER“ im Hauptmenü (auch im Einsatzmenü): Modus wählen, verbinden, Fraktion/Farbe festlegen, beide „Bereit“ bestätigen. Das Duell bietet eigene Basen und Ressourcen, serverseitigen Kriegsnebel, geprüfte Befehle, Ping, Wiederbeitritt, Sieg/Niederlage und Revanche. Chat in Lobby und Spiel, im Spiel über Enter. Lokal mit zwei Spielinstanzen geprüft; Internetbetrieb bleibt unverifiziert. Anleitung und Tests: [Multiplayer](docs/MULTIPLAYER.md).
 
 ## Rechte
 

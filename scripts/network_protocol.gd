@@ -1,11 +1,11 @@
 extends RefCounted
 class_name NetworkProtocol
 
-const VERSION := 1
+const VERSION := 5
 const TICKS_PER_SECOND := 30
 const MAX_FUTURE_TICKS := 300
 const MAX_COMMAND_BYTES := 16384
-const COMMAND_TYPES := ["build","produce","cancel_produce","upgrade","move","attack","attack_move","harvest","stop","hold","guard","rally","repair","return"]
+const COMMAND_TYPES := ["build","produce","cancel_produce","cancel_queue_at","prioritize_queue","upgrade","move","attack","attack_move","harvest","stop","hold","guard","rally","repair","return"]
 
 static func create_command(session_id: String, player_id: int, sequence: int, target_tick: int, command: Dictionary) -> Dictionary:
 	return {
@@ -17,7 +17,7 @@ static func create_command(session_id: String, player_id: int, sequence: int, ta
 		"command": command.duplicate(true),
 	}
 
-static func validate_command(packet: Variant, expected_session: String, host_tick: int, last_sequence: int, allowed_players: Array = [0,1]) -> Dictionary:
+static func validate_command(packet: Variant, expected_session: String, host_tick: int, last_sequence: int, allowed_players: Array = [0,1], owner_by_player: Dictionary = {0:0,1:1}) -> Dictionary:
 	if not packet is Dictionary: return reject("PACKET_NOT_OBJECT")
 	if int(packet.get("protocol_version",-1))!=VERSION: return reject("PROTOCOL_MISMATCH")
 	var session_id:=str(packet.get("session_id",""))
@@ -36,7 +36,7 @@ static func validate_command(packet: Variant, expected_session: String, host_tic
 	if not command is Dictionary: return reject("COMMAND_NOT_OBJECT")
 	if not COMMAND_TYPES.has(str(command.get("type",""))): return reject("UNKNOWN_COMMAND")
 	var owner_value: Variant=command.get("owner_id",null)
-	if not is_integer(owner_value) or int(owner_value)!=player_id: return reject("OWNER_MISMATCH")
+	if not is_integer(owner_value) or not owner_by_player.has(player_id) or int(owner_value)!=int(owner_by_player[player_id]): return reject("OWNER_MISMATCH")
 	var encoded:=JSON.stringify(command)
 	if encoded.is_empty() or encoded.to_utf8_buffer().size()>MAX_COMMAND_BYTES: return reject("COMMAND_TOO_LARGE")
 	return {"ok":true,"reason":"","player_id":player_id,"sequence":int(sequence_value),"target_tick":target_tick,"command":command.duplicate(true)}

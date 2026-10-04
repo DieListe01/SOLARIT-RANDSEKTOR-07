@@ -145,12 +145,12 @@ func _process(dt: float) -> void:
 	if sim==null or layers.is_empty() or paused: return
 	var movers := 0
 	for e in sim.entities.values():
-		if not e.building and e.velocity.length()>8 and sim.is_visible(e,0): movers+=1
+		if not e.building and e.velocity.length()>8 and sim.is_visible(e,sim.view_owner): movers+=1
 	engine_voice.volume_db=move_toward(engine_voice.volume_db,linear_to_db(maxf(0.0001,minf(0.20,movers*0.035)*sfx_volume)),dt*35)
 	age+=dt
 	var visible_enemies := 0
 	for e in sim.entities.values():
-		if e.owner==1 and sim.is_visible(e,0): visible_enemies+=1
+		if e.owner!=sim.view_owner and sim.is_visible(e,sim.view_owner): visible_enemies+=1
 	var desired := clampf(sim.combat_heat+visible_enemies*0.025+(0.4 if sim.base_alarm>0 else 0.0),0,1)
 	intensity=move_toward(intensity,desired,dt*0.2)
 	var next := "BASE_CALM"
@@ -160,7 +160,7 @@ func _process(dt: float) -> void:
 	elif intensity>0.4: next="BATTLE"
 	elif intensity>0.18: next="SKIRMISH"
 	elif visible_enemies>0: next="ENEMY_CONTACT"
-	elif not sim.buildings(0,"refinery").is_empty(): next="ECONOMY"
+	elif not sim.buildings(sim.view_owner,"refinery").is_empty(): next="ECONOMY"
 	if next!=pending: pending=next
 	# Minimum dwell plus transitions at a 2-second bar boundary.
 	var playhead: float = layers[0].get_playback_position()

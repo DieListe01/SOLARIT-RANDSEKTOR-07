@@ -1,0 +1,18 @@
+SOLARIT: RANDSEKTOR 07 0.20 - Intro Skip Fix
+==============================
+
+Problem:
+- Intro could not reliably be skipped with ESC, Enter, Space or mouse click.
+- The skip button could also appear visible while input was consumed elsewhere.
+
+Fix:
+- Intro skip handling moved to _input(), which runs before GUI consumption.
+- _unhandled_input() no longer owns intro skip handling.
+- Skip button explicitly receives mouse input, keyboard focus and high z-index.
+
+Expected behavior:
+- ESC skips intro.
+- Enter skips intro.
+- Space skips intro.
+- Left-click anywhere skips intro.
+- Clicking "ÜBERSPRINGEN / ESC" skips intro.

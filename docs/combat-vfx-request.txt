@@ -1,4 +1,4 @@
-DU ARBEITEST JETZT AUSSCHLIESSLICH AM COMBAT-VFX-, IMPACT- UND DESTRUCTION-PASS VON ASHLINE.
+DU ARBEITEST JETZT AUSSCHLIESSLICH AM COMBAT-VFX-, IMPACT- UND DESTRUCTION-PASS VON SOLARIT: RANDSEKTOR 07.
 
 WICHTIG:
 
@@ -37,7 +37,7 @@ ZIEL:
 
 Kämpfe sollen wesentlich spektakulärer wirken.
 
-ASHLINE soll im Gefecht nicht ruhig, steril oder technisch aussehen.
+SOLARIT: RANDSEKTOR 07 soll im Gefecht nicht ruhig, steril oder technisch aussehen.
 
 Ein Feuergefecht soll sofort vermitteln:
 

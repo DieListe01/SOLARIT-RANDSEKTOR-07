@@ -1,4 +1,4 @@
-"""Original 32-second ASHLINE title theme: 'First Signal'. No external samples."""
+"""Original 32-second SOLARIT: RANDSEKTOR 07 title theme: 'First Signal'. No external samples."""
 from pathlib import Path
 import math, array, wave
 

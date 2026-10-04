@@ -1,7 +1,7 @@
-ASHLINE — Das Veyra-Becken | Version @VERSION@
+SOLARIT: RANDSEKTOR 07 | Version @VERSION@
 
 Installation
-Starte ASHLINE-Setup-@VERSION@.exe und folge den Schritten. Der Installer
+Starte SOLARIT-RANDSEKTOR-07-Setup-@VERSION@.exe und folge den Schritten. Der Installer
 installiert das Spiel nur für dein Windows-Benutzerkonto; Administratorrechte
 sind nicht erforderlich. Spielstände und Einstellungen bleiben in deinem
 persönlichen Godot-Appdatenordner gespeichert.
@@ -19,5 +19,5 @@ A und Linksklick: Angriffsmarsch. R: Reparatur umschalten.
 Pfeiltasten oder Bildschirmrand: Kamera bewegen. Mausrad: Zoom.
 F5/F9: Schnell speichern/laden. Escape: Pause.
 
-Spielstände liegen in %APPDATA%\Godot\app_userdata\ASHLINE — Das Veyra-Becken\.
+Spielstände liegen in %APPDATA%\Godot\app_userdata\SOLARIT RANDSEKTOR 07\.
 Lizenzhinweise: LICENSE, THIRD_PARTY_NOTICES.md und GODOT-LICENSES.txt.

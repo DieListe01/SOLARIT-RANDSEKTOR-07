@@ -1,8 +1,8 @@
-PROMPT – ASHLINE Visual Polish Pass 2
+PROMPT – SOLARIT: RANDSEKTOR 07 Visual Polish Pass 2
 Fokus: spektakulärere Effekte, stärkere Lesbarkeit, mehr Wüsten-RTS-Wucht
 Du bist Art Director, Technical Artist, VFX Designer, UI/UX Designer und RTS-Gameplay-Programmierer für das Projekt:
-ASHLINE
-ASHLINE ist ein modernes Retro-RTS mit starker Inspiration durch klassische 90er-Basisbau-RTS-Spiele.
+SOLARIT: RANDSEKTOR 07
+SOLARIT: RANDSEKTOR 07 ist ein modernes Retro-RTS mit starker Inspiration durch klassische 90er-Basisbau-RTS-Spiele.
 Die aktuelle Richtung ist bereits deutlich verbessert, aber das Spiel soll jetzt in einem zweiten großen Art-/VFX-Pass sichtbar spektakulärer, dramatischer, wärmer und eindrucksvoller werden.
 WICHTIG:
 Das Ziel ist nicht Fotorealismus.
@@ -32,7 +32,7 @@ Der nächste Pass soll dafür sorgen, dass ein Screenshot oder kurzer Gameplay-M
 - Freund und Feind sind sofort zu unterscheiden
 Die aktuelle Version ist bereits atmosphärischer als vorher, soll aber jetzt noch deutlich spektakulärer werden.
 2. ART-DIRECTION-GRUNDRICHTUNG
-ASHLINE soll aussehen wie ein hochwertiges, verlorenes Sci-Fi-RTS:
+SOLARIT: RANDSEKTOR 07 soll aussehen wie ein hochwertiges, verlorenes Sci-Fi-RTS:
 - heiß
 - trocken
 - mineralisch
@@ -575,8 +575,8 @@ Ein Kampf- oder Bauscreenshot soll den Eindruck vermitteln:
 - Aktivität
 Wenn das Bild nur „ordentlich“ aussieht, aber nicht aufregend, ist es noch nicht genug.
 28. ENDZIEL
-ASHLINE soll nicht wie ein sauberer Prototyp aussehen.
-ASHLINE soll aussehen wie ein:
+SOLARIT: RANDSEKTOR 07 soll nicht wie ein sauberer Prototyp aussehen.
+SOLARIT: RANDSEKTOR 07 soll aussehen wie ein:
 - atmosphärisches
 - detailreiches
 - warmes

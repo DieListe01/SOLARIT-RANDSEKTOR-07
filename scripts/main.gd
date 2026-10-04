@@ -5,6 +5,10 @@ const SAVE_PATH = "user://quick_save.json"
 const HIGHSCORE_PATH = "user://highscores.json"
 const CAMPAIGN_PATH = "user://campaign_progress.json"
 const MISSION_PATHS := ["res://data/veyra.json","res://data/dry_vein.json","res://data/khepri_pass.json"]
+const OnlineSessionScript := preload("res://scripts/online_session.gd")
+const PlayerProfileScript := preload("res://scripts/player_profile.gd")
+const MatchRecorderScript := preload("res://scripts/match_recorder.gd")
+const MatchChartScript := preload("res://scripts/match_chart.gd")
 var update_history := Catalog.read_json("res://data/update_history.json")
 var update_manager: Node
 var update_check_manual := false
@@ -13,6 +17,19 @@ var update_checked_this_session := false
 var db: Catalog
 var mission_index := 0
 var sim: Simulation
+var online: OnlineSession
+var commander_profile
+var match_recorder := MatchRecorderScript.new()
+var match_report_saved := false
+var profile_dialog_open := false
+var online_status_text := ""
+var online_status_label: Label
+var network_blend := 0.25
+var lobby_mode := "versus"
+var chat_box: Panel
+var chat_log: RichTextLabel
+var chat_input: LineEdit
+var connection_label: Label
 var renderer: WorldRenderer
 var music: MusicDirector
 var viewport: SubViewport
@@ -114,6 +131,7 @@ var run_id := ""
 
 func _ready() -> void:
 	mouse_filter=Control.MOUSE_FILTER_IGNORE
+	migrate_legacy_user_data()
 	db=Catalog.new(MISSION_PATHS[mission_index])
 	music=MusicDirector.new()
 	add_child(music)
@@ -126,6 +144,20 @@ func _ready() -> void:
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	load_settings()
+	commander_profile=PlayerProfileScript.new()
+	commander_profile.load_profile()
+	online=OnlineSessionScript.new()
+	online.name="OnlineSession"
+	add_child(online)
+	online.status_changed.connect(_on_online_status_changed)
+	online.game_start_received.connect(_on_online_game_start)
+	online.world_snapshot_received.connect(_on_online_world_snapshot)
+	online.match_report_received.connect(_on_online_match_report)
+	online.command_rejected.connect(notify)
+	online.lobby_changed.connect(_refresh_online_lobby)
+	online.chat_received.connect(_on_online_chat)
+	online.connection_lost.connect(func():if playing: paused=true)
+	online.rematch_received.connect(func():playing=false; paused=true; show_online_menu())
 	load_campaign_progress()
 	setup_update_manager()
 	if not db.errors.is_empty():
@@ -192,6 +224,27 @@ func setup_world() -> void:
 func clear(node: Node) -> void:
 	for child in node.get_children(): node.remove_child(child); child.queue_free()
 
+func migrate_legacy_user_data() -> void:
+	var destination:=OS.get_user_data_dir()
+	var base_path:=destination.get_base_dir()
+	for legacy_name in ["ASHLINE — Das Veyra-Becken", "ASHLINE - Das Veyra-Becken"]:
+		var source:=base_path.path_join(legacy_name)
+		if not DirAccess.dir_exists_absolute(source): continue
+		DirAccess.make_dir_recursive_absolute(destination)
+		for filename in DirAccess.get_files_at(source):
+			var old_file:=source.path_join(filename)
+			var new_file:=destination.path_join(filename)
+			if not FileAccess.file_exists(new_file): DirAccess.copy_absolute(old_file,new_file)
+		for folder in ["match_reports"]:
+			var old_folder:=source.path_join(folder)
+			if not DirAccess.dir_exists_absolute(old_folder): continue
+			var new_folder:=destination.path_join(folder)
+			DirAccess.make_dir_recursive_absolute(new_folder)
+			for filename in DirAccess.get_files_at(old_folder):
+				var old_file:=old_folder.path_join(filename)
+				var new_file:=new_folder.path_join(filename)
+				if not FileAccess.file_exists(new_file): DirAccess.copy_absolute(old_file,new_file)
+
 func panel(parent: Node, rect: Rect2, color: Color = Color("241d18")) -> Panel:
 	var p := Panel.new()
 	p.position=rect.position; p.size=rect.size
@@ -229,6 +282,7 @@ func button(parent: Node, text_value: String, rect: Rect2, callback: Callable) -
 	return b
 
 func show_main_menu() -> void:
+	if online!=null and online.active: online.leave(false)
 	var scene_time := intro_art.elapsed if is_instance_valid(intro_art) else 0.0
 	intro_active=false
 	playing=false; paused=true; placement=""; renderer.placement=""
@@ -238,18 +292,20 @@ func show_main_menu() -> void:
 	art.size=Vector2(1920,1080); art.elapsed=scene_time
 	ui.add_child(art)
 	label(ui,"VEYRA  /  RANDSEKTOR 07  /  2186",Vector2(96,65),17,MUTED)
-	label(ui,"ASHLINE",Vector2(85,158),115,GOLD)
+	label(ui,"SOLARIT:\nRANDSEKTOR 07",Vector2(85,151),58,GOLD)
 	label(ui,"DIE VEYRA-FRONT",Vector2(96,301),25,MINT)
 	label(ui,"Unter der Asche einer fremden Welt\nbeginnt deine erste Kolonie.",Vector2(98,373),24,Color("cbd5c8"))
 	label(ui,"KOMMANDO / BEREIT",Vector2(98,482),16,MUTED)
 	menu_buttons.clear()
 	menu_buttons.start=menu_button("01","EINSATZ WÄHLEN",526,show_briefing,true)
-	menu_buttons.load=menu_button("02","SPIELSTAND LADEN",600,load_game)
+	menu_buttons.multiplayer=menu_button("02","MULTIPLAYER",600,show_online_menu)
+	menu_buttons.load=menu_button("03","SPIELSTAND LADEN",658,load_game)
 	menu_buttons.load.disabled=not FileAccess.file_exists(SAVE_PATH) and not FileAccess.file_exists("user://autosave.json")
-	menu_buttons.options=menu_button("03","OPTIONEN",662,func():show_options(show_main_menu))
-	menu_buttons.credits=menu_button("04","MUSIK & CREDITS",724,show_credits)
-	menu_buttons.quit=menu_button("05","BEENDEN",786,func():music.shutdown(); get_tree().quit())
+	menu_buttons.options=menu_button("04","OPTIONEN",716,func():show_options(show_main_menu))
+	menu_buttons.credits=menu_button("05","MUSIK & CREDITS",774,show_credits)
+	menu_buttons.quit=menu_button("06","BEENDEN",832,func():music.shutdown(); get_tree().quit())
 	menu_buttons.start.grab_focus()
+	show_menu_commander()
 	var replay := button(ui,"↺  INTRO ANSEHEN",Rect2(98,900,245,38),show_intro)
 	replay.add_theme_font_size_override("font_size",16)
 	menu_buttons.updates=button(ui,"UPDATEINFO",Rect2(360,900,190,38),func():show_updates(show_main_menu))
@@ -259,13 +315,14 @@ func show_main_menu() -> void:
 	update_button=button(ui,"UPDATES PRÜFEN",Rect2(784,900,220,38),check_for_game_update)
 	update_button.add_theme_font_size_override("font_size",16)
 	ghost_button_style(replay); ghost_button_style(menu_buttons.updates); ghost_button_style(menu_buttons.highscores); ghost_button_style(update_button)
+	if not commander_profile.has_identity(): show_profile_dialog(true,show_main_menu)
 	update_button.disabled=not update_manager.can_check()
 	if update_button.disabled:
 		update_button.text="UPDATES AB RELEASE"
 		update_button.tooltip_text="Dieser Build enthält noch keinen Veröffentlichungsfeed. GitHub-Releases werden automatisch eingebunden."
 	label(ui,"SOLARIT-SIGNAL\nVEYRA-FRONT / 3 EINSÄTZE",Vector2(1320,96),16,Color("a7baad"))
 	label(ui,"BASIS ERRICHTEN  /  RESSOURCEN SICHERN  /  GRENZE HALTEN",Vector2(96,1025),15,MUTED)
-	label(ui,"ASHLINE  /  "+str(update_history.current_version),Vector2(1710,1025),15,MUTED)
+	label(ui,"SOLARIT: RANDSEKTOR 07  /  "+str(update_history.current_version),Vector2(1710,1025),15,MUTED)
 	music.start_frontend()
 	if update_manager.can_check() and not update_checked_this_session:
 		update_checked_this_session=true
@@ -310,19 +367,19 @@ func _on_update_check_finished(result: Dictionary) -> void:
 	if bool(result.get("available",false)):
 		show_available_update(result)
 	elif update_check_manual:
-		notify(str(result.get("message","ASHLINE ist auf dem neuesten Stand.")) if not bool(result.get("ok",false)) else "ASHLINE ist auf dem neuesten Stand.")
+		notify(str(result.get("message","SOLARIT: RANDSEKTOR 07 ist auf dem neuesten Stand.")) if not bool(result.get("ok",false)) else "SOLARIT: RANDSEKTOR 07 ist auf dem neuesten Stand.")
 	update_check_manual=false
 
 func show_available_update(result: Dictionary) -> void:
 	clear(overlay)
 	var p:=panel(overlay,Rect2(520,255,880,570),Color("211b17"))
-	label(p,"ASHLINE / UPDATE",Vector2(38,30),18,MINT)
+	label(p,"SOLARIT: RANDSEKTOR 07 / UPDATE",Vector2(38,30),18,MINT)
 	label(p,"Version "+str(result.get("version","")),Vector2(38,70),42,GOLD)
 	var notes:=RichTextLabel.new()
 	notes.position=Vector2(40,135); notes.size=Vector2(800,300); notes.bbcode_enabled=false; notes.scroll_active=true
 	notes.add_theme_font_size_override("normal_font_size",19)
 	notes.text=str(result.get("notes","" )).strip_edges()
-	if notes.text.is_empty(): notes.text="Verbesserungen und Fehlerbehebungen für ASHLINE."
+	if notes.text.is_empty(): notes.text="Verbesserungen und Fehlerbehebungen für SOLARIT: RANDSEKTOR 07."
 	p.add_child(notes)
 	button(p,"HERUNTERLADEN & INSTALLIEREN",Rect2(40,470,500,54),func():begin_game_update())
 	button(p,"SPÄTER",Rect2(562,470,278,54),func():clear(overlay))
@@ -485,7 +542,7 @@ func show_briefing() -> void:
 	var veil := ColorRect.new()
 	veil.color=Color(0.025,0.035,0.038,0.50); veil.size=Vector2(1920,1080); veil.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	ui.add_child(veil)
-	label(ui,"ASHLINE   /   EINSATZVORBEREITUNG",Vector2(72,34),17,MINT)
+	label(ui,"SOLARIT: RANDSEKTOR 07   /   EINSATZVORBEREITUNG",Vector2(72,34),17,MINT)
 	var p := panel(ui,Rect2(300,64,1320,950),Color("202a29"))
 	var rail := ColorRect.new(); rail.color=MINT; rail.position=Vector2.ZERO; rail.size=Vector2(5,950); rail.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(rail)
 	label(p,"EINSATZ / %02d     ·     VEYRA-FRONT" % (mission_index+1),Vector2(48,27),17,MINT)
@@ -554,28 +611,261 @@ func show_briefing() -> void:
 	p.add_child(tactical_preview)
 	label(p,"RANDSEKTOR 07   ·   %d × %d FELDER   ·   SOLARITVORKOMMEN" % [int(db.mission.get("width",64)),int(db.mission.get("height",64))],Vector2(832,797),13,MUTED,440)
 	button(p,"ZURÜCK ZUM HAUPTMENÜ",Rect2(48,854,350,58),show_main_menu)
+	button(p,"MULTIPLAYER",Rect2(420,854,340,58),show_online_menu)
 	var launch := button(p,"EINSATZ STARTEN     →",Rect2(798,854,474,58),start_game)
 	launch.add_theme_color_override("font_color",GOLD); launch.add_theme_font_size_override("font_size",21)
 
+func local_owner() -> int:
+	return sim.view_owner if sim!=null else online.local_owner()
+
+func online_mission_config() -> Dictionary:
+	var config:=online.mission_config.duplicate(true) if online.active else {}
+	config.merge({"mission":str(db.mission.get("id","")),"faction":faction,"difficulty":difficulty,"tech_level":int(campaign_progress.tech_level),"host_nickname":str(commander_profile.data.nickname)},true)
+	if not config.has("mode"): config.mode=lobby_mode
+	return config
+
+func _refresh_online_lobby() -> void:
+	if is_instance_valid(overlay) and overlay.get_node_or_null("OnlineLobbyPanel")!=null: show_online_menu()
+
+func show_online_menu() -> void:
+	var draft:=chat_input.text if is_instance_valid(chat_input) else ""
+	clear(overlay)
+	var lobby_size := Vector2(1300, 870) if online.active else Vector2(1100, 570)
+	var lobby_position := Vector2(310, 105) if online.active else (get_viewport_rect().size - lobby_size) * 0.5
+	var p:=panel(overlay,Rect2(lobby_position,lobby_size),Color(0.08,0.11,0.10,0.92))
+	p.name="OnlineLobbyPanel"
+	label(p,"SOLARIT: RANDSEKTOR 07 / MULTIPLAYER",Vector2(38,24),18,MINT)
+	label(p,"1:1-Duell & Koop",Vector2(38,54),38,GOLD)
+	label(p,"Duell: eigene Basis und Solarit · gleicher Start · kein KI-Spieler. Koop: gemeinsam gegen die KI.",Vector2(40,113),17,Color("d5ded5"),1210)
+	if not online.active:
+		label(p, "EINSATZNETZ", Vector2(40, 139), 14, MUTED)
+		label(p, "Wähle deinen Einstieg in den Einsatz.", Vector2(40, 160), 17, Color("d5ded5"))
+		var duel := button(p, "1:1-DUELL\nZwei Kommandanten · gleicher Start", Rect2(40, 199, 495, 76), func(): lobby_mode = "versus"; show_online_menu())
+		var coop := button(p, "KOOPERATION\nGemeinsam gegen die KI", Rect2(555, 199, 505, 76), func(): lobby_mode = "coop"; show_online_menu())
+		for choice in [duel, coop]:
+			choice.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			choice.add_theme_font_size_override("font_size", 16)
+			var style := StyleBoxFlat.new()
+			style.bg_color = Color(0.20,0.15,0.10,0.86) if (choice == duel and lobby_mode == "versus") or (choice == coop and lobby_mode == "coop") else Color(0.025,0.04,0.04,0.42)
+			style.border_color = GOLD if (choice == duel and lobby_mode == "versus") or (choice == coop and lobby_mode == "coop") else Color(0.25,0.39,0.37,0.38)
+			style.border_width_left = 3 if (choice == duel and lobby_mode == "versus") or (choice == coop and lobby_mode == "coop") else 0
+			style.border_width_bottom = 1
+			style.content_margin_left = 16
+			choice.add_theme_stylebox_override("normal", style)
+		label(p,"NETZWERK / DIREKTVERBINDUNG",Vector2(40,298),13,MINT)
+		var address_x := 555.0
+		label(p,"HOST-ADRESSE",Vector2(address_x,298),13,MUTED)
+		var address:=LineEdit.new()
+		address.name="OnlineAddress"; address.text=online.reconnect_address
+		address.position=Vector2(address_x,322); address.size=Vector2(505,42); p.add_child(address)
+		label(p,"Im LAN: lokale IP. Über Internet UDP %d am Router zum Host-PC weiterleiten."%OnlineSession.DEFAULT_PORT,Vector2(40,372),14,MUTED,1020)
+		button(p,"SPIEL ERSTELLEN  /  HOST",Rect2(40,414,495,58),func():
+			var result:=online.host()
+			if result!=OK: online_status_text="Host konnte nicht starten (%d)."%result; show_online_menu(); return
+			online.configure_lobby(online_mission_config())
+			show_online_menu())
+		button(p,"SPIEL BEITRETEN  /  CLIENT",Rect2(555,414,505,58),func():
+			var result:=online.join(address.text,online.reconnect_port)
+			if result!=OK: online_status_text="Verbindung fehlgeschlagen (%d)."%result
+			show_online_menu())
+	else:
+		if online.is_client(): online.set_nickname(str(commander_profile.data.nickname))
+		online_status_label=label(p,online_status_text,Vector2(40,157),18,MINT,1190)
+		var config:=online.mission_config
+		var prefix: String="host" if online.is_host() else "client"
+		label(p,"DEINE FRAKTION / FARBE",Vector2(40,213),14,MUTED)
+		var factions:=OptionButton.new()
+		factions.name="OnlineFaction"; factions.position=Vector2(40,240); factions.size=Vector2(265,44)
+		for item in OnlineSession.FACTIONS:
+			factions.add_item(str(db.factions[item].name))
+			factions.set_item_tooltip(factions.item_count - 1, str(db.factions[item].description))
+		factions.select(maxi(0,OnlineSession.FACTIONS.find(str(config.get(prefix+"_faction","forge")))))
+		var colors:=OptionButton.new()
+		colors.name="OnlineColor"; colors.position=Vector2(320,240); colors.size=Vector2(270,44)
+		var color_names:=["Cyan","Rot","Violett","Blau","Gelb","Grün","Rosa","Elfenbein"]
+		for index in color_names.size():
+			colors.add_item(color_names[index])
+			var swatch:=Image.create(18,18,false,Image.FORMAT_RGBA8)
+			swatch.fill(Color(OnlineSession.COLORS[index]))
+			colors.set_item_icon(index,ImageTexture.create_from_image(swatch))
+			var occupied_color := str(config.get("client_color" if online.is_host() else "host_color", ""))
+			if OnlineSession.COLORS[index] == occupied_color and OnlineSession.COLORS[index] != str(config.get(prefix+"_color", "")): colors.set_item_disabled(index, true)
+		colors.select(maxi(0,OnlineSession.COLORS.find(str(config.get(prefix+"_color",OnlineSession.COLORS[0])))))
+		factions.disabled=online.mission_started; colors.disabled=online.mission_started
+		factions.item_selected.connect(func(index):online.set_profile(OnlineSession.FACTIONS[index],OnlineSession.COLORS[colors.selected]))
+		colors.item_selected.connect(func(index):online.set_profile(OnlineSession.FACTIONS[factions.selected],OnlineSession.COLORS[index]))
+		p.add_child(factions); p.add_child(colors)
+		label(p,"KARTE / STARTSOLARIT",Vector2(620,213),14,MUTED)
+		var maps:=OptionButton.new()
+		maps.name="OnlineMap"; maps.position=Vector2(620,240); maps.size=Vector2(360,44)
+		for path in MISSION_PATHS: maps.add_item(str(Catalog.new(path).mission.get("display_name","Einsatz")))
+		maps.select(maxi(0,mission_index_for_id(str(config.get("mission","")))))
+		maps.disabled=not online.is_host() or online.mission_started
+		maps.item_selected.connect(func(index):
+			mission_index=index; db=Catalog.new(MISSION_PATHS[index])
+			online.configure_lobby(online_mission_config()))
+		p.add_child(maps)
+		var credits:=OptionButton.new()
+		credits.name="OnlineCredits"; credits.position=Vector2(995,240); credits.size=Vector2(255,44)
+		var amounts: Array=[2000,4200,6000,10000]
+		for amount in amounts: credits.add_item("%d Solarit"%amount)
+		credits.select(maxi(0,amounts.find(int(config.get("start_credits",4200)))))
+		credits.disabled=not online.is_host() or online.mission_started
+		credits.item_selected.connect(func(index):
+			var changed:=online.mission_config.duplicate(true); changed.start_credits=amounts[index]; online.configure_lobby(changed))
+		p.add_child(credits)
+		var host_name:=PlayerProfileScript.sanitize_network_nickname(str(config.get("host_nickname","Kommandant")))
+		var guest_name:=PlayerProfileScript.sanitize_network_nickname(str(config.get("client_nickname","Kommandant")))
+		var host_faction_name:=str(db.factions.get(str(config.get("host_faction","forge")),{}).get("name","Fraktion"))
+		var guest_faction_name:=str(db.factions.get(str(config.get("client_faction","drift")),{}).get("name","Fraktion"))
+		label(p,"EINSATZGRUPPE",Vector2(40,300),14,MINT)
+		label(p,"01  %s  ·  HOST\n     %s   /   %s\n     %s"%[host_name,host_faction_name,lobby_color_label(str(config.get("host_color",""))),"✓ BEREIT" if online.host_ready else "○ NICHT BEREIT"],Vector2(40,327),17,Color("d7dfd5"),540)
+		label(p,"02  %s\n     %s   /   %s\n     %s"%[guest_name if online.connected else "WARTET AUF MITSPIELER ...",guest_faction_name if online.connected else "—",lobby_color_label(str(config.get("client_color",""))) if online.connected else "",("✓ BEREIT" if online.guest_ready else "○ NICHT BEREIT") if online.connected else "○ OFFEN"],Vector2(430,327),17,Color("d7dfd5"),390)
+		var current_map_preview := MissionTacticalPreview.new()
+		current_map_preview.name = "OnlineMapPreview"
+		current_map_preview.position = Vector2(850, 307)
+		current_map_preview.size = Vector2(370, 84)
+		current_map_preview.mission_data = db.mission
+		current_map_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p.add_child(current_map_preview)
+		var ready_label:="BEREITSCHAFT ZURÜCKNEHMEN" if (online.host_ready if online.is_host() else online.guest_ready) else "BEREIT"
+		var ready:=button(p,ready_label,Rect2(40,400,550,52),func():online.set_ready(not (online.host_ready if online.is_host() else online.guest_ready)))
+		ready.disabled=online.mission_started or not online.connected
+		if online.is_host():
+			var launch:=button(p,"EINSATZ STARTEN",Rect2(620,400,630,52),start_game)
+			launch.disabled=not online.can_start() or online.mission_started
+			var launch_reason:="EINSATZ STARTEN" if online.can_start() else ("WARTET AUF MITSPIELER" if not online.connected else ("SPIELER 2 IST NICHT BEREIT" if not online.guest_ready else "HOST MUSS BEREIT SEIN"))
+			label(p,launch_reason,Vector2(626,457),13,MUTED,610)
+		build_online_chat(p,Rect2(40,485,1210,245),true)
+		chat_input.text=draft
+	button(p,"VERBINDUNG TRENNEN",Rect2(40,lobby_size.y-82,280,42),func():online.leave(); show_main_menu())
+	button(p,"ZURÜCK",Rect2(340,lobby_size.y-82,250,42),func():clear(overlay))
+
+func lobby_color_label(color_code: String) -> String:
+	var color_names := {"19ddd4": "CYAN", "f34c32": "ROT", "b967ef": "VIOLETT", "408bf4": "BLAU", "f1c744": "GELB", "74ce47": "GRÜN", "f478bf": "ROSA", "eee0bc": "ELFENBEIN"}
+	return "■ " + str(color_names.get(color_code.to_lower(), "FARBE"))
+
+func build_online_chat(parent: Control, rect: Rect2, expanded: bool) -> void:
+	chat_box=panel(parent,rect,Color("151e1c",0.95))
+	chat_box.name="OnlineChat"; chat_box.visible=expanded; chat_box.z_index=90
+	label(chat_box,"/ EINSATZKANAL · ENTER SENDEN · ESC FOKUS LÖSEN",Vector2(14,10),14,MINT)
+	chat_log=RichTextLabel.new()
+	chat_log.name="ChatHistory"; chat_log.position=Vector2(14,38); chat_log.size=Vector2(rect.size.x-28,rect.size.y-104)
+	chat_log.bbcode_enabled=false; chat_log.scroll_following=true
+	chat_box.add_child(chat_log)
+	chat_input=LineEdit.new()
+	chat_input.name="ChatInput"; chat_input.max_length=300
+	chat_input.placeholder_text="Nachricht an den anderen Spieler …"
+	chat_input.position=Vector2(14,rect.size.y-52); chat_input.size=Vector2(rect.size.x-150,38)
+	chat_box.add_child(chat_input)
+	chat_input.text_submitted.connect(func(text):
+		if online.send_chat(text): chat_input.clear()
+		else: notify("Chat: kurze Nachricht eingeben oder einen Moment warten."))
+	chat_input.gui_input.connect(func(event):
+		if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:
+			chat_input.release_focus()
+			if playing: chat_box.visible=false
+			chat_input.accept_event())
+	button(chat_box,"SENDEN",Rect2(rect.size.x-124,rect.size.y-52,110,38),func():chat_input.text_submitted.emit(chat_input.text))
+	refresh_chat()
+
+func refresh_chat() -> void:
+	if not is_instance_valid(chat_log): return
+	chat_log.clear()
+	for entry in online.chat_history:
+		var sender:=str(entry.get("sender","SYSTEM"))
+		var stamp:=Time.get_time_string_from_system().substr(0,5) if not entry.has("time") else str(entry.time)
+		chat_log.push_color(MUTED); chat_log.add_text(stamp+"  ")
+		chat_log.push_color(MINT if sender=="SYSTEM" else GOLD); chat_log.add_text(sender)
+		chat_log.push_color(Color("d4ddd7")); chat_log.add_text("\n"+str(entry.get("message",""))+"\n")
+		chat_log.pop()
+		chat_log.pop()
+		chat_log.pop()
+
+func _on_online_chat(_sender: String, _message: String) -> void:
+	refresh_chat()
+	if playing and is_instance_valid(chat_box): chat_box.visible=true
+
+func toggle_chat() -> void:
+	if not is_instance_valid(chat_box): return
+	chat_box.visible=true
+	chat_input.grab_focus()
+
+func _on_online_status_changed(message: String) -> void:
+	if playing and sim!=null and sim.online_mode=="versus" and not online.active:
+		paused=true
+		show_online_menu()
+	online_status_text=message
+	if is_instance_valid(online_status_label): online_status_label.text=message
+	if playing: notify(message)
+	if is_instance_valid(overlay) and overlay.get_node_or_null("OnlineLobbyPanel")!=null: show_online_menu()
+
+func _on_online_game_start(config: Dictionary) -> void:
+	var index:=mission_index_for_id(str(config.get("mission","")))
+	if index<0: online.leave(); notify("Online-Einsatz nicht verfügbar: Missionsdaten stimmen nicht überein."); return
+	mission_index=index
+	faction=str(config.get("faction",faction))
+	difficulty=str(config.get("difficulty",difficulty))
+
+	db=Catalog.new(MISSION_PATHS[mission_index])
+	start_game()
+
+func _on_online_world_snapshot(snapshot: Dictionary) -> void:
+	if not online.is_client() or sim==null: return
+	if sim.restore(snapshot)!=OK:
+		online.leave(); notify("Online-Spielstand ungültig · Verbindung beendet."); return
+	match_recorder.observe(sim)
+	render_previous=render_current
+	render_current=capture_render_state()
+	network_blend=0.0
+	accumulator=0.0
+	update_hud()
+	if sim.result!="" and not ended: ended=true; show_end()
+
 func start_game() -> void:
 	intro_active=false
+	if online.is_host() and not online.mission_started and not online.can_start(): return
 	sim=Simulation.new(db,faction,difficulty,int(campaign_progress.tech_level))
+	if online.active and online.is_versus():
+		sim.configure_versus(online.mission_config,online.local_owner())
+		if online.is_client(): sim.restore(sim.snapshot_for(1))
+	if online.is_host() and not online.mission_started: online.begin_mission(online_mission_config())
 	run_id=create_run_id()
+	if online.active: run_id="online:"+online.session_id+":"+str(online.mission_sequence)
+	match_report_saved=false
+	var player_side:=local_owner()
+	var opponent_name:="Gegner-KI"
+	if online.active and sim.online_mode=="versus":
+		opponent_name=str(online.mission_config.get("client_nickname" if online.is_host() else "host_nickname", "Gegner"))
+	var side_names: Array[String]=[]
+	if player_side==0:
+		side_names.append(str(commander_profile.data.nickname)); side_names.append(opponent_name)
+	else:
+		side_names.append(opponent_name); side_names.append(str(commander_profile.data.nickname))
+	match_recorder.begin(sim,{
+		"match_id":run_id,
+		"game_version":str(update_history.get("current_version", "unbekannt")),
+		"mode":"duel" if sim.online_mode=="versus" else ("coop" if online.active else "singleplayer"),
+		"side_0_nickname":side_names[0],
+		"side_1_nickname":side_names[1]
+	})
 	render_previous=capture_render_state(); render_current=render_previous.duplicate(true)
 	connect_sim()
 	selected=[]; groups={}; ended=false; accumulator=0; production_target_factory_id=0
 	right_held=false; right_panning=false; middle_drag=false; harvest_mode=false
-	renderer.camera=sim.buildings(0,"core")[0].pos
+	var cores:=sim.buildings(local_owner(),"core")
+	renderer.camera=cores[0].pos if not cores.is_empty() else Vector2(320,320)
 	renderer.zoom=1.25
 	clamp_camera()
 	playing=true; paused=false; placement=""; renderer.placement=""
+	online.set_authority(sim)
 	clear(overlay)
 	view_container.visible=true
 	build_hud()
 	music.start(sim)
 	music.cue("complete")
 	save_game("user://autosave.json",false)
-	notify(str(db.mission.get("start_message","Einsatz begonnen.")))
+	notify("1:1-Duell begonnen. Beide Spieler starten gleich. Zerstöre den feindlichen Baukern." if sim.online_mode=="versus" else str(db.mission.get("start_message","Einsatz begonnen.")))
 
 func connect_sim() -> void:
 	inspected=0
@@ -590,7 +880,7 @@ func build_hud() -> void:
 	clear(ui)
 	buttons.clear()
 	var top := panel(ui,Rect2(20,16,1880,56))
-	label(top,"ASHLINE",Vector2(18,9),25,GOLD)
+	label(top,"SOLARIT: RANDSEKTOR 07",Vector2(18,9),25,GOLD)
 	status=label(top,"",Vector2(212,17),18,MINT,500)
 	status.size.y=30
 	status.tooltip_text="Solarit ist die Bau- und Produktionswährung. Energie zeigt Verbrauch / Erzeugung; Gebäudeüberlastung verlangsamt Bau und Fahrzeugmontage, pausiert Geschütze und Reparaturen. Schwere Fahrzeuge benötigen zusätzlich freie Energie zum Start der Montage."
@@ -647,7 +937,7 @@ func build_hud() -> void:
 	production_empty_label=null
 	production_signature=""
 	if category=="production":
-		var factories:=sim.buildings(0,"factory",false)
+		var factories:=sim.buildings(local_owner(),"factory",false)
 		factories.sort_custom(func(a,b):return int(a.id)<int(b.id))
 		if factories.is_empty():
 			production_empty_label=label(catalog_content,"KEINE FAHRZEUGWERFT\n\nErrichte im Tab Bau eine Fahrzeugwerft. Dort werden alle Fahrzeuge montiert.",Vector2(6,10),15,MUTED,250)
@@ -675,7 +965,7 @@ func build_hud() -> void:
 				style.content_margin_left=61
 				b.add_theme_stylebox_override(state,style)
 			var icon := IndustrialThumbnail.new()
-			icon.sim=sim; icon.kind=id; icon.position=Vector2(6,1); icon.size=Vector2(47,46)
+			icon.sim=sim; icon.team_owner=local_owner(); icon.kind=id; icon.position=Vector2(6,1); icon.size=Vector2(47,46)
 			icon.mouse_filter=Control.MOUSE_FILTER_IGNORE
 			b.add_child(icon)
 			var marker:=ColorRect.new()
@@ -716,6 +1006,11 @@ func build_hud() -> void:
 	hover_panel.z_index=80; hover_panel.mouse_filter=Control.MOUSE_FILTER_IGNORE; hover_panel.visible=false
 	hover_label=label(hover_panel,"",Vector2(10,7),14,Color("dce4dc"),224)
 	debug_label=label(ui,"",Vector2(36,100),17,Color("bdf3ce"))
+	if online.active:
+		connection_label=label(ui,"VERBINDE …",Vector2(1050,102),16,MINT,430)
+		connection_label.size.y=32
+		button(ui,"CHAT · ENTER",Rect2(36,145,175,36),toggle_chat)
+		build_online_chat(ui,Rect2(36,188,590,295),false)
 	update_hud()
 
 func catalog_click(id: String, cancel: bool) -> void:
@@ -727,31 +1022,37 @@ func catalog_click(id: String, cancel: bool) -> void:
 		placement=id; placement_rotation=0; renderer.placement_rotation=0; renderer.placement=id; attack_mode=false
 		notify("%s: R / E dreht, Q dreht zurück. Baufläche anklicken; Rechtsklick bricht ab." % db.buildings[id].name)
 	else:
-		if cancel: sim.submit_command({"type":"cancel_produce","owner_id":0,"kind":id},0)
+		if cancel: submit_player_command({"type":"cancel_produce","owner_id":local_owner(),"kind":id})
 		else:
 			var block_reason:=catalog_block_reason(id)
 			if block_reason!="": notify(block_reason); music.cue("error"); return
 			var amount := 5 if Input.is_key_pressed(KEY_SHIFT) else 1
 			for i in amount:
-				var packet: Dictionary={"type":"produce","owner_id":0,"kind":id}
+				var packet: Dictionary={"type":"produce","owner_id":local_owner(),"kind":id}
 				if production_target_factory_id>0: packet.producer_id=production_target_factory_id
-				if not sim.submit_command(packet,0): notify("Produktion nicht möglich: Solarit, Anforderung oder Warteschlange prüfen."); music.cue("error"); break
+				if not submit_player_command(packet): notify("Produktion nicht möglich: Solarit, Anforderung oder Warteschlange prüfen."); music.cue("error"); break
 	update_hud()
 
 func catalog_block_reason(id: String) -> String:
 	var reasons: Array[String]=[]
-	var missing:=sim.missing_requirements(id,0)
+	var missing:=sim.missing_requirements(id,local_owner())
 	if not missing.is_empty(): reasons.append("Voraussetzungen nicht erfüllt: "+", ".join(missing))
-	var available:=int(sim.credits[0])
-	var needed:=sim.cost(id,0)
+	var available:=int(sim.credits[local_owner()])
+	var needed:=sim.cost(id,local_owner())
 	if available<needed: reasons.append("Solarit reicht nicht aus (%d von %d benötigt)"%[available,needed])
 	if production_target_factory_id>0:
 		if not sim.entities.has(production_target_factory_id): reasons.append("Zielwerft nicht verfügbar")
 		elif sim.entities[production_target_factory_id].queue.size()>=12: reasons.append("Zielwerft-Warteschlange ist voll")
 	return " · ".join(reasons)
 
+func submit_player_command(packet: Dictionary) -> bool:
+	if sim!=null and sim.online_mode=="versus" and (not online.active or not online.connected or ended): return false
+	if online!=null and online.is_client(): return online.send_command(packet)
+	if online!=null and online.is_host(): return online.submit_local_host_command(packet)
+	return sim.submit_command(packet,local_owner())
+
 func production_factory_number(factory_id: int) -> int:
-	var factories:=sim.buildings(0,"factory",false)
+	var factories:=sim.buildings(local_owner(),"factory",false)
 	factories.sort_custom(func(a,b):return int(a.id)<int(b.id))
 	for index in factories.size():
 		if int(factories[index].id)==factory_id: return index+1
@@ -771,9 +1072,9 @@ func focus_production_building(building_id: int) -> void:
 func update_hud() -> void:
 	if not playing or sim==null or not is_instance_valid(status): return
 	var ui_started:=Time.get_ticks_usec() if renderer.profile_enabled else 0
-	var p := sim.power(0)
-	radar_caption.text="RADAR / SCANNER AKTIV" if not sim.buildings(0,"radar").is_empty() and sim.powered(0) else "Signalstation schaltet Radar frei"
-	status.text="SOLARIT %04d · ENERGIE %d/%d · FREI %d · %02d:%02d%s" % [int(sim.credits[0]),int(p.x),int(p.y),int(p.y-p.x),int(sim.time)/60,int(sim.time)%60,"  !" if p.x>p.y else ""]
+	var p := sim.power(local_owner())
+	radar_caption.text="RADAR / SCANNER AKTIV" if not sim.buildings(local_owner(),"radar").is_empty() and sim.powered(local_owner()) else "Signalstation schaltet Radar frei"
+	status.text="SOLARIT %04d · ENERGIE %d/%d · FREI %d · %02d:%02d%s" % [int(sim.credits[local_owner()]),int(p.x),int(p.y),int(p.y-p.x),int(sim.time)/60,int(sim.time)%60,"  !" if p.x>p.y else ""]
 	status.modulate=Color("ffb17c") if p.x>p.y else Color.WHITE
 	if is_instance_valid(objective): objective.text=sim.hud_objective_text()
 	if p.x>p.y and not low_power_alerted:
@@ -781,9 +1082,9 @@ func update_hud() -> void:
 		minimap.ping(renderer.camera,GOLD)
 	low_power_alerted=p.x>p.y
 	selected=selected.filter(func(id):return sim.entities.has(int(id)))
-	if production_target_factory_id>0 and (not sim.entities.has(production_target_factory_id) or sim.entities[production_target_factory_id].owner!=0): production_target_factory_id=0
+	if production_target_factory_id>0 and (not sim.entities.has(production_target_factory_id) or sim.entities[production_target_factory_id].owner!=local_owner()): production_target_factory_id=0
 	for k in groups: groups[k]=groups[k].filter(func(id):return sim.entities.has(int(id)))
-	if inspected>0 and (not sim.entities.has(inspected) or not sim.is_visible(sim.entities[inspected],0)): inspected=0
+	if inspected>0 and (not sim.entities.has(inspected) or not sim.is_visible(sim.entities[inspected],local_owner())): inspected=0
 	renderer.selected=selected+[inspected] if inspected>0 else selected
 	refresh_selection_icons()
 	var has_harvester := false
@@ -807,16 +1108,16 @@ func update_hud() -> void:
 			information.text+=" · "+{"pulse":"ENERGIEIMPULS", "cannon":"PANZERKANONE", "mortar":"BELAGERUNG", "shard":"SPLITTERSALVE", "lance":"ENERGIELANZE", "flame":"FLAMMENKEGEL", "breaker":"GEBÄUDEBRECHER"}.get(weapon_id,"UNBEWAFFNET")
 		if inspected>0: information.text="◆ FEIND / %s\n%s\nIntegrität %d / %d" % [db.factions[sim.factions[e.owner]].name,sim.definition(e).name,int(e.hp),int(e.max_hp)]
 	elif selected.size()>1: information.text="%d FAHRZEUGE AUSGEWÄHLT\nRechtsklick: Formation bewegen" % selected.size()
-	else: information.text=str(db.mission.get("hud_hint","BECKEN / KOMMANDO\nImpulswerk → Raffinerie → Werft\nSpäher erkunden das Becken."))
+	else: information.text="1:1-DUELL\nEigene Basis aufbauen.\nFeindlichen Baukern zerstören." if sim.online_mode=="versus" else str(db.mission.get("hud_hint","BECKEN / KOMMANDO\nImpulswerk → Raffinerie → Werft\nSpäher erkunden das Becken."))
 	for id in buttons:
 		var d: Dictionary = db.buildings[id] if db.buildings.has(id) else db.units[id]
 		var count := 0
-		for f in sim.buildings(0,"factory"):
+		for f in sim.buildings(local_owner(),"factory"):
 			for j in f.queue:
 				if j.kind==id: count+=1
-		var missing:=sim.missing_requirements(id,0)
-		var affordable: bool=sim.credits[0]>=sim.cost(id,0)
-		var availability: String="VORAUSSETZUNGEN FEHLEN" if not missing.is_empty() else ("SOLARIT REICHT NICHT" if not affordable else "%d Solarit · %s s%s" % [sim.cost(id,0),d.time,"  ×%d"%count if count>0 else ""])
+		var missing:=sim.missing_requirements(id,local_owner())
+		var affordable: bool=sim.credits[local_owner()]>=sim.cost(id,local_owner())
+		var availability: String="VORAUSSETZUNGEN FEHLEN" if not missing.is_empty() else ("SOLARIT REICHT NICHT" if not affordable else "%d Solarit · %s s%s" % [sim.cost(id,local_owner()),d.time,"  ×%d"%count if count>0 else ""])
 		if not missing.is_empty() and not affordable: availability="VORAUSSETZUNGEN + SOLARIT FEHLEN"
 		buttons[id].text="%s\n%s" % [d.name,availability]
 		buttons[id].disabled=false
@@ -828,16 +1129,16 @@ func update_hud() -> void:
 		requirement_marks[id].color=Color("9e524c") if not missing.is_empty() else Color("d6b56f")
 		var status_lines: Array[String]=[]
 		if not missing.is_empty(): status_lines.append("VORAUSSETZUNGEN NICHT ERFÜLLT: "+", ".join(missing))
-		if not affordable: status_lines.append("SOLARIT REICHT NICHT AUS: %d vorhanden, %d benötigt"%[int(sim.credits[0]),sim.cost(id,0)])
+		if not affordable: status_lines.append("SOLARIT REICHT NICHT AUS: %d vorhanden, %d benötigt"%[int(sim.credits[local_owner()]),sim.cost(id,local_owner())])
 		if status_lines.is_empty(): status_lines.append("BAUPLATZ WÄHLEN" if db.buildings.has(id) else "BEREIT / Linksklick reiht die Produktion ein")
 		var requirement_text: String="\n".join(status_lines)
 		var energy_text: String="Energie Gebäude: %+d"%int(d.get("power",0))
 		if int(d.get("power_required",0))>0: energy_text+="\nMontage benötigt %d freie Energie"%int(d.power_required)
-		buttons[id].tooltip_text="%s\n%s\nKosten: %d Solarit · Montage: %s s\n%s\n%s" % [d.name,d.description,sim.cost(id,0),d.time,energy_text,requirement_text]
+		buttons[id].tooltip_text="%s\n%s\nKosten: %d Solarit · Montage: %s s\n%s\n%s" % [d.name,d.description,sim.cost(id,local_owner()),d.time,energy_text,requirement_text]
 	queue_label.text="PRODUKTION / LEER"
 	production_bar.value=0
 	refresh_production_list()
-	for f in sim.buildings(0,"factory"):
+	for f in sim.buildings(local_owner(),"factory"):
 		if not f.queue.is_empty():
 			var production_time:=float(db.units[f.queue[0].kind].time)*(0.85 if int(f.get("upgrade_level",0))>0 else 1.0)
 			production_bar.value=f.progress/production_time*100
@@ -845,13 +1146,13 @@ func update_hud() -> void:
 			break
 	if queue_label.text=="PRODUKTION / LEER":
 		for building in sim.entities.values():
-			if not building.building or building.owner!=0 or building.complete: continue
+			if not building.building or building.owner!=local_owner() or building.complete: continue
 			var progress: float = building.build_progress/float(sim.definition(building).time)
 			production_bar.value=progress*100
 			queue_label.text="%s · %d%%\n%s" % [sim.definition(building).name,int(progress*100),"FUNDAMENT" if progress<0.2 else ("MONTAGE" if progress<0.55 else ("SYSTEME" if progress<0.8 else "ONLINE-SCHALTUNG"))]
 			break
 	if queue_label.text=="PRODUKTION / LEER":
-		for building in sim.buildings(0):
+		for building in sim.buildings(local_owner()):
 			if building.get("upgrading",false):
 				var upgrade_progress:=float(building.get("upgrade_progress",0.0))/maxf(1.0,float(building.get("upgrade_time",1.0)))
 				production_bar.value=upgrade_progress*100
@@ -872,7 +1173,7 @@ func update_hud() -> void:
 
 func refresh_production_list() -> void:
 	if category!="production": return
-	var factories:=sim.buildings(0,"factory",false)
+	var factories:=sim.buildings(local_owner(),"factory",false)
 	factories.sort_custom(func(a,b):return int(a.id)<int(b.id))
 	if production_content==null: return
 	var signature_parts: Array[String]=[]
@@ -962,10 +1263,10 @@ func rebuild_production_list(factories: Array, signature: String) -> void:
 	production_signature=signature
 
 func cancel_production_order(factory_id: int, queue_index: int) -> void:
-	if sim.cancel_queue_at(factory_id,queue_index,0): music.cue("error"); update_hud()
+	if submit_player_command({"type":"cancel_queue_at","owner_id":local_owner(),"factory_id":factory_id,"queue_index":queue_index}): music.cue("error"); update_hud()
 
 func prioritize_production_order(factory_id: int, queue_index: int) -> void:
-	if sim.prioritize_queue(factory_id,queue_index,0): music.cue("select"); update_hud()
+	if submit_player_command({"type":"prioritize_queue","owner_id":local_owner(),"factory_id":factory_id,"queue_index":queue_index}): music.cue("select"); update_hud()
 
 func capture_render_state() -> Dictionary:
 	var state := {}
@@ -986,7 +1287,7 @@ func rotate_placement(direction: int) -> void:
 
 func repair_selection() -> void:
 	if paused or inspected>0 or selected.is_empty(): return
-	if sim.submit_command({"type":"repair","owner_id":0,"ids":selected.duplicate()},0):
+	if submit_player_command({"type":"repair","owner_id":local_owner(),"ids":selected.duplicate()}):
 		music.cue("repair")
 		notify("Reparatur umgeschaltet. Fahrzeuge fahren zum Servicehangar; Reparaturen kosten Solarit.")
 	else: notify("Reparatur nicht möglich: fertigen Servicehangar, Energie und erreichbaren Zugang prüfen. Baustellen zuerst fertigstellen.")
@@ -1019,7 +1320,7 @@ func entity_details_text(e: Dictionary) -> String:
 		text_value+="ANTRIEB\nTempo: %.0f · Auftrag: %s\n" % [float(d.speed)*float(db.factions[sim.factions[e.owner]].speed),e.order.to_upper()]
 		if e.kind=="harvester": text_value+="Ladung: %d / %d Solarit\n" % [int(e.cargo),int(db.rules.harvest_capacity)]
 	text_value+="\nREPARATUR\n%.0f HP/s · %.1f Solarit pro HP\nBis zur vollen Integrität: %.1f Solarit\n" % [db.rules.repair_rate,db.rules.repair_cost,(e.max_hp-e.hp)*float(db.rules.repair_cost)]
-	if e.owner!=0: text_value+="Feindliches Objekt: keine Reparaturbefehle möglich."
+	if e.owner!=local_owner(): text_value+="Feindliches Objekt: keine Reparaturbefehle möglich."
 	elif e.building:
 		text_value+="Gebäudereparatur: "+("AKTIV" if e.repair else "AUS")+"\nMit Reparieren oder R ein-/ausschalten. Solarit wird nur für tatsächlich reparierte HP abgezogen."
 	else: text_value+="Servicehangar repariert im Umkreis von 100 automatisch, wenn Energie und Solarit vorhanden sind. Reparieren oder R schickt dieses Fahrzeug zum Hangar. Sammler warten bis zur vollständigen Reparatur und arbeiten danach automatisch weiter; Kampffahrzeugen danach neue Befehle erteilen."
@@ -1029,11 +1330,11 @@ func show_entity_details() -> void:
 	var ids: Array = [inspected] if inspected>0 else selected
 	if ids.is_empty() or not sim.entities.has(int(ids[0])): return
 	var e: Dictionary = sim.entities[int(ids[0])]
-	if not sim.is_visible(e,0): return
-	paused=true; music.set_paused(true); dragging=false; renderer.selecting=false
+	if not sim.is_visible(e,local_owner()): return
+	paused=not online.active; music.set_paused(paused); dragging=false; renderer.selecting=false
 	clear(overlay)
 	var p := panel(overlay,Rect2(470,110,980,850))
-	label(p,"OBJEKTINFO / "+("EIGENE EINHEIT" if e.owner==0 else "FEIND"),Vector2(34,24),18,MINT)
+	label(p,"OBJEKTINFO / "+("EIGENE EINHEIT" if e.owner==local_owner() else "FEIND"),Vector2(34,24),18,MINT)
 	label(p,sim.definition(e).name,Vector2(34,58),35,GOLD,912)
 	var portrait := IndustrialThumbnail.new()
 	portrait.sim=sim; portrait.entity_id=e.id; portrait.kind=e.kind
@@ -1043,24 +1344,24 @@ func show_entity_details() -> void:
 	details.name="EntityDetails"; details.position=Vector2(227,132); details.size=Vector2(716,574)
 	details.add_theme_font_size_override("normal_font_size",22); details.add_theme_constant_override("line_separation",5)
 	details.text=entity_details_text(e); p.add_child(details)
-	var can_upgrade: bool=e.building and e.owner==0 and e.complete and not e.get("upgrading",false) and sim.definition(e).has("max_level") and int(e.get("upgrade_level",0))<int(sim.definition(e).max_level)
+	var can_upgrade: bool=e.building and e.owner==local_owner() and e.complete and not e.get("upgrading",false) and sim.definition(e).has("max_level") and int(e.get("upgrade_level",0))<int(sim.definition(e).max_level)
 	if can_upgrade:
 		var next_level:=int(e.get("upgrade_level",0))+1
 		var d: Dictionary=sim.definition(e)
 		var unlocks: Array=d.get("upgrade_campaign_levels",[])
 		var required_tech:=int(unlocks[next_level]) if next_level<unlocks.size() else next_level
-		can_upgrade=required_tech<=sim.campaign_tech_level and sim.credits[0]>=int(d.upgrade_costs[next_level])
+		can_upgrade=required_tech<=sim.campaign_tech_level and sim.credits[local_owner()]>=int(d.upgrade_costs[next_level])
 	var is_upgradeable: bool=e.building and sim.definition(e).has("max_level")
 	var action_label: String="AUSBAU: "+str(sim.definition(e).name) if is_upgradeable else ("REPARATUR EIN / AUS" if e.building else "ZUM SERVICEHANGAR")
 	var action := button(p,action_label,Rect2(34,727,440,48),func():
 		if is_upgradeable: start_armory_upgrade(e.id)
 		else: resume_game(); repair_selection())
-	action.disabled=e.owner!=0 or not e.complete
+	action.disabled=e.owner!=local_owner() or not e.complete
 	if is_upgradeable: action.disabled=not can_upgrade
 	button(p,"ZURÜCK ZUM SPIEL",Rect2(500,727,446,48),resume_game)
 
 func start_armory_upgrade(id: int) -> void:
-	if sim.submit_command({"type":"upgrade","owner_id":0,"id":id},0):
+	if submit_player_command({"type":"upgrade","owner_id":local_owner(),"id":id}):
 		music.cue("build"); resume_game(); notify("Gebäudeausbau begonnen. Neue Funktionen gelten nach der Fertigstellung.")
 	else:
 		notify("Ausbau gesperrt: Solarit, Energie oder Kampagnenfreigabe prüfen.")
@@ -1107,7 +1408,7 @@ func entity_at(point: Vector2) -> int:
 	var best := 0
 	var distance := 32.0
 	for e in sim.entities.values():
-		if e.owner!=0 and not sim.is_visible(e,0): continue
+		if e.owner!=local_owner() and not sim.is_visible(e,local_owner()): continue
 		if e.building:
 			var d: Dictionary = sim.definition(e)
 			var footprint := sim.footprint(e)
@@ -1116,6 +1417,9 @@ func entity_at(point: Vector2) -> int:
 	return best
 
 func _unhandled_input(event: InputEvent) -> void:
+	if online.active and event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_ENTER:
+		toggle_chat(); get_viewport().set_input_as_handled(); return
+	if is_instance_valid(chat_input) and chat_input.has_focus(): return
 	if intro_active:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -1133,6 +1437,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			else: clear(overlay)
 			return
 		if not playing: return
+		if online.active and overlay.get_child_count()>0: return
 		if event.keycode==hotkeys.load: load_game(); return
 		if event.keycode==hotkeys.save: save_game(); return
 		if paused: return
@@ -1145,7 +1450,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode==hotkeys.hold: dispatch_order(selected,Vector2.ZERO,"hold")
 		if event.keycode==hotkeys.guard: dispatch_order(selected,Vector2.ZERO,"guard")
 		if event.keycode==hotkeys.repair: repair_selection()
-		if event.keycode==hotkeys.home: renderer.camera=sim.buildings(0,"core")[0].pos if not sim.buildings(0,"core").is_empty() else renderer.camera
+		if event.keycode==hotkeys.home: renderer.camera=sim.buildings(local_owner(),"core")[0].pos if not sim.buildings(local_owner(),"core").is_empty() else renderer.camera
 		if event.keycode==hotkeys.event: renderer.camera=last_event
 		if event.keycode>=KEY_1 and event.keycode<=KEY_9:
 			var key: int = event.keycode-KEY_0
@@ -1181,14 +1486,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				var point := screen_world(local)
 				if harvest_mode:
 					var cell := sim.grid.cell(point)
-					if not sim.grid.inside(cell) or sim.explored[0][cell.y*sim.grid.width+cell.x]==0 or float(sim.grid.resources.get(sim.grid.key(cell),0))<=0:
+					if not sim.grid.inside(cell) or sim.explored[local_owner()][cell.y*sim.grid.width+cell.x]==0 or float(sim.grid.resources.get(sim.grid.key(cell),0))<=0:
 						notify("Wähle ein Solaritfeld."); music.cue("error"); return
 					dispatch_order(selected,point,"harvest"); harvest_mode=false
 					renderer.command_marker=point; renderer.marker_time=0.8
 					notify("Solaritfeld zugewiesen. Der Sammler sammelt und lädt automatisch ab."); return
 				if placement!="":
-					var reason := sim.build_reason(placement,0,sim.grid.cell(point),placement_rotation)
-					if reason=="": sim.submit_command({"type":"build","owner_id":0,"kind":placement,"rotation":placement_rotation,"cell":[sim.grid.cell(point).x,sim.grid.cell(point).y]},0); placement=""; renderer.placement=""
+					var reason := sim.build_reason(placement,local_owner(),sim.grid.cell(point),placement_rotation)
+					if reason=="": submit_player_command({"type":"build","owner_id":local_owner(),"kind":placement,"rotation":placement_rotation,"cell":[sim.grid.cell(point).x,sim.grid.cell(point).y]}); placement=""; renderer.placement=""
 					else: notify(reason); music.cue("error")
 					return
 				if attack_mode: dispatch_order(selected,point,"attack_move"); attack_mode=false; music.cue("move"); return
@@ -1201,13 +1506,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				if point.distance_to(drag_start)>8:
 					var rect := Rect2(drag_start,point-drag_start).abs()
 					for e in sim.entities.values():
-						if e.owner==0 and not e.building and rect.has_point(e.pos) and not selected.has(e.id): selected.append(e.id)
+						if e.owner==local_owner() and not e.building and rect.has_point(e.pos) and not selected.has(e.id): selected.append(e.id)
 				else:
 					var id := entity_at(point)
-					if id>0 and sim.entities[id].owner==0:
+					if id>0 and sim.entities[id].owner==local_owner():
 						if select_same:
 							for e in sim.entities.values():
-								if e.owner==0 and e.kind==sim.entities[id].kind and absf(e.pos.x-renderer.camera.x)<WORLD_RECT.size.x/2/renderer.zoom and absf(e.pos.y-renderer.camera.y)<WORLD_RECT.size.y/2/renderer.zoom and not selected.has(e.id): selected.append(e.id)
+								if e.owner==local_owner() and e.kind==sim.entities[id].kind and absf(e.pos.x-renderer.camera.x)<WORLD_RECT.size.x/2/renderer.zoom and absf(e.pos.y-renderer.camera.y)<WORLD_RECT.size.y/2/renderer.zoom and not selected.has(e.id): selected.append(e.id)
 						elif not selected.has(id): selected.append(id)
 					elif id>0:
 						selected=[]; inspected=id
@@ -1218,19 +1523,37 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(dt: float) -> void:
 	if is_instance_valid(renderer): renderer.visual_paused=paused
+	if is_instance_valid(online_status_label) and online.active:
+		var connection_state := "● VERBUNDEN" if online.connected else ("… VERBINDET" if online.role == "client" else "○ WARTET AUF MITSPIELER")
+		online_status_label.text = connection_state + "  ·  UDP " + str(OnlineSession.DEFAULT_PORT) + ("  ·  PING %d MS" % online.ping_ms if online.ping_ms >= 0 else "")
 	monitor_frame_rate(dt)
 	if is_instance_valid(renderer): renderer.profile_sim_ms=0.0
-	if not playing or paused or sim==null: return
-	accumulator+=minf(dt,0.15)
+	if is_instance_valid(connection_label):
+		var sync: String="SYNCHRON" if online.is_host() or (online.last_snapshot_at>0 and Time.get_ticks_msec()-online.last_snapshot_at<1500) else "WARTE AUF SPIELSTAND"
+		connection_label.text="%s · PING %s · %s"%["1:1" if online.is_versus() else "KOOP",str(online.ping_ms)+" ms" if online.ping_ms>=0 else "–",sync if online.connected else "GETRENNT"]
+	if not playing or sim==null: return
+	if paused:
+		if online.is_host(): online.advance_host(dt,sim)
+		return
+	if sim.online_mode=="versus" and (not online.active or not online.connected): return
 	var step := 1.0/float(db.rules.tick_rate)
 	var sim_started := Time.get_ticks_usec() if renderer.profile_enabled else 0
-	while accumulator>=step:
-		render_previous=render_current
-		sim.tick(step)
-		render_current=capture_render_state()
-		accumulator-=step
+	if online.is_client():
+		network_blend=minf(0.25,network_blend+dt)
+	else:
+		accumulator+=minf(dt,0.15)
+		while accumulator>=step:
+			render_previous=render_current
+			sim.tick(step)
+			match_recorder.observe(sim)
+			render_current=capture_render_state()
+			accumulator-=step
 	if renderer.profile_enabled: renderer.profile_sim_ms=float(Time.get_ticks_usec()-sim_started)/1000.0
-	renderer.set_interpolation(render_previous,render_current,clampf(accumulator/step,0.0,1.0))
+	if online.is_client():
+		renderer.set_interpolation(render_previous,render_current,clampf(network_blend/0.25,0.0,1.0))
+	else:
+		renderer.set_interpolation(render_previous,render_current,clampf(accumulator/step,0.0,1.0))
+	if online.is_host(): online.advance_host(dt,sim)
 	var local := get_local_mouse_position()
 	if pointer_local.x>-9000: local=pointer_local
 	if WORLD_RECT.has_point(local):
@@ -1241,7 +1564,7 @@ func _process(dt: float) -> void:
 		if hovered_entity_id>0 and sim.entities.has(hovered_entity_id):
 			var hovered: Dictionary=sim.entities[hovered_entity_id]
 			var hovered_name: String=str(sim.definition(hovered).name)
-			var team_name: String="Eigene Einheit" if hovered.owner==0 else "Feindliche Einheit"
+			var team_name: String="Eigene Einheit" if hovered.owner==local_owner() else "Feindliche Einheit"
 			hover_label.text="%s · %s\nHP %d/%d · %s"%[team_name,hovered_name,int(hovered.hp),int(hovered.max_hp),sim.definition(hovered).armor]
 			hover_panel.position=Vector2(clampf(local.x+20,8,1920-hover_panel.size.x-8),clampf(local.y+18,8,1080-hover_panel.size.y-8))
 		else: renderer.hovered_entity_id=0
@@ -1252,8 +1575,9 @@ func _process(dt: float) -> void:
 		if Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_L) or Input.is_key_pressed(KEY_D): direction.x+=1
 		if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W): direction.y-=1
 		if Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_K) or (selected.is_empty() and Input.is_key_pressed(KEY_S)): direction.y+=1
+		if is_instance_valid(chat_input) and chat_input.has_focus(): direction=Vector2.ZERO
 		# With a selection, A/S issue combat orders. Arrow keys always pan.
-		if edge_scroll and not dragging and not right_held and not middle_drag:
+		if edge_scroll and not (is_instance_valid(chat_input) and chat_input.has_focus()) and not dragging and not right_held and not middle_drag:
 			direction+=edge_scroll_direction(local)
 		renderer.camera+=direction*680*dt/renderer.zoom
 		clamp_camera()
@@ -1267,7 +1591,7 @@ func _process(dt: float) -> void:
 	if is_instance_valid(alert_panel): alert_panel.visible=notice_timer>0 or placement!=""
 	if is_instance_valid(notification): notification.modulate=Color(1,0.9+sin(notice_timer*10)*0.1,0.7+sin(notice_timer*10)*0.3) if notice_timer>4.5 else Color.WHITE
 	if notice_timer<=0 and is_instance_valid(notification):
-		if placement!="": notification.text="%d° · R / E drehen · Q zurück · %s" % [placement_rotation*90,sim.build_reason(placement,0,renderer.placement_cell,placement_rotation)]
+		if placement!="": notification.text="%d° · R / E drehen · Q zurück · %s" % [placement_rotation*90,sim.build_reason(placement,local_owner(),renderer.placement_cell,placement_rotation)]
 		else: notification.text=""
 	update_timer-=dt
 	if update_timer<=0: update_hud(); update_timer=0.15
@@ -1338,11 +1662,11 @@ func write_performance_event(event_type: String, duration: float, minimum_fps: f
 	for entity in sim.entities.values():
 		if entity.building:
 			total_buildings+=1
-			if entity.owner==0: friendly_buildings+=1
+			if entity.owner==local_owner(): friendly_buildings+=1
 			else: enemy_buildings+=1
 		else:
 			total_units+=1
-			if entity.owner==0: friendly_units+=1
+			if entity.owner==local_owner(): friendly_units+=1
 			else: enemy_units+=1
 	var values:Array = [Time.get_datetime_string_from_system(false),event_type,"%.1f"%sim.time,"%.2f"%duration,"%.2f"%average_fps,"%.2f"%minimum_fps,str(sim.entities.size()),str(total_units),str(total_buildings),str(friendly_units),str(enemy_units),str(friendly_buildings),str(enemy_buildings),str(renderer.visible_mobile_count),str(renderer.visible_building_count),str(renderer.active_vfx_count),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),"%.2f"%(Performance.get_monitor(Performance.TIME_PROCESS)*1000.0),"%.2f"%(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000.0),str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses)]
 	var row:=PackedStringArray()
@@ -1362,14 +1686,14 @@ func dispatch_order(ids: Array, point: Vector2, order: String = "move", target_i
 	var actors := ids.duplicate()
 	if order in ["harvest","return"]: actors=actors.filter(func(id):return sim.entities.has(int(id)) and sim.entities[int(id)].kind=="harvester")
 	if actors.size()==1 and sim.entities.has(int(actors[0])) and sim.entities[int(actors[0])].kind=="factory" and order in ["move","attack","attack_move"]: order="rally"
-	return sim.submit_command({"type":order,"owner_id":0,"ids":actors,"point":[point.x,point.y],"target_id":target_id},0)
+	return submit_player_command({"type":order,"owner_id":local_owner(),"ids":actors,"point":[point.x,point.y],"target_id":target_id})
 
 func issue_context_order(point: Vector2) -> void:
 	var id := entity_at(point)
 	var order := "move"
-	if id>0 and sim.entities[id].owner==1: order="attack"
-	elif sim.grid.inside(sim.grid.cell(point)) and sim.explored[0][sim.grid.cell(point).y*sim.grid.width+sim.grid.cell(point).x]>0 and float(sim.grid.resources.get(sim.grid.key(sim.grid.cell(point)),0))>0: order="harvest"
-	elif id>0 and sim.entities[id].owner==0 and sim.entities[id].kind=="refinery": order="return"
+	if id>0 and sim.entities[id].owner!=local_owner(): order="attack"
+	elif sim.grid.inside(sim.grid.cell(point)) and sim.explored[local_owner()][sim.grid.cell(point).y*sim.grid.width+sim.grid.cell(point).x]>0 and float(sim.grid.resources.get(sim.grid.key(sim.grid.cell(point)),0))>0: order="harvest"
+	elif id>0 and sim.entities[id].owner==local_owner() and sim.entities[id].kind=="refinery": order="return"
 	dispatch_order(selected,point,order,id if order=="attack" else 0)
 	renderer.command_marker=point; renderer.marker_time=0.8; music.cue("move")
 	if order=="harvest": notify("Solaritfeld zugewiesen: sammeln und automatisch abladen.")
@@ -1380,16 +1704,16 @@ func on_presentation(kind: String, data: Dictionary) -> void:
 		if inspected==int(data.id): inspected=0
 		renderer.selected=selected.duplicate()
 	var cell := sim.grid.cell(data.pos)
-	if not sim.grid.inside(cell) or sim.fog[0][cell.y*sim.grid.width+cell.x]==0: return
+	if not sim.grid.inside(cell) or sim.fog[local_owner()][cell.y*sim.grid.width+cell.x]==0: return
 	renderer.combat_fx.emit_effect(kind,data,renderer.camera.distance_to(data.pos))
 	var distance_gain := clampf(1.0-renderer.camera.distance_to(data.pos)/1600.0,0.08,1.0)
 	if kind=="shot": music.cue(renderer.combat_fx.family(data.weapon).to_lower()+"_shot",0.8*distance_gain)
 	if kind=="impact": music.cue(renderer.combat_fx.family(data.weapon).to_lower()+"_impact",0.7*distance_gain)
 	if kind=="destroy":
 		if data.get("kind","")=="core": music.cue("alarm",0.6); music.cue("core_impact",0.9)
-		notify(("EIGENES GEBÄUDE ZERSTÖRT" if data.building else "FAHRZEUG VERLOREN") if data.owner==0 else ("FEINDLICHES GEBÄUDE ZERSTÖRT" if data.building else "FEINDLICHES FAHRZEUG ZERSTÖRT"))
+		notify(("EIGENES GEBÄUDE ZERSTÖRT" if data.building else "FAHRZEUG VERLOREN") if data.owner==local_owner() else ("FEINDLICHES GEBÄUDE ZERSTÖRT" if data.building else "FEINDLICHES FAHRZEUG ZERSTÖRT"))
 		if is_instance_valid(minimap): minimap.ping(data.pos,Color("f34c32"))
-	if kind=="hit" and data.owner==0 and not data.building and notice_timer<=0:
+	if kind=="hit" and data.owner==local_owner() and not data.building and notice_timer<=0:
 		notify("FAHRZEUG UNTER BESCHUSS"); music.cue("alarm")
 		if is_instance_valid(minimap): minimap.ping(data.pos,Color("f34c32"))
 
@@ -1397,7 +1721,7 @@ func on_event(kind: String, pos: Vector2, message: String) -> void:
 	var visible := false
 	if sim!=null:
 		var cell := sim.grid.cell(pos)
-		visible=sim.grid.inside(cell) and sim.fog[0][cell.y*sim.grid.width+cell.x]>0
+		visible=sim.grid.inside(cell) and sim.fog[local_owner()][cell.y*sim.grid.width+cell.x]>0
 	if kind in ["shot","explosion"]:
 		if visible:
 			if kind=="explosion": music.cue(kind,clampf(1.0-pos.distance_to(renderer.camera)/1200.0,0.05,0.8))
@@ -1407,7 +1731,7 @@ func on_event(kind: String, pos: Vector2, message: String) -> void:
 		music.cue(kind)
 		if message!="": notify(message)
 		last_event=pos
-		if kind in ["alarm","complete","ready"] and is_instance_valid(minimap): minimap.ping(pos,GOLD if kind=="alarm" else sim.team_color(0))
+		if kind in ["alarm","complete","ready"] and is_instance_valid(minimap): minimap.ping(pos,GOLD if kind=="alarm" else sim.team_color(local_owner()))
 
 func notify(message: String) -> void:
 	if is_instance_valid(notification): notification.text=message; fit_wrapped(notification)
@@ -1416,12 +1740,15 @@ func notify(message: String) -> void:
 
 func show_pause() -> void:
 	if not playing: return
-	paused=true; music.set_paused(true); dragging=false; renderer.selecting=false; right_held=false; middle_drag=false
+	paused=not online.active; music.set_paused(paused); dragging=false; renderer.selecting=false; right_held=false; middle_drag=false
 	clear(overlay)
 	var p := panel(overlay,Rect2(650,215,620,650),Color("2b221b"))
 	label(p,"KOMMANDO UNTERBROCHEN",Vector2(40,32),18,MINT)
 	label(p,"Pause",Vector2(40,74),48,GOLD)
 	var actions := [["WEITERSPIELEN",resume_game],["SPEICHERN",func():save_game(); show_pause()],["LADEN",load_game],["OPTIONEN",func():show_options(show_pause)],["UPDATEINFO",func():show_updates(show_pause)],["EINSATZ NEU STARTEN",start_game],["HAUPTMENÜ",show_main_menu]]
+	if online.active:
+		actions=[["WEITERSPIELEN",resume_game],["CHAT",func():resume_game(); toggle_chat()],["OPTIONEN",func():show_options(show_pause)],["HAUPTMENÜ / TRENNEN",show_main_menu]]
+	if sim.online_mode=="versus" and not online.active: actions=[["WIEDERBEITRETEN",show_online_menu],["HAUPTMENÜ",show_main_menu]]
 	var y := 163
 	for action in actions: button(p,action[0],Rect2(40,y,540,54),action[1]); y+=70
 
@@ -1429,6 +1756,8 @@ func resume_game() -> void:
 	clear(overlay); paused=false; music.set_paused(false)
 
 func show_end() -> void:
+	if sim.online_mode=="versus" or (online.active and sim.online_mode=="coop"):
+		show_online_end(); return
 	paused=true
 	clear(overlay)
 	var p := panel(overlay,Rect2(585,205,750,670),Color("2b221b"))
@@ -1436,13 +1765,17 @@ func show_end() -> void:
 	var end_title:=str(db.mission.get("victory_title","Sektor gesichert")) if sim.result=="victory" else str(db.mission.get("defeat_title","Signal verloren"))
 	label(p,end_title,Vector2(42,72),43,GOLD)
 	var s: Dictionary = sim.stats
+	var result_score:=calculate_run_score() if sim.result=="victory" and not online.active else 0
+	var newly_recorded:=record_commander_result("singleplayer",result_score)
+	label(p,"KOMMANDANT / "+str(commander_profile.data.nickname).to_upper(),Vector2(44,132),15,MUTED)
 	label(p,"Zeit                %02d:%02d\nSolarit geliefert   %d\nFahrzeuge gebaut     %d\nFahrzeuge verloren   %d\nFeinde zerstört      %d\nGebäude errichtet    %d\nGebäude verloren     %d" % [int(sim.time)/60,int(sim.time)%60,int(s.gathered),s.produced,s.lost,s.kills,s.built,s.buildings_lost],Vector2(44,164),23,Color("c8d8ce"))
 	if sim.result=="victory":
-		record_campaign_victory()
-		var score_result := record_highscore()
+		if not online.active: record_campaign_victory()
+		var score_result := record_highscore() if not online.active else {"score": 0, "rank": 0, "new_best": false}
 		var ranking_text := "PUNKTE  %s    ·    PLATZ %s" % [format_score(int(score_result.score)),"%d / 10" % int(score_result.rank) if int(score_result.rank)>0 else "AUSSERHALB DER TOP 10"]
 		if score_result.new_best: ranking_text+="    ·    NEUER BESTWERT"
 		label(p,ranking_text,Vector2(44,401),18,GOLD,660)
+		if bool(newly_recorded.get("new_best",false)): label(p,"NEUER PERSÖNLICHER REKORD",Vector2(44,458),16,MINT,660)
 		label(p,"BESTENLISTE   "+leaderboard_preview(),Vector2(44,433),15,MINT,660)
 	if sim.result=="victory" and mission_index<MISSION_PATHS.size()-1:
 		button(p,"ERNEUT",Rect2(42,540,190,58),start_game)
@@ -1451,6 +1784,267 @@ func show_end() -> void:
 	else:
 		button(p,"ERNEUT SPIELEN",Rect2(42,540,310,58),start_game)
 		button(p,"HAUPTMENÜ",Rect2(392,540,310,58),show_main_menu)
+
+func record_commander_result(mode: String, score: int) -> Dictionary:
+	if sim == null or sim.result not in ["victory", "defeat"] or run_id.is_empty(): return {"new_best": false}
+	if not match_report_saved:
+		match_report_saved=match_recorder.finish(sim)
+	if online.is_host() and match_report_saved: online.send_match_report(match_recorder.report)
+	var mission_name := str(db.mission.get("display_name", db.mission.get("name", db.mission.get("id", ""))))
+	var old_best := int(commander_profile.data.statistics.best_score)
+	var did_record: bool = commander_profile.record_result({
+		"result_id": run_id,
+		"mode": mode,
+		"outcome": str(sim.result),
+		"active_seconds": float(sim.time),
+		"score": score,
+		"mission_name": mission_name,
+		"mission": str(db.mission.get("id", "")),
+		"match_report_id": run_id,
+		"game_version": str(update_history.get("current_version", "unbekannt")),
+		"difficulty": str(difficulty),
+		"date": Time.get_date_string_from_system(false)
+	})
+	return {"recorded": did_record, "new_best": did_record and score > old_best and mode == "singleplayer" and sim.result == "victory"}
+
+func _on_online_match_report(report: Dictionary) -> void:
+	if sim==null or not online.is_client() or str(report.get("match_id", ""))!=run_id: return
+	match_report_saved=match_recorder.store_host_report(report)
+
+func show_menu_commander() -> void:
+	# Keep the profile block to the right of the planet's outer glow (x <= 1651).
+	label(ui, "KOMMANDANT", Vector2(1660, 64), 13, MUTED)
+	var nickname := label(ui, str(commander_profile.data.nickname).to_upper() if commander_profile.has_identity() else "NICHT IDENTIFIZIERT", Vector2(1660, 86), 26, Color("e3e9df"))
+	nickname.name = "MenuCommanderNickname"
+	var nickname_font := nickname.get_theme_font("font")
+	var point_size := 26
+	while point_size > 12 and nickname_font.get_string_size(nickname.text, HORIZONTAL_ALIGNMENT_LEFT, -1, point_size).x > 230:
+		point_size -= 1
+	nickname.add_theme_font_size_override("font_size", point_size)
+	menu_buttons.commander = button(ui, "SPIELER WECHSELN" if commander_profile.has_identity() else "IDENTIFIKATION STARTEN", Rect2(1660, 124, 230, 28), func():show_profile_dialog(not commander_profile.has_identity(), show_main_menu, true))
+	var link: Button = menu_buttons.commander
+	link.name = "MenuCommanderChange"
+	link.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	link.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	link.add_theme_font_size_override("font_size", 13)
+	link.add_theme_color_override("font_color", MUTED)
+	link.add_theme_color_override("font_hover_color", MINT)
+	link.add_theme_color_override("font_focus_color", MINT)
+	link.add_theme_color_override("font_pressed_color", GOLD)
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		link.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	var focus_style := StyleBoxFlat.new()
+	focus_style.bg_color = Color.TRANSPARENT
+	focus_style.border_color = MINT
+	focus_style.border_width_bottom = 1
+	link.add_theme_stylebox_override("focus", focus_style)
+
+func show_profile_dialog(mandatory: bool, back: Callable = Callable(), return_to_menu: bool = false) -> void:
+	if profile_dialog_open: return
+	profile_dialog_open = true
+	clear(overlay)
+	var screen := get_viewport_rect().size
+	var panel_size := Vector2(minf(760.0, screen.x - 48.0), minf(430.0, screen.y - 48.0))
+	var shade := ColorRect.new()
+	shade.color = Color(0.01, 0.016, 0.018, 0.70)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(shade)
+	var p := panel(overlay, Rect2((screen - panel_size) * 0.5, panel_size), Color("202a29"))
+	p.name = "CommanderProfileDialog"
+	label(p, "SOLARIT: RANDSEKTOR 07 / KOMMANDANTENAKTE", Vector2(34, 24), 17, MINT)
+	label(p, "Identifikation", Vector2(34, 55), 37, GOLD)
+	label(p, "Unter welchem Namen soll das Kommando dich führen?", Vector2(36, 111), 18, Color("d5ded5"), panel_size.x - 72)
+	label(p, "SPIELERNAME", Vector2(36, 166), 13, MUTED)
+	var entry := LineEdit.new()
+	entry.name = "CommanderNickname"
+	entry.text = str(commander_profile.data.get("nickname", ""))
+	entry.max_length = 20
+	entry.placeholder_text = "2 bis 20 Zeichen"
+	entry.position = Vector2(36, 191)
+	entry.size = Vector2(panel_size.x - 72, 46)
+	entry.add_theme_font_size_override("font_size", 20)
+	p.add_child(entry)
+	label(p, "Buchstaben, Zahlen, Leerzeichen, Bindestrich und Unterstrich sind möglich.\nNeue Bestenlisteneinträge verwenden den neuen Namen.", Vector2(36, 253), 14, MUTED, panel_size.x - 72)
+	var validation := label(p, "Mindestens 2 Zeichen", Vector2(36, 316), 14, Color("c78262"), panel_size.x - 72)
+	var confirm := button(p, "BESTÄTIGEN", Rect2(panel_size.x - 256, panel_size.y - 70, 220, 42), func():
+		if not commander_profile.set_nickname(entry.text):
+			validation.text = "Name konnte nicht gespeichert werden."
+			return
+		profile_dialog_open = false
+		if mandatory or return_to_menu or not back.is_valid(): show_main_menu()
+		else: show_commander_file(back)
+	)
+	confirm.disabled = PlayerProfileScript.validate_nickname(entry.text).is_empty()
+	entry.text_changed.connect(func(value: String):
+		var valid := not PlayerProfileScript.validate_nickname(value).is_empty()
+		confirm.disabled = not valid
+		validation.text = "Bereit zur Bestätigung" if valid else "2 bis 20 Zeichen · keine Steuerzeichen"
+		validation.add_theme_color_override("font_color", MINT if valid else Color("c78262"))
+	)
+	if not mandatory:
+		button(p, "ABBRECHEN", Rect2(36, panel_size.y - 70, 190, 42), func():
+			profile_dialog_open = false
+			if back.is_valid(): back.call()
+		)
+	entry.grab_focus()
+
+func show_commander_file(back: Callable = Callable()) -> void:
+	if not commander_profile.has_identity(): show_profile_dialog(true, back); return
+	clear(overlay)
+	var screen := get_viewport_rect().size
+	var panel_size := Vector2(minf(1120.0, screen.x - 48.0), minf(890.0, screen.y - 48.0))
+	var p := panel(overlay, Rect2((screen - panel_size) * 0.5, panel_size), Color("202a29"))
+	p.name = "CommanderDossier"
+	var stats: Dictionary = commander_profile.data.statistics
+	var all_modes: Array[String] = ["singleplayer", "duel", "coop"]
+	var missions := 0
+	var wins := 0
+	var losses := 0
+	for mode in all_modes:
+		missions += int(stats[mode].missions)
+		wins += int(stats[mode].wins)
+		losses += int(stats[mode].losses)
+	var rate := "— %" if wins + losses == 0 else ("%.1f %%" % (float(wins) / float(wins + losses) * 100.0)).replace(".", ",")
+	label(p, "SOLARIT: RANDSEKTOR 07 / KOMMANDANTENAKTE", Vector2(34, 24), 17, MINT)
+	label(p, str(commander_profile.data.nickname).to_upper(), Vector2(34, 52), 39, GOLD)
+	var rename := button(p, "SPIELERNAME ÄNDERN", Rect2(panel_size.x - 275, 40, 236, 40), func(): show_profile_dialog(false, back))
+	rename.add_theme_font_size_override("font_size", 14)
+	label(p, "DIENSTSTATISTIK", Vector2(36, 112), 14, MUTED)
+	label(p, "%d\nEINSÄTZE" % missions, Vector2(38, 148), 30, Color("d8e0d8"), 190)
+	label(p, "%d\nSIEGE" % wins, Vector2(252, 148), 30, MINT, 170)
+	label(p, "%d\nNIEDERLAGEN" % losses, Vector2(438, 148), 30, Color("d8e0d8"), 205)
+	label(p, rate + "\nSIEGQUOTE", Vector2(662, 148), 30, GOLD, 170)
+	label(p, PlayerProfileScript.format_duration(float(stats.total_active_seconds)) + "\nSPIELZEIT", Vector2(855, 148), 25, Color("d8e0d8"), 210)
+	var summary := "EINZELSPIELER   %d EINSÄTZE  ·  %d SIEGE  ·  %d NIEDERLAGEN\n1:1-DUELL   %d EINSÄTZE  ·  %d SIEGE  ·  %d NIEDERLAGEN\nKOOP   %d EINSÄTZE  ·  %d SIEGE  ·  %d NIEDERLAGEN" % [stats.singleplayer.missions, stats.singleplayer.wins, stats.singleplayer.losses, stats.duel.missions, stats.duel.wins, stats.duel.losses, stats.coop.missions, stats.coop.wins, stats.coop.losses]
+	label(p, summary, Vector2(38, 265), 17, Color("cbd5ce"), panel_size.x - 76)
+	var best_score := int(stats.best_score)
+	label(p, "PERSÖNLICHER BESTWERT", Vector2(38, 366), 14, MUTED)
+	label(p, format_score(best_score) if best_score > 0 else "—", Vector2(38, 390), 36, GOLD)
+	if best_score > 0: label(p, str(stats.best_score_mission) + "  ·  " + str(stats.best_score_date), Vector2(330, 404), 16, Color("cbd5ce"), 600)
+	label(p, "LETZTE EINSÄTZE", Vector2(38, 464), 14, MINT)
+	button(p,"ALLE PARTIEBERICHTE",Rect2(panel_size.x-280,448,240,36),show_match_archive)
+	var history: Array = commander_profile.data.history
+	var history_scroll := ScrollContainer.new()
+	history_scroll.name = "CommanderHistory"
+	history_scroll.position = Vector2(38, 492)
+	history_scroll.size = Vector2(panel_size.x - 76, panel_size.y - 570)
+	history_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	p.add_child(history_scroll)
+	var history_rows := VBoxContainer.new()
+	history_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	history_rows.add_theme_constant_override("separation", 6)
+	history_scroll.add_child(history_rows)
+	if history.is_empty(): label(history_rows, "Noch keine Einsätze abgeschlossen.", Vector2.ZERO, 16, MUTED, panel_size.x - 100)
+	for index in mini(history.size(), 30):
+		var item: Dictionary = history[index]
+		var outcome := "SIEG" if item.outcome == "victory" else "NIEDERLAGE"
+		var mode_name: String = str({"singleplayer": "EINZELSPIELER", "duel": "1:1-DUELL", "coop": "KOOP"}.get(str(item.mode), "EINSATZ"))
+		var score_text := format_score(int(item.score)) + " P" if int(item.score) >= 0 else "—"
+		var report_button:=Button.new()
+		report_button.text="%s   /   %s   /   %s   /   %s   /   %s   /   %s     ›" % [str(item.date), str(item.mission), mode_name, outcome, PlayerProfileScript.format_duration(float(item.active_seconds)), score_text]
+		report_button.custom_minimum_size=Vector2(panel_size.x-100,38)
+		report_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		report_button.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		report_button.add_theme_font_size_override("font_size",14)
+		report_button.pressed.connect(func():show_match_report(str(item.get("match_report_id", item.get("result_id", "")))))
+		history_rows.add_child(report_button)
+	button(p, "ZURÜCK", Rect2(36, panel_size.y - 60, 230, 40), func(): back.call() if back.is_valid() else show_main_menu())
+
+func show_match_report(match_id: String) -> void:
+	var safe_id:=RegEx.new()
+	safe_id.compile("[^A-Za-z0-9_-]")
+	var path:=MatchRecorderScript.ARCHIVE_DIR+"/"+safe_id.sub(match_id,"_",true).left(96)+".json"
+	if match_id.is_empty() or not FileAccess.file_exists(path):
+		show_error("Für diese Partie ist kein gespeicherter Statistikbericht vorhanden.")
+		return
+	var parsed=JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not parsed is Dictionary or int(parsed.get("schema_version",0))>MatchRecorderScript.SCHEMA_VERSION:
+		show_error("Der Statistikbericht ist beschädigt oder stammt aus einer neueren Berichtsversion.")
+		return
+	var report: Dictionary=parsed
+	clear(overlay)
+	var screen:=get_viewport_rect().size
+	var panel_size:=Vector2(minf(1420.0,screen.x-40),minf(980.0,screen.y-40))
+	var p:=panel(overlay,Rect2((screen-panel_size)*0.5,panel_size),Color("202a29"))
+	p.name="MatchReport"
+	var sides: Array=report.get("sides",[])
+	var side_names: Array[String]=["Spieler 1","Spieler 2"]
+	var side_colors: Array[Color]=[Color("79d9bd"),Color("f47878")]
+	for owner in mini(2,sides.size()):
+		side_names[owner]=str(sides[owner].get("nickname","Spieler %d"%(owner+1)))
+		side_colors[owner]=Color(str(sides[owner].get("team_color", "79d9bd" if owner==0 else "f47878")))
+	var outcome:="SIEG" if str(report.get("outcome",""))=="victory" else "NIEDERLAGE"
+	label(p,"PARTIEBERICHT / VERSION %s"%str(report.get("game_version","unbekannt")),Vector2(30,18),16,MINT)
+	label(p,"%s  ·  %s  ·  %s"%[str(report.get("mission_name","Einsatz")),outcome,PlayerProfileScript.format_duration(float(report.get("duration_seconds",0.0)))],Vector2(30,42),28,GOLD)
+	label(p,"%s  /  %s  /  %s"%[str(report.get("date","")),str(report.get("mode","" )).to_upper(),str(report.get("difficulty","" )).to_upper()],Vector2(32,80),14,MUTED)
+	var samples: Array=report.get("samples",[])
+	var chart_metrics: Array=[ ["credits","Solarit im Lager"], ["units","Fahrzeuge im Feld"], ["buildings","Gebäude im Feld"], ["produced","Fahrzeuge produziert"], ["gathered","Solarit gesammelt"], ["kills","Gegner zerstört"] ]
+	for index in chart_metrics.size():
+		var column:=index%2
+		var row:=index/2
+		var chart=MatchChartScript.new()
+		chart.position=Vector2(30+column*680,116+row*215)
+		chart.size=Vector2(660,195)
+		chart.configure(samples,str(chart_metrics[index][0]),str(chart_metrics[index][1]),side_names,side_colors)
+		p.add_child(chart)
+	label(p,"EREIGNISSE",Vector2(30,770),14,MINT)
+	var events_scroll:=ScrollContainer.new()
+	events_scroll.position=Vector2(30,792)
+	events_scroll.size=Vector2(panel_size.x-60,106)
+	events_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	p.add_child(events_scroll)
+	var event_rows:=VBoxContainer.new()
+	event_rows.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	events_scroll.add_child(event_rows)
+	var events: Array=report.get("events",[])
+	if events.is_empty(): label(event_rows,"Keine Ereignisse gespeichert.",Vector2.ZERO,13,MUTED,900)
+	for event_item in events.slice(maxi(0,events.size()-80)):
+		var event_owner:=int(event_item.get("owner",-1))
+		var actor:=side_names[event_owner] if event_owner>=0 and event_owner<2 else "System"
+		label(event_rows,"%02d:%02d  ·  %s  ·  %s  ·  %s"%[int(float(event_item.get("time",0.0)))/60,int(float(event_item.get("time",0.0)))%60,actor,str(event_item.get("description","")),str(event_item.get("entity_kind",""))],Vector2.ZERO,13,Color("cbd5ce"),panel_size.x-100)
+	button(p,"ZURÜCK ZUR KOMMANDANTENAKTE",Rect2(30,panel_size.y-52,330,38),func():show_commander_file())
+
+func show_match_archive() -> void:
+	var directory:=DirAccess.open(MatchRecorderScript.ARCHIVE_DIR)
+	var reports: Array[Dictionary]=[]
+	if directory!=null:
+		directory.list_dir_begin()
+		var filename:=directory.get_next()
+		while not filename.is_empty():
+			if not directory.current_is_dir() and filename.ends_with(".json"):
+				var parsed=JSON.parse_string(FileAccess.get_file_as_string(MatchRecorderScript.ARCHIVE_DIR+"/"+filename))
+				if parsed is Dictionary and int(parsed.get("schema_version",0))<=MatchRecorderScript.SCHEMA_VERSION:
+					reports.append(parsed)
+			filename=directory.get_next()
+		directory.list_dir_end()
+	reports.sort_custom(func(a,b):return str(a.get("finished_at", ""))>str(b.get("finished_at", "")))
+	clear(overlay)
+	var screen:=get_viewport_rect().size
+	var panel_size:=Vector2(minf(1100.0,screen.x-48.0),minf(850.0,screen.y-48.0))
+	var p:=panel(overlay,Rect2((screen-panel_size)*0.5,panel_size),Color("202a29"))
+	label(p,"KOMMANDANTENAKTE / PARTIEARCHIV",Vector2(32,24),18,MINT)
+	label(p,"GESPEICHERTE PARTIEN  ·  %d"%reports.size(),Vector2(32,54),32,GOLD)
+	var scroll:=ScrollContainer.new()
+	scroll.position=Vector2(32,112)
+	scroll.size=Vector2(panel_size.x-64,panel_size.y-184)
+	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	p.add_child(scroll)
+	var rows:=VBoxContainer.new()
+	rows.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	rows.add_theme_constant_override("separation",6)
+	scroll.add_child(rows)
+	if reports.is_empty(): label(rows,"Noch keine beendeten Partien archiviert.",Vector2.ZERO,16,MUTED,panel_size.x-100)
+	for item in reports:
+		var outcome:="SIEG" if str(item.get("outcome",""))=="victory" else "NIEDERLAGE"
+		var match_button:=Button.new()
+		match_button.text="%s  ·  %s  ·  %s  ·  %s  ·  Version %s"%[str(item.get("date","")),str(item.get("mission_name","Partie")),outcome,PlayerProfileScript.format_duration(float(item.get("duration_seconds",0.0))),str(item.get("game_version","?"))]
+		match_button.custom_minimum_size=Vector2(panel_size.x-120,40)
+		match_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		match_button.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		match_button.pressed.connect(func():show_match_report(str(item.get("match_id",""))))
+		rows.add_child(match_button)
+	button(p,"ZURÜCK ZUR KOMMANDANTENAKTE",Rect2(32,panel_size.y-58,330,40),func():show_commander_file())
 
 func create_run_id() -> String:
 	return "%d-%d" % [Time.get_ticks_usec(),randi()]
@@ -1534,7 +2128,7 @@ func record_highscore() -> Dictionary:
 	for old_entry in entries:
 		if old_entry.get("mission","")==db.mission.id: old_best=maxi(old_best,int(old_entry.get("score",0)))
 	var score:=calculate_run_score()
-	var entry: Dictionary={"run_id":run_id,"mission":db.mission.id,"mission_name":db.mission.name,"score":score,"time":sim.time,"difficulty":difficulty,"faction":db.factions[faction].name,"date":Time.get_date_string_from_system(false),"gathered":int(sim.stats.gathered),"kills":int(sim.stats.kills),"lost":int(sim.stats.lost)}
+	var entry: Dictionary={"run_id":run_id,"profile_id":str(commander_profile.data.profile_id),"nickname":str(commander_profile.data.nickname),"mission":db.mission.id,"mission_name":db.mission.name,"score":score,"time":sim.time,"difficulty":difficulty,"faction":db.factions[faction].name,"date":Time.get_date_string_from_system(false),"gathered":int(sim.stats.gathered),"kills":int(sim.stats.kills),"lost":int(sim.stats.lost)}
 	entries.append(entry)
 	entries.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
 		if int(a.score)==int(b.score): return float(a.time)<float(b.time)
@@ -1559,7 +2153,7 @@ func leaderboard_preview() -> String:
 	var rows: Array[String]=[]
 	for entry in load_highscores().entries:
 		if entry.get("mission","")!=db.mission.id: continue
-		rows.append("%d. %s" % [rows.size()+1,format_score(int(entry.score))])
+		rows.append("%d. %s · %s" % [rows.size()+1,("> "+str(entry.get("nickname","UNBEKANNT")).to_upper()) if str(entry.get("profile_id",""))==str(commander_profile.data.profile_id) else str(entry.get("nickname","UNBEKANNT")).to_upper(),format_score(int(entry.score))])
 		if rows.size()>=3: break
 	return "   /   ".join(rows) if not rows.is_empty() else "Noch keine Siege gespeichert"
 
@@ -1579,20 +2173,27 @@ func show_highscores(return_action: Callable = Callable()) -> void:
 	if entries.is_empty():
 		label(p,"Noch kein Einsatz abgeschlossen.\nSichere das Becken, um deinen ersten Eintrag freizuschalten.",Vector2(42,210),23,Color("c8d8ce"),875)
 	else:
-		label(p,"RANG     PUNKTE       ZEIT       WIDERSTAND       FRAKTION       DATUM",Vector2(42,186),15,MUTED)
+		label(p,"RANG   KOMMANDANT       PUNKTE       ZEIT       WIDERSTAND       FRAKTION       DATUM",Vector2(42,186),15,MUTED)
 		var y:=222
 		for i in mini(entries.size(),10):
 			var entry: Dictionary=entries[i]
 			var style:=Color("e7bd78") if i==0 else Color("c8d8ce")
-			label(p,"%02d       %s       %02d:%02d       %s       %s       %s" % [i+1,format_score(int(entry.score)),int(float(entry.time))/60,int(float(entry.time))%60,difficulty_label(str(entry.difficulty)),str(entry.faction),str(entry.date)],Vector2(42,y),17,style,885)
+			var commander_name:=str(entry.get("nickname","UNBEKANNT")).to_upper()
+			var own_entry:=str(entry.get("profile_id",""))==str(commander_profile.data.profile_id) and not str(commander_profile.data.profile_id).is_empty()
+			label(p,"%02d   %s%s   %s   %02d:%02d   %s   %s   %s" % [i+1,"> " if own_entry else "",commander_name,format_score(int(entry.score)),int(float(entry.time))/60,int(float(entry.time))%60,difficulty_label(str(entry.difficulty)),str(entry.faction),str(entry.date)],Vector2(42,y),17,MINT if own_entry else style,885)
 			y+=52
 	label(p,"Wertung: 1.000 Basis · Abschuss +250 · Solarit ×0,5 · Produktion +120 · Bau +100.\nZeitbonus: max. 0, (1.800 s − Zeit) ×2 · eigene Verluste −200 je Fahrzeug, −500 je Gebäude.",Vector2(42,746),15,MUTED,890)
 	button(p,"ZURÜCK",Rect2(42,804,260,42),return_action)
 
 func save_game(path: String = SAVE_PATH, feedback: bool = true) -> void:
+	if online.active or (playing and sim!=null and sim.online_mode=="versus"):
+		if feedback: notify("Online-Partien verwenden die Wiederverbindung statt lokaler Spielstände.")
+		return
 	if sim==null: return
 	var data := sim.snapshot()
 	data["run_id"]=run_id
+	data["commander_profile_id"]=str(commander_profile.data.profile_id)
+	data["commander_nickname"]=str(commander_profile.data.nickname)
 	data["camera"]=[renderer.camera.x,renderer.camera.y]
 	data["zoom"]=renderer.zoom
 	data["groups"]=groups
@@ -1609,6 +2210,7 @@ func save_game(path: String = SAVE_PATH, feedback: bool = true) -> void:
 	if feedback: music.cue("save"); notify("Spielstand gespeichert.")
 
 func load_game() -> void:
+	if online.active or (playing and sim!=null and sim.online_mode=="versus"): notify("Für lokale Spielstände zuerst die Online-Verbindung trennen."); return
 	var path := SAVE_PATH if FileAccess.file_exists(SAVE_PATH) else "user://autosave.json"
 	if not FileAccess.file_exists(path): show_error("Noch kein Spielstand vorhanden."); return
 	var parser := JSON.new()
@@ -1664,7 +2266,7 @@ func show_error(message: String) -> void:
 
 func show_options(back: Callable, requested_tab: String = "") -> void:
 	clear(overlay)
-	if requested_tab in ["BILD","AUDIO","STEUERUNG","GAMEPLAY"]: options_tab=requested_tab
+	if requested_tab in ["BILD","AUDIO","STEUERUNG","GAMEPLAY","PROFIL"]: options_tab=requested_tab
 	var screen := get_viewport_rect().size
 	var panel_size := Vector2(minf(1120.0,screen.x-48.0),minf(770.0,screen.y-48.0))
 	var panel_pos := (screen-panel_size)*0.5
@@ -1687,8 +2289,8 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 	label(p,"SYSTEM  /  OPTIONEN",Vector2(36,24),15,MINT)
 	label(p,"Bild, Klang & Kontrolle",Vector2(36,47),32,GOLD)
 	label(p,"PERSÖNLICHE EINSATZKONFIGURATION",Vector2(w-360,58),13,MUTED,324)
-	var tab_names := ["BILD","AUDIO","STEUERUNG","GAMEPLAY"]
-	var tab_width := (w-72.0)/4.0
+	var tab_names := ["BILD","AUDIO","STEUERUNG","GAMEPLAY","PROFIL"]
+	var tab_width := (w-72.0)/float(tab_names.size())
 	var focus_tab: Button
 	for i in tab_names.size():
 		var tab_name: String = tab_names[i]
@@ -1834,6 +2436,15 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 			hotkeys={"attack":KEY_A,"stop":KEY_S,"hold":KEY_H,"guard":KEY_G,"repair":KEY_R,"home":KEY_HOME,"event":KEY_SPACE,"save":KEY_F5,"load":KEY_F9}
 			remap_action=""; persist_settings(); show_options(back,"STEUERUNG"))
 		reset.add_theme_font_size_override("font_size",12)
+	elif options_tab=="PROFIL":
+		heading.call("KOMMANDANTENAKTE",22)
+		label(content, str(commander_profile.data.nickname).to_upper(), Vector2(28, 56), 28, GOLD)
+		label(content, "Profil-ID  " + str(commander_profile.data.profile_id), Vector2(30, 98), 13, MUTED, cw - 60)
+		var profile_button := button(content, "SPIELERNAME ÄNDERN", Rect2(28, 142, 300, 42), func(): show_profile_dialog(false, func(): show_options(back, "PROFIL")))
+		profile_button.add_theme_font_size_override("font_size", 14)
+		label(content, "Neue Bestenlisteneinträge werden unter dem neuen Namen gespeichert.\nBestehende Einträge behalten den Namen, unter dem sie erreicht wurden.", Vector2(30, 198), 15, Color("c8d3cc"), cw - 60)
+		var record_button := button(content, "KOMMANDANTENAKTE ÖFFNEN  →", Rect2(28, 278, 360, 46), func(): show_commander_file(func(): show_options(back, "PROFIL")))
+		record_button.add_theme_font_size_override("font_size", 15)
 	elif options_tab=="GAMEPLAY":
 		heading.call("SPIELVERHALTEN",22)
 		label(content,"KAMERA",Vector2(28,72),12,MUTED)
@@ -1846,7 +2457,7 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 		scroll.add_theme_stylebox_override("normal",scroll_style); scroll.add_theme_stylebox_override("hover",scroll_hover); scroll.add_theme_stylebox_override("focus",scroll_hover)
 		label(content,"Bewegt den Kameraausschnitt, wenn der Mauszeiger den Rand des Spielfelds erreicht.",Vector2(30,174),14,MUTED,cw-60)
 		label(content,"Die Änderung wird sofort übernommen und für den nächsten Start gespeichert.",Vector2(30,207),14,Color("c8d3cc"),cw-60)
-	label(p,"ASHLINE SYSTEM  ·  ÄNDERUNGEN WERDEN SOFORT GESPEICHERT",Vector2(40,h-91),12,MUTED,w-80)
+	label(p,"SOLARIT: RANDSEKTOR 07 SYSTEM  ·  ÄNDERUNGEN WERDEN SOFORT GESPEICHERT",Vector2(40,h-91),12,MUTED,w-80)
 	var back_button := button(p,"ZURÜCK",Rect2(36,h-61,250,40),func():persist_settings(); back.call())
 	back_button.add_theme_font_size_override("font_size",14)
 	var done_button := button(p,"ÜBERNEHMEN  →",Rect2(w-286,h-61,250,40),func():persist_settings(); back.call())
@@ -1903,7 +2514,7 @@ func persist_settings() -> void:
 func show_updates(back: Callable) -> void:
 	clear(overlay)
 	var p := panel(overlay,Rect2(390,120,1140,840),Color("2b221b"))
-	label(p,"ASHLINE / VERSION "+str(update_history.current_version),Vector2(32,26),18,MINT)
+	label(p,"SOLARIT: RANDSEKTOR 07 / VERSION "+str(update_history.current_version),Vector2(32,26),18,MINT)
 	label(p,"Updateinfo",Vector2(32,65),42,GOLD)
 	label(p,"Was wann hinzugekommen ist und verändert wurde",Vector2(32,121),21,MUTED)
 	var versions := ItemList.new()
@@ -1937,7 +2548,7 @@ func show_updates(back: Callable) -> void:
 func show_credits() -> void:
 	clear(overlay)
 	var p := panel(overlay,Rect2(580,170,980,740),Color("2b221b"))
-	label(p,"ASHLINE / ORIGINALAUDIO",Vector2(40,34),18,MINT)
+	label(p,"SOLARIT: RANDSEKTOR 07 / ORIGINALAUDIO",Vector2(40,34),18,MINT)
 	label(p,"Frequenzen von Veyra",Vector2(40,80),42,GOLD)
 	label(p,"Komposition, Synthese und Grafik wurden für dieses Projekt erstellt.\nAlle Musikspuren laufen bei 120 BPM auf derselben Taktachse.\nAus dem ruhigen Bassmotiv wächst das Gefechtsarrangement.\n\nEngine: Godot, MIT-Lizenz. Keine externen Plugins oder Spielassets.\nProgrammierung, Gestaltung & Komposition: Codex für Dirk.",Vector2(40,168),22,Color("c8d8ce"),900)
 	music.start(Simulation.new(db,faction))
@@ -1983,3 +2594,19 @@ func capture_frontend_smoke() -> void:
 	await get_tree().create_timer(0.15).timeout
 	get_tree().quit()
 
+
+
+func show_online_end() -> void:
+	paused=true
+	clear(overlay)
+	var p:=panel(overlay,Rect2(585,230,750,620),Color("2b221b"))
+	label(p,"EINSATZ ABGESCHLOSSEN  /  "+("1:1-DUELL" if sim.online_mode=="versus" else "KOOPERATION"),Vector2(42,28),18,MINT)
+	label(p,"Sieg!" if sim.result=="victory" else "Niederlage",Vector2(42,76),48,GOLD)
+	if sim.online_mode == "versus": label(p,"Gegner: "+str(online.mission_config.get("client_nickname" if online.is_host() else "host_nickname", "Kommandant")),Vector2(44,130),15,MUTED)
+	var s: Dictionary=sim.stats
+	var result_mode:="duel" if sim.online_mode=="versus" else "coop"
+	var result_record:=record_commander_result(result_mode,0)
+	label(p,"KOMMANDANT / "+str(commander_profile.data.nickname).to_upper(),Vector2(44,137),15,MUTED)
+	label(p,"Zeit %02d:%02d\nSolarit geliefert: %d\nFahrzeuge gebaut: %d\nEigene Verluste: %d\nGegner zerstört: %d\nGebäude errichtet: %d"%[int(sim.time)/60,int(sim.time)%60,int(s.gathered),int(s.produced),int(s.lost),int(s.kills),int(s.built)],Vector2(44,172),23,Color("c8d8ce"))
+	button(p,"REVANCHE / ZUR LOBBY",Rect2(42,467,310,58),func():online.request_rematch())
+	button(p,"HAUPTMENÜ / TRENNEN",Rect2(392,467,310,58),show_main_menu)

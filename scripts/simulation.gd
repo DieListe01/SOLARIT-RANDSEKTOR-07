@@ -21,6 +21,10 @@ var ai_timer := 0.0
 var difficulty := "normal"
 var campaign_tech_level := 0
 var result := ""
+var online_mode := ""
+var view_owner := 0
+var winner := -1
+var side_stats: Array = []
 var ai_state := "ECONOMY"
 var ai_scout_index := 0
 var ai_production_timer := 0.0
@@ -37,6 +41,7 @@ func team_color(owner: int) -> Color:
 
 func _init(catalog: Catalog, faction: String = "forge", level: String = "normal", tech_level: int = 0) -> void:
 	db = catalog
+	side_stats=[stats,stats.duplicate(true)]
 	campaign_tech_level=clampi(tech_level,0,2)
 	grid = WorldGrid.new(db.mission)
 	factions = [faction, "drift" if faction != "drift" else "forge"]
@@ -276,12 +281,18 @@ func submit_command(packet: Dictionary, issuer: int) -> bool:
 	if issuer<0 or issuer>=factions.size(): return false
 	if not number(packet.get("owner_id")) or float(packet.owner_id)!=issuer: return false
 	var kind: String = str(packet.get("type",""))
-	if kind in ["build","produce","cancel_produce","upgrade"]:
+	if kind in ["build","produce","cancel_produce","cancel_queue_at","prioritize_queue","upgrade"]:
 		var item: String = str(packet.get("kind",""))
 		if kind=="upgrade":
 			var building_id=packet.get("id")
 			if not number(building_id) or float(building_id)!=floor(float(building_id)): return false
 			return upgrade_building(int(building_id),issuer)
+		if kind in ["cancel_queue_at","prioritize_queue"]:
+			var factory_id=packet.get("factory_id")
+			var queue_index=packet.get("queue_index")
+			if not number(factory_id) or float(factory_id)!=floor(float(factory_id)) or not number(queue_index) or float(queue_index)!=floor(float(queue_index)): return false
+			if kind=="cancel_queue_at": return cancel_queue_at(int(factory_id),int(queue_index),issuer)
+			return prioritize_queue(int(factory_id),int(queue_index),issuer)
 		if kind=="build":
 			if not db.buildings.has(item) or item=="core" or not vector_valid(packet.get("cell")): return false
 			if float(packet.cell[0])!=floor(float(packet.cell[0])) or float(packet.cell[1])!=floor(float(packet.cell[1])): return false
@@ -386,9 +397,9 @@ func tick(dt: float) -> void:
 	ai_timer-=dt
 	ai_production_timer-=dt
 	if ai_timer<=0:
-		if bool(db.mission.get("ai_enabled",true)): think_ai()
+		if online_mode!="versus" and bool(db.mission.get("ai_enabled",true)): think_ai()
 		ai_timer=float(db.rules.ai_interval[difficulty])
-	process_mission_waves()
+	if online_mode!="versus": process_mission_waves()
 	check_objectives()
 
 func process_building(e: Dictionary, dt: float) -> void:
@@ -397,7 +408,7 @@ func process_building(e: Dictionary, dt: float) -> void:
 		e.build_progress+=dt*speed
 		if e.build_progress>=float(definition(e).time):
 			e.complete=true
-			if e.owner==0: stats.built+=1
+			side_stats[e.owner].built+=1
 			if e.kind=="refinery":
 				e.included_harvester=true
 			event.emit("complete",e.pos,definition(e).name+" einsatzbereit")
@@ -424,7 +435,7 @@ func process_building(e: Dictionary, dt: float) -> void:
 				if job.kind!="harvester": command([id],e.rally)
 				e.queue.pop_front()
 				e.progress=0.0
-				if e.owner==0: stats.produced+=1
+				side_stats[e.owner].produced+=1
 				event.emit("ready",e.pos,db.units[job.kind].name+" bereit")
 	if e.repair and e.hp<e.max_hp: repair_entity(e,e.owner,dt)
 	if e.kind=="repair" and powered(e.owner):
@@ -551,7 +562,7 @@ func harvest(e: Dictionary, dt: float) -> void:
 			e.cargo-=amount
 			var bonus:=1.0+0.20*float(refinery.get("upgrade_level",0))
 			credits[e.owner]+=amount*bonus
-			if e.owner==0: stats.gathered+=amount*bonus
+			side_stats[e.owner].gathered+=amount*bonus
 			if e.cargo<=0: e.harvest_state="SEARCH_RESOURCE"
 
 func is_visible(e: Dictionary, owner: int) -> bool:
@@ -659,10 +670,9 @@ func destroy(id: int) -> void:
 	if not entities.has(id): return
 	var e: Dictionary = entities[id]
 	if e.building: grid.reserve(e.cell,footprint(e),id,false)
-	if e.owner==0:
-		if e.building: stats.buildings_lost+=1
-		else: stats.lost+=1
-	else: stats.kills+=1
+	if e.building: side_stats[e.owner].buildings_lost+=1
+	else: side_stats[e.owner].lost+=1
+	side_stats[1-e.owner].kills+=1
 	effects.append({"pos":e.pos,"life":0.8,"max_life":0.8,"radius":55.0 if e.building else 30.0,"event_backed":true})
 	presentation.emit("destroy",{"id":e.id,"pos":e.pos,"owner":e.owner,"building":e.building,"kind":e.kind,"angle":float(e.get("rotation",0))*PI/2 if e.building else e.angle,"visual_footprint":footprint(e) if e.building else [1,1],"visual_size":maxf(float(footprint(e)[0]),float(footprint(e)[1])) if e.building else 1.0})
 	event.emit("explosion",e.pos,"")
@@ -716,6 +726,7 @@ func objective_latched(objective: Dictionary) -> bool:
 	return objective_announced.has(str(objective.get("id",""))) or objective_complete(objective)
 
 func hud_objective_text() -> String:
+	if online_mode=="versus": return "1:1 · ZERSTÖRE DEN FEINDLICHEN BAUKERN"
 	for objective in db.mission.get("objectives",[]):
 		if not bool(objective.get("primary",false)) or objective_failed(objective) or objective_latched(objective): continue
 		var text_value: String=str(objective.get("hud",objective.get("text","MISSIONSZIEL"))).to_upper()
@@ -759,6 +770,11 @@ func process_mission_waves() -> void:
 
 func check_objectives() -> void:
 	if result!="": return
+	if online_mode=="versus":
+		if buildings(0,"core",false).is_empty() or buildings(1,"core",false).is_empty():
+			winner=1 if buildings(0,"core",false).is_empty() else 0
+			result="victory" if winner==view_owner else "defeat"
+		return
 	var primary_total:=0
 	var primary_complete:=0
 	for objective in db.mission.get("objectives",[]):
@@ -860,9 +876,22 @@ func snapshot() -> Dictionary:
 	var memory: Array = known.duplicate(true)
 	for side in memory:
 		for k in side: side[k].pos=[side[k].pos.x,side[k].pos.y]
-	return {"format_version":1,"mission":db.mission.id,"entities":all,"projectiles":bullets,"credits":credits,"resources":grid.resources,"factions":factions,"player_colors":player_colors.duplicate(),"time":time,"next_id":next_id,"rng_state":str(rng.state),"difficulty":difficulty,"result":result,"stats":stats,"explored":[Array(explored[0]),Array(explored[1])],"known":memory,"ai_state":ai_state,"ai_timer":ai_timer,"ai_scout_index":ai_scout_index,"ai_production_timer":ai_production_timer,"combat_heat":combat_heat,"base_alarm":base_alarm,"triggered_waves":triggered_waves.duplicate(true),"objective_announced":objective_announced.duplicate(true)}
+	var save_state: Dictionary={"online_mode":online_mode,"view_owner":view_owner,"winner":winner,"side_stats":side_stats.duplicate(true),"format_version":1,"mission":db.mission.id,"entities":all,"projectiles":bullets,"credits":credits,"resources":grid.resources,"factions":factions,"player_colors":player_colors.duplicate(),"time":time,"next_id":next_id,"rng_state":str(rng.state),"difficulty":difficulty,"result":result,"stats":stats,"explored":[Array(explored[0]),Array(explored[1])],"known":memory,"ai_state":ai_state,"ai_timer":ai_timer,"ai_scout_index":ai_scout_index,"ai_production_timer":ai_production_timer,"combat_heat":combat_heat,"base_alarm":base_alarm,"triggered_waves":triggered_waves.duplicate(true),"objective_announced":objective_announced.duplicate(true)}
+	return save_state
 
 func restore(save: Dictionary) -> Error:
+	if save.get("online_mode","") not in ["","versus"]: return ERR_INVALID_DATA
+	if not NetworkProtocol.is_integer(save.get("view_owner",0)) or int(save.get("view_owner",0)) not in [0,1] or not NetworkProtocol.is_integer(save.get("winner",-1)) or int(save.get("winner",-1)) not in [-1,0,1]: return ERR_INVALID_DATA
+	if save.has("side_stats"):
+		if not save.side_stats is Array or save.side_stats.size()!=2: return ERR_INVALID_DATA
+		for side in save.side_stats:
+			if not side is Dictionary: return ERR_INVALID_DATA
+			for key in stats:
+				if not number(side.get(key)): return ERR_INVALID_DATA
+	if save.has("viewer_fog"):
+		if not save.viewer_fog is Array or save.viewer_fog.size()!=grid.width*grid.height: return ERR_INVALID_DATA
+		for value in save.viewer_fog:
+			if not number(value) or float(value)!=floor(float(value)) or int(value) not in [0,1]: return ERR_INVALID_DATA
 	if save.has("player_colors"):
 		if not save.player_colors is Array or save.player_colors.size()<2 or save.player_colors.size()>8: return ERR_INVALID_DATA
 		for value in save.player_colors:
@@ -947,6 +976,11 @@ func restore(save: Dictionary) -> Error:
 	time=float(save.time); next_id=int(save.next_id); result=save.result; difficulty=save.difficulty
 	rng.state=int(save.rng_state)
 	stats=save.stats.duplicate()
+	online_mode=str(save.get("online_mode",""))
+	view_owner=int(save.get("view_owner",0))
+	winner=int(save.get("winner",-1))
+	side_stats=save.get("side_stats",[stats,stats.duplicate(true)]).duplicate(true)
+	side_stats[view_owner]=stats
 	ai_state=save.ai_state; ai_timer=float(save.ai_timer); ai_scout_index=int(save.ai_scout_index)
 	ai_production_timer=float(save.get("ai_production_timer",0))
 	combat_heat=float(save.combat_heat); base_alarm=float(save.base_alarm)
@@ -963,6 +997,10 @@ func restore(save: Dictionary) -> Error:
 		for field in ["pos","last"]: p[field]=Vector2(p[field][0],p[field][1])
 		p.owner=int(p.owner); p.target=int(p.target)
 	update_fog(false)
+	if save.has("viewer_fog"):
+		fog[view_owner]=PackedByteArray(save.viewer_fog)
+		fog[1-view_owner].fill(0)
+		explored[1-view_owner].fill(0)
 	return OK
 
 func number(value: Variant) -> bool:
@@ -970,3 +1008,77 @@ func number(value: Variant) -> bool:
 
 func vector_valid(value: Variant) -> bool:
 	return value is Array and value.size()==2 and number(value[0]) and number(value[1])
+
+func configure_versus(config: Dictionary, owner: int = 0) -> void:
+	online_mode="versus"; view_owner=owner; winner=-1; result=""
+	factions=[str(config.get("host_faction","forge")),str(config.get("client_faction","drift"))]
+	player_colors[0]=str(config.get("host_color","19ddd4"))
+	player_colors[1]=str(config.get("client_color","f34c32"))
+	campaign_tech_level=2
+	credits=[float(config.get("start_credits",4200)),float(config.get("start_credits",4200))]
+	entities.clear(); projectiles.clear(); path_requests.clear(); effects.clear()
+	grid=WorldGrid.new(db.mission); next_id=1; time=0.0
+	stats={"gathered":0.0,"produced":0,"lost":0,"kills":0,"built":0,"buildings_lost":0}
+	side_stats=[stats,stats.duplicate(true)]; stats=side_stats[view_owner]
+	known=[{},{}]; triggered_waves.clear(); objective_announced.clear()
+	for side in explored: side.fill(0)
+	for side in 2:
+		var start: Array=db.mission.player_starts[side]
+		var cell:=Vector2i(int(start[0])-1,int(start[1])-1)
+		spawn("core",side,Vector2(cell)*grid.tile,true)
+		var scout_cell:=Vector2i(int(start[0])+3,int(start[1])+3)
+		spawn("scout",side,grid.center(scout_cell),false)
+	update_fog()
+
+func snapshot_for(owner: int) -> Dictionary:
+	if online_mode!="versus": return snapshot()
+	var state:=snapshot().duplicate(true)
+	var visible_ids: Dictionary={}
+	var visible_entities: Array=[]
+	for raw in state.entities:
+		var entity: Dictionary=entities[int(raw.id)]
+		if int(raw.owner)!=owner and not is_visible(entity,owner): continue
+		visible_ids[int(raw.id)]=true
+		if int(raw.owner)!=owner:
+			var public_fields:=["id","kind","owner","owner_id","team_id","faction_id","building","hp","max_hp","angle","turret","pos","velocity","cell","rotation","complete","build_progress","upgrade_level","path","destination","path_goal","rally","last_pos","target","order","reload","queue","progress","cargo","resource","harvest_state","repair","stuck","path_pending"]
+			for field in raw.keys():
+				if field not in public_fields: raw.erase(field)
+			# Only public appearance; no queues, targets, paths or economic intentions.
+			for field in ["destination","path_goal","rally","last_pos"]: raw[field]=raw.pos.duplicate()
+			raw.path=[]; raw.queue=[]; raw.target=0; raw.order="guard"
+			raw.reload=0.0; raw.progress=0.0; raw.cargo=0.0; raw.resource=""
+			raw.harvest_state="IDLE"; raw.repair=false; raw.stuck=0.0
+			for field in ["pursuit_time","upgrade_paid","upgrade_owner","service_id","included_harvester"]:
+				raw.erase(field)
+		visible_entities.append(raw)
+	state.entities=visible_entities
+	for raw in state.entities:
+		if not visible_ids.has(int(raw.target)): raw.target=0
+	var visible_projectiles: Array=[]
+	for raw in state.projectiles:
+		var cell:=grid.cell(Vector2(raw.pos[0],raw.pos[1]))
+		if not grid.inside(cell) or fog[owner][cell.y*grid.width+cell.x]==0: continue
+		if not visible_ids.has(int(raw.target)): raw.target=0; raw.last=raw.pos.duplicate()
+		visible_projectiles.append(raw)
+	state.projectiles=visible_projectiles
+	state.view_owner=owner
+	state.credits[1-owner]=0.0
+	state.stats=side_stats[owner].duplicate(true)
+	state.side_stats=[{},{}]
+	state.side_stats[owner]=state.stats.duplicate(true)
+	state.side_stats[1-owner]={"gathered":0.0,"produced":0,"lost":0,"kills":0,"built":0,"buildings_lost":0}
+	state.explored[1-owner]=Array(fog[owner].duplicate())
+	state.explored[1-owner].fill(0)
+	state.known[1-owner]={}
+	state.viewer_fog=Array(fog[owner])
+	state.rng_state="0"; state.ai_state="DUELL"; state.ai_timer=0.0
+	state.ai_scout_index=0; state.ai_production_timer=0.0; state.base_alarm=0.0
+	state.combat_heat=0.0; state.triggered_waves={}; state.objective_announced={}
+	state.next_id=1
+	for raw in visible_entities: state.next_id=maxi(state.next_id,int(raw.id)+1)
+	for key in state.resources:
+		var parts:=str(key).split(",")
+		var cell:=Vector2i(int(parts[0]),int(parts[1]))
+		if explored[owner][cell.y*grid.width+cell.x]==0: state.resources[key]=0.0
+	state.result="" if winner<0 else ("victory" if winner==owner else "defeat")
+	return state

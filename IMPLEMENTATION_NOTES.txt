@@ -1,0 +1,37 @@
+SOLARIT: RANDSEKTOR 07 0.20 – Veyra-Front
+02.10.2026
+
+Umgesetzt in diesem Paket:
+- 3 spielbare Missionen in der Einsatzvorbereitung
+  01 Das Veyra-Becken
+  02 Die trockene Ader
+  03 Engpass Khepri
+- Missionsauswahl direkt in der Einsatzvorbereitung
+- Mehrere kombinierbare Primärziele
+- Neue Zieltypen: harvest_amount, build_structure, survive, destroy_all
+- Schutzziele bleiben Niederlagebedingungen
+- Zielerfüllung wird gelatcht und im Spielstand erhalten
+- Mission 03 mit sechs echten, zeitgesteuerten Angriffswellen
+- Wellenstärke unterscheidet Ruhig / Ausgewogen / Entschlossen
+- Wellenfortschritt wird gespeichert und nicht doppelt ausgelöst
+- Neue Karten mit deutlich stärkerer Terrainvariation
+- Mission 02/03 mit persistenten Start-Ruinen und Kratern als rein visuellen Details
+- Dynamischer Missionszieltext im HUD
+- Missionsspezifische Briefings, Startmeldungen, Hinweise und Abschlussüberschriften
+- Nach Sieg kann direkt zum nächsten Einsatz gewechselt werden
+- Save-Load wählt automatisch die zum Spielstand passende Mission
+- Version auf 0.20 angehoben
+- Neuer Test tests/mission_system.gd und Test-Solarit.ps1 erweitert
+
+Validierung in der Übergabeumgebung:
+- alle JSON-Dateien syntaktisch geprüft
+- Missionsreferenzen (Gebäude, Einheiten, Ziele, Wellen) geprüft
+- Kartenkoordinaten und Referenzen statisch geprüft
+- Versionshistorie / Exportversion geprüft
+- Klammerstruktur der geänderten GDScript-Dateien geprüft
+
+Hinweis:
+Die Godot-Laufzeitdateien wurden im kompakten Handoff bewusst nicht mitgeliefert.
+Darum konnte die native Godot-Testsuite hier nicht ausgeführt werden. Auf dem
+Entwicklungsrechner bitte .\Test-Solarit.ps1 ausführen; mission_system ist bereits
+in die Suite aufgenommen.

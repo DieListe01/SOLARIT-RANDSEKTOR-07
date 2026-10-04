@@ -56,6 +56,9 @@ func run() -> void:
 	game=load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	await process_frame
+	game.commander_profile.path = "user://ui_commander_profile.json"
+	game.commander_profile.load_profile()
+	game.commander_profile.set_nickname("DIRK")
 	game.skip_intro()
 	await create_timer(0.8).timeout
 	check(not game.playing,"Main menu opens")

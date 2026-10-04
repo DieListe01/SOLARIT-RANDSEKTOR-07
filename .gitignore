@@ -8,3 +8,13 @@ test-output/
 *.tmp
 /data/update_channel.json
 /data/update_channel.json
+
+# Local delivery archives and generated handoff files
+/*.zip
+/dir.txt
+/_FILELIST.txt
+/_HANDOFF_INFO.txt
+/handoff/
+/uebergabe.ps1
+/tools/_sc_
+__pycache__/

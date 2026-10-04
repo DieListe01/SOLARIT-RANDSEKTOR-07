@@ -4,15 +4,15 @@ Dabei stütze ich ihn auf den aktuellen Stand: Die vorhandene Spezifikation ford
 
 ---
 
-# PROMPT – ASHLINE  
-## Warcraft-3 Readability & Persistent Destruction Pass  
+# PROMPT – SOLARIT: RANDSEKTOR 07
+## Warcraft-3 Readability & Persistent Destruction Pass
 ### Ziel: stärkere Silhouetten, mehr räumliche Tiefe, dauerhafte Schlachtspuren, hochwertigeres RTS-Gefühl
 
 Du arbeitest am bestehenden Projekt:
 
-**ASHLINE**
+**SOLARIT: RANDSEKTOR 07**
 
-Der aktuelle Stand ist funktional weit fortgeschritten.  
+Der aktuelle Stand ist funktional weit fortgeschritten.
 Die bestehenden Systeme für:
 
 - Basisbau
@@ -37,7 +37,7 @@ Dieser Pass ist ein **visueller Qualitäts-, Lesbarkeits- und Persistenz-Pass**.
 
 Das Ziel ist nicht mehr „Feature hinzufügen“, sondern:
 
-> **Vorhandene Systeme so veredeln, dass ASHLINE wie ein hochwertig produziertes klassisches RTS wirkt und nicht wie ein fortgeschrittener Prototyp.**
+> **Vorhandene Systeme so veredeln, dass SOLARIT: RANDSEKTOR 07 wie ein hochwertig produziertes klassisches RTS wirkt und nicht wie ein fortgeschrittener Prototyp.**
 
 ---
 
@@ -63,7 +63,7 @@ Gemeint sind ausschließlich Designprinzipien:
 - starke visuelle Hierarchie
 - klar lesbare Kämpfe
 
-Die Welt von ASHLINE bleibt:
+Die Welt von SOLARIT: RANDSEKTOR 07 bleibt:
 
 - Sci-Fi
 - Wüste
@@ -264,7 +264,7 @@ Elemente:
 
 # 6. MEHR VERTIKALE TIEFE
 
-ASHLINE ist weiterhin 2D.
+SOLARIT: RANDSEKTOR 07 ist weiterhin 2D.
 
 Aber Gebäude und Fahrzeuge dürfen stärker nach Höhe aussehen.
 
@@ -1242,28 +1242,28 @@ Ein Screenshot nach einem Gefecht soll zeigen:
 
 Ab jetzt:
 
-PRIORITÄT 1  
+PRIORITÄT 1
 Gebäudesilhouetten
 
-PRIORITÄT 2  
+PRIORITÄT 2
 Einheitenmasse / Lesbarkeit
 
-PRIORITÄT 3  
+PRIORITÄT 3
 Persistent Destruction
 
-PRIORITÄT 4  
+PRIORITÄT 4
 Ruinen / Wracks / Krater
 
-PRIORITÄT 5  
+PRIORITÄT 5
 größere Terrain-Makroformen
 
-PRIORITÄT 6  
+PRIORITÄT 6
 Schatten / vertikale Tiefe
 
-PRIORITÄT 7  
+PRIORITÄT 7
 Animation / Industrieaktivität
 
-PRIORITÄT 8  
+PRIORITÄT 8
 weiteres Feintuning
 
 ---
@@ -1460,7 +1460,7 @@ Dieser Pass gilt erst als abgeschlossen, wenn:
 
 # 67. ENDBILD
 
-ASHLINE soll nach diesem Pass nicht nur während eines Kampfes spektakulär wirken.
+SOLARIT: RANDSEKTOR 07 soll nach diesem Pass nicht nur während eines Kampfes spektakulär wirken.
 
 Es soll auch **danach** interessant aussehen.
 
@@ -1480,4 +1480,4 @@ Kein Neustart.
 
 Kein Prototyp-Pass.
 
-Dies ist ein gezielter Qualitäts-Pass auf dem bestehenden ASHLINE-Stand.
+Dies ist ein gezielter Qualitäts-Pass auf dem bestehenden SOLARIT: RANDSEKTOR 07-Stand.

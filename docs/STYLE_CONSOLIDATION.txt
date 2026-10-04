@@ -1,0 +1,467 @@
+PROMPT – SOLARIT: RANDSEKTOR 07 Style Consolidation Pass
+Warcraft-3-Lesbarkeit + Dune-Wüste + Retro-Sci‑Fi + sichtbare Zerstörung
+Du arbeitest am Projekt:
+SOLARIT: RANDSEKTOR 07
+SOLARIT: RANDSEKTOR 07 ist ein modernes Retro-RTS mit klassischem Basisbau, Ressourcenabbau, Fahrzeugproduktion, Kampf, Fog of War, Minimap und späterer Multiplayer-Unterstützung.
+WICHTIGER KONTEXT
+Im Ordner
+I:\Projekte\Spiele\Dune2\docs
+liegen bereits Projekt- und Richtungsdokumente.
+Nutze diese als verbindlichen Kontext und Source of Truth, insbesondere:
+- SPECIFICATION.txt
+- ROADMAP.md
+- QA.md
+- VISUAL_DIRECTION.txt
+- VISUAL_POLISH_PASS_2.txt
+- ART_AND_ARCHITECTURE.txt
+- COLOR_AND_IDENTITY.txt
+- combat-vfx-request.txt
+Diese Dokumente sollen nicht ignoriert, sondern konsistent weitergeführt und praktisch umgesetzt werden.
+Die neue Aufgabe ist kein kompletter Neustart, sondern ein gezielter großer Stil-, Lesbarkeits- und Präsentations-Pass.
+1. HAUPTZIEL
+SOLARIT: RANDSEKTOR 07 soll sich visuell und spielerisch deutlich stärker anfühlen wie:
+- ein hochwertiges klassisches RTS,
+- mit klarer Lesbarkeit ähnlich Warcraft 3,
+- mit warmer, trockener, Dune-artiger Wüstenstimmung,
+- mit eigenständiger Sci‑Fi-Identität,
+- mit spektakuläreren Effekten,
+- mit klar sichtbarer Zerstörung von Einheiten und Gebäuden.
+WICHTIG:
+Das Spiel soll nicht wie Warcraft 3 kopiert aussehen.
+Es soll auch nicht wie Dune direkt kopiert aussehen.
+Stattdessen soll es sein:
+Dune-artige Wüsten-Atmosphäre + Warcraft-3-Lesbarkeit + Retro-Sci‑Fi + eigener Stil
+
+2. VISUELLE LEITIDEE
+SOLARIT: RANDSEKTOR 07 soll folgende Eigenschaften vermitteln:
+- heiß
+- trocken
+- staubig
+- mineralisch
+- strategisch
+- industriell
+- technisch
+- kriegerisch
+- atmosphärisch
+- lesbar
+Die Welt soll nicht steril oder prototypisch wirken.
+Sie soll nach echter Spielwelt aussehen.
+3. WARCRAFT-3-PRINZIPIEN, DIE ÜBERNOMMEN WERDEN SOLLEN
+Es geht nicht um Fantasy, sondern um Designprinzipien.
+Übernehme gezielt folgende Qualitäten:
+3.1 Lesbarkeit
+- Einheiten und Gebäude müssen sofort erkennbar sein
+- Rollen müssen auf einen Blick verständlich sein
+- Fraktionen müssen sofort unterscheidbar sein
+- Kämpfe müssen auch bei mehreren Einheiten lesbar bleiben
+3.2 Starke Silhouetten
+- Jede Einheit braucht eine klare Form
+- Jedes Gebäude braucht eine starke Grundsilhouette
+- Gebäude dürfen nicht nur quadratische Kästen mit kleinen Unterschieden sein
+3.3 Räumliche Wirkung
+- Terrain, Gebäude und Einheiten müssen mehr Tiefe haben
+- stärkere Schatten
+- bessere Trennung von Boden und Objekt
+- klarere Volumenwirkung
+3.4 Sichtbare Aktivität
+- Gebäude wirken lebendig
+- Einheiten wirken aktiv
+- Effekte vermitteln Dynamik
+- Karte fühlt sich „bewohnt“ und aktiv an
+3.5 Deutliches Feedback
+- Treffer müssen sichtbar sein
+- Bau muss sichtbar sein
+- Zerstörung muss sichtbar sein
+- Alarmzustände müssen sichtbar sein
+4. DUNE-ARTIGE QUALITÄTEN, DIE ÜBERNOMMEN WERDEN SOLLEN
+Nicht Kopie, sondern Stimmung.
+SOLARIT: RANDSEKTOR 07 soll eine stärkere Wüsten-/Grenzplaneten-Atmosphäre haben:
+- warme Ocker- und Sandtöne
+- braune, staubige Felsflächen
+- trockene Hitze
+- raues Terrain
+- wertvolle Ressourcenfelder
+- isolierte Basen in feindlicher Umgebung
+- harsche Frontgefühl
+- industrieller Koloniecharakter
+5. ZWEI DARSTELLUNGSMODI BLEIBEN VERBINDLICH
+5.1 Modern Retro
+- Full HD Standard
+- detailreicher
+- plastischer
+- stärkere Schatten
+- atmosphärischer
+- mehr VFX
+- mehr Materialität
+5.2 Classic Retro
+- gleiche Welt
+- gleiche Lesbarkeit
+- gleiche Informationen
+- gleiche Fraktionslogik
+- gleiche Zerstörung
+- gleiche Effekte in pixeliger Form
+Retro-Modus bedeutet:
+dieselbe reichhaltige Welt in echter Pixelästhetik
+
+Nicht:
+reduzierte Billigversion
+
+6. FARBWELT
+6.1 Welt
+Die Welt soll warm und trocken wirken.
+Verwende vor allem:
+- Ocker
+- Terrakotta
+- warmes Braun
+- Staubgrau
+- verbranntes Orange
+- warme Felsfarben
+- dunkle Braun-/Anthrazit-Schatten
+6.2 Ressourcen
+Ressourcen dürfen kühl kontrastieren:
+- Aquamarin
+- Türkis
+- helles Cyan
+- kristallin
+- leuchtend
+- wertvoll
+6.3 Spielerfraktion
+- Cyan / Türkis
+- technisch
+- sauberer
+- industriell stabil
+6.4 Feindfraktion
+- Rot / Orange-Rot / rostiges Rot
+- aggressiver
+- heißer
+- gefährlicher
+7. FREUND-/FEIND-ERKENNUNG
+Das muss massiv verbessert bzw. konsequent beibehalten werden.
+Freund und Feind müssen innerhalb von unter einer Sekunde erkennbar sein.
+7.1 Nicht nur über Healthbars
+Die Unterscheidung darf nicht nur über Healthbars laufen.
+7.2 Teamfarbe sichtbar auf:
+- Fahrzeugpanzerung
+- Dachflächen
+- Turmsegmente
+- Seitenplatten
+- Gebäudeakzente
+- Auswahlringe
+- UI-Auswahlbereich
+- Minimap
+- Marker
+7.3 Unterschiedliche Formsprache
+Zusätzlich zu Farbe:
+- Spielerfraktion: robuster, blockiger, industrieller
+- Feindfraktion: aggressiver, kantiger, schärfer, gefährlicher
+8. TERRAIN STÄRKER AUSBAUEN
+Das Terrain soll dichter und lebendiger werden.
+8.1 Mikrodetails
+- kleine Steine
+- Geröll
+- Bodenrisse
+- Staubspuren
+- Abrieb
+- kleine Metallreste
+- dunkle Flecken
+- verbrannte Stellen
+- mineralische Adern
+8.2 Makrodetails
+- größere Felszonen
+- Krater
+- Sandverwehungen
+- Schrottfelder
+- Engstellen
+- Geländekanten
+- alte Fahrspuren
+- trockene Becken
+8.3 Übergänge
+- Sand zu Fels weicher und organischer
+- Ressourcenfelder besser eingebettet
+- keine zu harten Flächenwechsel
+9. GEBÄUDE DEUTLICH CHARAKTERVOLLER
+Gebäude müssen funktional und visuell klarer werden.
+9.1 Jedes Gebäude braucht eigene Silhouette
+Beispiel:
+- Baukern: zentrales Kommando
+- Kraftwerk: Energie, Hitze, Kühlung
+- Raffinerie: Materialfluss, Tanks, Verarbeitung
+- Fahrzeugwerk: Tor, Halle, Produktion
+- Radar: Scan-/Antennencharakter
+- Verteidigung: Waffe klar sichtbar
+- Servicehangar: Wartungslogik
+9.2 Gebäudedetails
+- Panels
+- Lüfter
+- Rohre
+- Kühlrippen
+- Statusleuchten
+- Warnmarkierungen
+- Fraktionsakzente
+- Fundamente
+- Verschmutzung
+- Staubeinlagerung
+9.3 Idle-Animationen
+- blinkende Lichter
+- drehende Lüfter
+- Hitzeflimmern
+- kurze mechanische Bewegungen
+- kleine Rauch- oder Dampfeffekte
+10. EINHEITEN MASSIVER UND LESBARER
+Einheiten sollen mehr Charakter und Gewicht bekommen.
+10.1 Jede Klasse klar erkennbar
+- Scout
+- Harvester
+- Tank
+- Belagerungsfahrzeug
+- Raketenfahrzeug
+- Spezialfahrzeug
+10.2 Silhouette
+- eindeutige Front
+- eindeutiges Heck
+- klare Waffenposition
+- klarer Fahrgestell-Typ
+- klarer Größenunterschied
+10.3 Gewicht
+Vor allem Panzer und Harvester sollen schwerer wirken:
+- mehr Schatten
+- mehr Volumen
+- stärkere Massewirkung
+- klarere Panzerplatten
+- stärkere Bodeneinbettung
+11. BAU MUSS VIEL BESSER AUSSEHEN
+Bauen soll ein visuell belohnender Vorgang sein.
+11.1 Platzierung
+- Ghost Preview / Hologramm
+- gültig / ungültig klar lesbar
+11.2 Bauphasen
+- Fundament
+- Montage
+- Energieaufbau
+- Online-Schaltung
+11.3 Bau-VFX
+- Funken
+- Staub
+- Lichtimpulse
+- Montageeffekte
+- kurze Bauprojektions-/Hologramm-Effekte
+- Fertigstellung mit sichtbarem Aktivierungsimpuls
+12. SPEKTAKULÄRERE EFFEKTE
+Das Spiel soll sicht- und fühlbar „krachen“.
+12.1 Kampf
+- Mündungsfeuer
+- Projektilspuren
+- Treffer-Funken
+- Staub
+- Einschlagblitze
+- kleine und große Explosionen
+- Rauch
+12.2 Bewegung
+- Staubspuren
+- Bremsstaub
+- Anfahrreaktion
+- Hover-/Kettencharakter je Einheit
+12.3 Umgebung
+- Hitzeflimmern
+- subtile Staubpartikel
+- Wärmegefühl
+13. SICHTBARE ZERSTÖRUNG – SEHR WICHTIG
+Das ist ein Kernziel dieses Passes.
+Der Spieler möchte sehen, dass ein Fahrzeug oder Gebäude zerstört wurde.
+13.1 Gebäudezerstörung
+Gebäude dürfen nicht einfach verschwinden.
+Gebäudezerstörung muss sichtbar mehrstufig sein:
+Damage States
+- Healthy
+- Damaged
+- Critical
+- Destroyed
+Sichtbar bei Schaden
+- Rauch
+- Funken
+- Flackerlichter
+- Feuer
+- beschädigte Panels
+- dunklere Brandspuren
+Beim finalen Tod
+- Lichtblitz
+- Hauptdetonation
+- Staubwolke
+- Rauch
+- Trümmer
+- Ruine / Wrackrest / zerstörter Gebäudesockel
+Ein zerstörtes Gebäude soll sichtbar als zerstört auf der Karte zurückbleiben, zumindest für eine sinnvolle Zeit.
+13.2 Fahrzeugzerstörung
+Fahrzeuge dürfen nicht einfach sofort verschwinden.
+Beim Tod:
+- Trefferblitz
+- Explosion
+- Rauch
+- kleine Trümmer
+- optional Wrack
+- dunkle verbrannte Bodenmarkierung
+13.3 Wichtige Regel
+Der Spieler soll nach einem Kampf erkennen können:
+- hier wurde geschossen
+- hier ist etwas zerstört worden
+- hier stand ein Gebäude
+- hier ist ein Wrack
+14. ZERSTÖRUNG JE NACH OBJEKTTYP SKALIEREN
+Nicht jede Explosion darf gleich aussehen.
+14.1 Kleines Fahrzeug
+- kleiner Flash
+- kurze Explosion
+- etwas Rauch
+14.2 Panzer
+- größere Explosion
+- Rauch
+- Trümmer
+- Wrack möglich
+14.3 Belagerungsfahrzeug
+- deutlich größere Explosion
+- stärkerer Rauch
+- schwerer Impact
+14.4 Kleines Gebäude
+- Funken
+- Staub
+- Rauch
+- Ruinenbasis
+14.5 Großes / zentrales Gebäude
+- mehrere kleine Vor-Explosionen
+- größere Hauptdetonation
+- mehr Staub
+- mehr Rauch
+- deutlich sichtbare Ruine
+15. KAMPF WIE ECHTES RTS, NICHT STERIL
+Kämpfe sollen nicht nur aus HP-Verlust bestehen.
+Ein Tank-Schuss soll sichtbar machen:
+- wer schießt
+- wohin geschossen wird
+- wo getroffen wird
+- wie stark der Treffer ist
+- ob das Ziel beschädigt oder zerstört wurde
+16. MINIMAP UND UI
+16.1 Minimap
+Die Minimap soll sehr klar bleiben:
+- Player = Cyan
+- Enemy = Rot/Orange
+- Ressourcen klar erkennbar
+- Kameraausschnitt sichtbar
+- Pings / Alerts sichtbar
+16.2 UI
+UI darf warm und dunkel bleiben, aber:
+- klarere Buttonzustände
+- bessere Produktionslesbarkeit
+- deutlichere Active/Hover/Disabled-Zustände
+- Alerts mit besserem Feedback
+17. MULTIPLAYER-READY BLEIBT PFLICHT
+Die Architektur muss weiterhin auf späteren Multiplayer vorbereitet sein.
+17.1 Commands
+Spieleraktionen weiterhin als Commands modellieren:
+- Move
+- Attack
+- Build
+- Produce
+- Harvest
+- Stop
+- Rally
+- Repair
+17.2 Ownership
+Jede Entity benötigt weiterhin:
+- owner_id
+- team_id
+- faction_id
+17.3 Teamfarben
+Teamfarben nicht fest in Assets backen.
+Verwende Team-Color-Masks / dynamische Färbung.
+17.4 VFX
+Effekte sind visuell, nicht gameplaybestimmend.
+Sie entstehen aus Gameplay-Events und nicht umgekehrt.
+18. REFERENZRICHTUNG FÜR ART STYLE
+SOLARIT: RANDSEKTOR 07 soll nicht wie Warcraft 3 selbst aussehen.
+Aber folgende Richtung soll genutzt werden:
+Von Warcraft 3 übernehmen:
+- klare Lesbarkeit
+- starke Silhouetten
+- plastische Welt
+- deutliche Teamfarben
+- sichtbare Aktivität
+- gute Trennung von Einheit/Gebäude/Terrain
+- gut lesbare Kämpfe
+Von detailreicher Pixel-Art übernehmen:
+- Oberflächenmaterialität
+- Detaildichte
+- handgemalter Charakter
+- sichtbare Textur
+- klare Licht-/Schattenstruktur
+Ergebnis:
+Warcraft-3-Lesbarkeit + Dune-Wüste + Retro-Sci‑Fi + Pixel-Materialität
+
+19. SOFORTIGE UMSETZUNGSREIHENFOLGE
+Arbeite in dieser Reihenfolge:
+Phase A – Lesbarkeit
+1. Freund-/Feind-Farbtrennung prüfen und verbessern
+2. Teamfarben auf Gebäuden und Einheiten deutlicher machen
+3. Silhouetten von Einheiten und Gebäuden schärfen
+4. Minimap-Lesbarkeit sichern
+Phase B – Gebäude / Units
+5. Gebäudesilhouetten funktional differenzieren
+6. Einheiten massiver und klarer machen
+7. Terrain-Makrodetails ergänzen
+8. Idle-Animationen ergänzen
+Phase C – Bau / Kampf / Effekte
+9. Bauanimationen verbessern
+10. Mündungsfeuer verbessern
+11. Projektil- und Trefferfeedback verbessern
+12. Rauch, Staub, Impact-Effekte ergänzen
+Phase D – Zerstörung
+13. Damage States für Gebäude umsetzen
+14. sichtbare Zerstörung für Gebäude umsetzen
+15. Wracks / Ruinen / Restzustände umsetzen
+16. Fahrzeugzerstörung sichtbarer machen
+Phase E – Polish
+17. UI-Feedback verbessern
+18. Fog of War veredeln
+19. Retro-Modus auf Gleichwertigkeit prüfen
+20. alles praktisch testen
+20. QUALITY GATE – SICHTBARE ZERSTÖRUNG
+Ein Gebäude/Fahrzeug gilt erst dann als gut umgesetzt, wenn:
+- man Beschädigung sieht
+- man kritischen Zustand sieht
+- man Zerstörung sieht
+- man nach der Zerstörung einen Rest / Nachweis wahrnimmt
+- das Ganze sich belohnend anfühlt
+- es nicht nur verschwindet
+Wenn ein Gebäude zerstört wird und man im nächsten Moment kaum erkennt, dass dort etwas war, ist die Arbeit nicht fertig.
+21. QUALITY GATE – SCREENSHOT
+Ein Screenshot soll ohne Erklärung bereits zeigen:
+- warme Wüstenwelt
+- klare Ressource
+- klare eigene Basis
+- klare eigene Einheiten
+- klare Gegner
+- sichtbare Aktivität
+- sichtbare Kampfwirkung
+- sichtbare Zerstörung, wenn etwas zerstört wurde
+22. QUALITY GATE – GAME FEEL
+Das Spielgefühl soll vermitteln:
+- Bau macht Spaß
+- Produktion ist klar
+- Kämpfe haben Wucht
+- Treffer haben Feedback
+- Zerstörung lohnt sich visuell
+- Welt wirkt lebendig
+- Basis fühlt sich wie eine richtige Anlage an
+23. ABSCHLUSSREGEL
+Füge nicht sofort wieder viele neue Inhalte hinzu, solange der Kern nicht auf diesem Qualitätsniveau ist.
+Zuerst auf Zielniveau bringen:
+- Lesbarkeit
+- Stil
+- Teamfarben
+- Terrain
+- Gebäude
+- Einheiten
+- Baugefühl
+- Kampfgefühl
+- sichtbare Zerstörung
+Erst danach weitere Inhalte ausbauen.

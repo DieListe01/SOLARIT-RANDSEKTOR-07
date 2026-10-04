@@ -11,7 +11,7 @@ func sample(label_value: String) -> void:
  durations.sort()
  var total := 0.0
  for value in durations: total+=value
- print("ASHLINE RENDER %s: average %.2f ms; p95 %.2f ms; %.1f FPS; draw calls %d" % [label_value,total/90.0,durations[85],90000.0/total,Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
+ print("SOLARIT: RANDSEKTOR 07 RENDER %s: average %.2f ms; p95 %.2f ms; %.1f FPS; draw calls %d" % [label_value,total/90.0,durations[85],90000.0/total,Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
 func run() -> void:
  var game = load("res://scenes/main.tscn").instantiate()
  root.add_child(game); await process_frame
