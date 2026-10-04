@@ -10,7 +10,12 @@ if not all(part.isdigit() for part in version.split('.')):
 build = root/'build'
 with zipfile.ZipFile(build/f'ASHLINE-{version}-Windows.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
     for name in ['ASHLINE.exe','Spielstart.txt','LICENSE','THIRD_PARTY_NOTICES.md','GODOT-LICENSES.txt']:
-        archive.write(build/name, name)
+        source = build/name
+        if not source.is_file():
+            source = root/name
+        if not source.is_file():
+            raise SystemExit(f'Required release file is missing: {name}')
+        archive.write(source, name)
 path=build/f'ASHLINE-{version}-Windows.zip'
 with zipfile.ZipFile(path) as archive:
     assert archive.testzip() is None
