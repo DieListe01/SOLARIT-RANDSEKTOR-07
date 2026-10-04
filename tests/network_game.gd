@@ -144,10 +144,11 @@ func on_snapshot(snapshot: Dictionary) -> void:
 			await create_timer(0.025).timeout
 		if not check(authoritative_report_received,"host sends the full versioned match report to the duel client"): return
 		await create_timer(0.12).timeout
-		surface.render_target_update_mode=SubViewport.UPDATE_ONCE
-		game.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
-		RenderingServer.force_draw(false)
-		surface.get_texture().get_image().save_png("res://test-output/network-duel-victory.png")
+		if DisplayServer.get_name() != "headless":
+			surface.render_target_update_mode=SubViewport.UPDATE_ONCE
+			game.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
+			RenderingServer.force_draw(false)
+			surface.get_texture().get_image().save_png("res://test-output/network-duel-victory.png")
 		game.online.request_rematch()
 
 func finish_client() -> void:
@@ -161,10 +162,11 @@ func finish_client() -> void:
 	game.toggle_chat()
 	await process_frame
 	await create_timer(0.12).timeout
-	surface.render_target_update_mode=SubViewport.UPDATE_ONCE
-	game.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
-	RenderingServer.force_draw(false)
-	surface.get_texture().get_image().save_png("res://test-output/network-duel-chat.png")
+	if DisplayServer.get_name() != "headless":
+		surface.render_target_update_mode=SubViewport.UPDATE_ONCE
+		game.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
+		RenderingServer.force_draw(false)
+		surface.get_texture().get_image().save_png("res://test-output/network-duel-chat.png")
 	probe.rpc_id(1,"confirm")
 	print("NETWORK GAME CLIENT: %d checks; %d filtered snapshots; chat and rematch verified"%[checks,snapshots])
 	await create_timer(0.3).timeout

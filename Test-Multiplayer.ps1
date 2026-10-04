@@ -12,7 +12,7 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
     try {
         foreach ($role in @('host', 'client')) {
             $arguments = @('--path', ('"{0}"' -f $gameRoot), '--script', $Script, '--audio-driver', 'Dummy')
-            if ($Headless) { $arguments += '--headless' }
+            if ($Headless) { $arguments += @('--headless', '--rendering-method', 'gl_compatibility') }
             else { $arguments += @('--rendering-method', 'gl_compatibility', '--windowed', '--resolution', '1280x720') }
             $arguments += @('--', $role, $TestPort)
             $launch = @{
@@ -71,7 +71,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Duell-Regeltests fehlgeschlagen' }
         Invoke-PeerTest 'tests/network_roundtrip.gd' $Port 'network' $true
     }
-    if (-not $SkipUI) { Invoke-PeerTest 'tests/network_game.gd' ($Port + 1) 'network-game' $false }
+    if (-not $SkipUI) { Invoke-PeerTest 'tests/network_game.gd' ($Port + 1) 'network-game' ($env:CI -eq 'true') }
 } finally {
     $env:APPDATA = $previousAppData
     $env:LOCALAPPDATA = $previousLocalAppData

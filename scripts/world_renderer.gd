@@ -297,7 +297,8 @@ func _ready() -> void:
 	terrain_sprite.centered=false; terrain_sprite.z_index=-3
 	terrain_sprite.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 	var material := ShaderMaterial.new()
-	material.shader=load("res://assets/terrain.gdshader")
+	if DisplayServer.get_name() != "headless":
+		material.shader=load("res://assets/terrain.gdshader")
 	terrain_sprite.material=material
 	add_child(terrain_sprite)
 	terrain_detail=Sprite2D.new()
