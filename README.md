@@ -113,7 +113,7 @@ Das Build-Werkzeug lädt ausschließlich das Windows-Release-Template aus dem of
 
 ## Installer, GitHub-Releases und Updates
 
-Der Workflow `.github/workflows/release-windows.yml` prüft Tests und Versionsnummer, exportiert die Windows-EXE, erstellt portable Archive und einen per Benutzer installierbaren Installer. Ein Tag wie `v0.35` veröffentlicht diese Dateien als GitHub Release. Beim Release wird der Repositorypfad in den Build eingebettet; installierte Windows-Versionen prüfen im Hauptmenü einmal pro Start auf neue Releases. Ein Installer wird erst nach SHA-256-Prüfung gestartet. Ein manuelles Starten des Installers bleibt im Updatefenster ausdrücklich bestätigt. Details und Einrichtung stehen in `docs/RELEASING.md`.
+Der private Quellcode liegt in `DieListe01/ASHLINE`. Der Workflow `.github/workflows/release-windows.yml` prüft Tests und Versionsnummer und baut einen Windows-Installer. Öffentlich erscheinen ausschließlich Installer, Prüfsumme und Update-Manifest im separaten Repository `DieListe01/ASHLINE-Releases`; der Updater prüft diesen Feed einmal pro Start. Ein Installer wird erst nach SHA-256-Prüfung gestartet und nur nach ausdrücklicher Bestätigung geöffnet. Details und Einrichtung stehen in `docs/RELEASING.md`.
 
 Der Multiplayer ist noch nicht implementiert. `docs/MULTIPLAYER-ARCHITECTURE.md` beschreibt den empfohlenen Weg: zuerst Koop mit autoritativem Host und geprüften Befehlen, dann Zustandskorrektur und Wiederverbindung. Die lokale Simulation nimmt bereits Befehle zentral an; Lobby und Netzwerktransport fehlen weiterhin.
 

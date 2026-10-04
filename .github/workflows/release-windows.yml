@@ -6,7 +6,7 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -52,7 +52,7 @@ jobs:
       - name: Embed release channel
         shell: pwsh
         run: |
-          $channel = @{ format_version = 1; repository = $env:GITHUB_REPOSITORY; installer_prefix = 'ASHLINE-Setup-'; check_interval_hours = 24 }
+          $channel = @{ format_version = 1; repository = 'DieListe01/ASHLINE-Releases'; installer_prefix = 'ASHLINE-Setup-'; check_interval_hours = 24 }
           $channel | ConvertTo-Json | Set-Content -Encoding utf8 data/update_channel.json
 
       - name: Export Windows game
@@ -87,16 +87,22 @@ jobs:
           $manifest = @{ version = $env:ASHLINE_VERSION; installer = $installer.Name; sha256 = $hash }
           $manifest | ConvertTo-Json | Set-Content -Encoding utf8 "build/ASHLINE-$env:ASHLINE_VERSION-release.json"
           "$hash  $($installer.Name)" | Set-Content -Encoding ascii "$($installer.FullName).sha256"
+          $history = Get-Content data/update_history.json -Raw | ConvertFrom-Json
+          $entry = $history.entries | Where-Object { $_.version -eq $env:ASHLINE_VERSION } | Select-Object -First 1
+          if ($null -eq $entry) { throw 'Release notes are missing from data/update_history.json.' }
+          $notes = "# ASHLINE $($entry.version) — $($entry.title)`n`n" + (($entry.changes | ForEach-Object { "- $_" }) -join "`n")
+          Set-Content -Path 'build/release-notes.md' -Value $notes -Encoding utf8
 
-      - name: Publish GitHub Release
+      - name: Publish installer to public release feed
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.ASHLINE_RELEASE_TOKEN }}
         shell: pwsh
         run: |
-          gh release create $env:GITHUB_REF_NAME `
+          if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
+            throw 'Add the ASHLINE_RELEASE_TOKEN Actions secret. It needs Contents: Read and write access to DieListe01/ASHLINE-Releases.'
+          }
+          gh release create $env:GITHUB_REF_NAME --repo DieListe01/ASHLINE-Releases `
             "build/ASHLINE-Setup-$env:ASHLINE_VERSION.exe" `
             "build/ASHLINE-Setup-$env:ASHLINE_VERSION.exe.sha256" `
             "build/ASHLINE-$env:ASHLINE_VERSION-release.json" `
-            "build/ASHLINE-$env:ASHLINE_VERSION-Windows.zip" `
-            "build/ASHLINE-$env:ASHLINE_VERSION-Source.zip" `
-            --title "ASHLINE $env:ASHLINE_VERSION" --generate-notes
+            --title "ASHLINE $env:ASHLINE_VERSION" --notes-file 'build/release-notes.md'

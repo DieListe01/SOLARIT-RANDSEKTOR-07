@@ -6,7 +6,7 @@
       "date": "04.10.2026",
       "title": "Veröffentlichungen und Updatekanal",
       "changes": [
-        "Windows-Releases werden automatisiert mit Godot 4.7.2 gebaut, getestet und als portable ZIPs sowie Benutzer-Installer bereitgestellt.",
+        "Windows-Releases werden automatisiert mit Godot 4.7.2 getestet und als benutzerbezogener Installer veröffentlicht; Installer, SHA-256-Prüfsumme und Manifest liegen im öffentlichen Feed, der Quellcode bleibt privat.",
         "Das Hauptmenü kann neue GitHub-Versionen beim Start einmalig und jederzeit manuell prüfen.",
         "Installer werden nur nach Prüfung eines Release-Manifests und der SHA-256-Prüfsumme gestartet; Installation und Spielstände bleiben benutzerbezogen.",
         "Die Multiplayer-Grundlage definiert versionierte Befehle mit Sitzungs-, Spieler-, Sequenz- und Tickdaten sowie Zustands-Fingerprints für spätere Synchronisationsprüfungen."

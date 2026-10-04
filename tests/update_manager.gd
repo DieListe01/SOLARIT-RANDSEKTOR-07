@@ -11,7 +11,7 @@ func check(condition: bool, message: String) -> void:
 		push_error("UPDATE MANAGER: "+message)
 
 func _initialize() -> void:
-	check(Manager.repository_is_valid("DieListe01/ASHLINE"),"valid repository accepted")
+	check(Manager.repository_is_valid("DieListe01/ASHLINE-Releases"),"public binary feed repository accepted")
 	check(not Manager.repository_is_valid("https://github.com/DieListe01/ASHLINE"),"full URL rejected as repository identifier")
 	check(not Manager.repository_is_valid("DieListe01/../other"),"path traversal rejected")
 	check(not Manager.repository_is_valid("../ASHLINE"),"dot path segment rejected")
