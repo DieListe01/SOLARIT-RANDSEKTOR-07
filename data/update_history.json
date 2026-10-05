@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.5",
+  "current_version": "0.36.6",
   "entries": [
+    {
+      "version": "0.36.6",
+      "date": "05.10.2026",
+      "title": "Full HD als Mindestauflösung",
+      "changes": [
+        "Die Auflösungen 1280 × 720 und 1600 × 900 wurden aus den Anzeigeoptionen entfernt; Full HD ist jetzt die kleinste auswählbare Fenstergröße.",
+        "Gespeicherte Fenstergrößen unter Full HD werden beim Start automatisch auf 1920 × 1080 angehoben.",
+        "GitHub Actions baut das aktualisierte Windows-Setup und veröffentlicht es mit Prüfsumme und Update-Manifest."
+      ]
+    },
     {
       "version": "0.36.5",
       "date": "05.10.2026",

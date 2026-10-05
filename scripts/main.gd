@@ -4,6 +4,8 @@ const WORLD_RECT = Rect2(20,86,1530,944)
 const SAVE_PATH = "user://quick_save.json"
 const HIGHSCORE_PATH = "user://highscores.json"
 const CAMPAIGN_PATH = "user://campaign_progress.json"
+const MINIMUM_WINDOW_RESOLUTION := Vector2i(1920,1080)
+const WINDOW_RESOLUTIONS := [Vector2i(1920,1080),Vector2i(2560,1440),Vector2i(3840,2160)]
 const MISSION_PATHS := ["res://data/veyra.json","res://data/dry_vein.json","res://data/khepri_pass.json"]
 const OnlineSessionScript := preload("res://scripts/online_session.gd")
 const PlayerProfileScript := preload("res://scripts/player_profile.gd")
@@ -2838,14 +2840,20 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 		heading.call("ANZEIGE",18)
 		var classic_button := button(content,"CLASSIC RETRO · 640×360" if classic else "MODERN RETRO · FULL HD",Rect2(),func():set_classic(not classic); show_options(back,"BILD"))
 		row.call(30 if compact_options else 45,"Darstellungsstil","Pixelgenaue Retro-Skalierung oder modernes Full HD.",classic_button)
-		var resolutions := [Vector2i(1280,720),Vector2i(1600,900),Vector2i(1920,1080),Vector2i(2560,1440),Vector2i(3840,2160)]
+		var resolutions: Array = WINDOW_RESOLUTIONS
 		var resolution := OptionButton.new()
 		resolution.name="ResolutionSelect"
 		var matched := false
 		for i in resolutions.size():
 			resolution.add_item("%d × %d" % [resolutions[i].x,resolutions[i].y])
 			if get_window().size==resolutions[i]: resolution.select(i); matched=true
-		if not matched: resolution.add_item("Aktuell: %d × %d" % [get_window().size.x,get_window().size.y]); resolution.select(resolutions.size())
+		if not matched:
+			var active_size: Vector2i = get_window().size
+			if active_size.x < MINIMUM_WINDOW_RESOLUTION.x or active_size.y < MINIMUM_WINDOW_RESOLUTION.y:
+				active_size = MINIMUM_WINDOW_RESOLUTION
+				get_window().size = active_size
+				persist_settings()
+			resolution.add_item("Aktuell: %d × %d" % [active_size.x,active_size.y]); resolution.select(resolutions.size())
 		resolution.item_selected.connect(func(i):
 			if i<resolutions.size(): get_window().size=resolutions[i]; persist_settings())
 		row.call(77 if compact_options else 103,"Auflösung","Fenstergröße für die aktuelle Anzeige.",resolution)
@@ -2991,11 +2999,20 @@ func load_settings() -> void:
 		renderer.combat_fx.quality=clampi(int(save_config.get_value("video","effects",2)),0,2)
 		for action in hotkeys: hotkeys[action]=int(save_config.get_value("keys",action,hotkeys[action]))
 		var window := get_window()
-		window.size=save_config.get_value("video","resolution",Vector2i(1920,1080))
+		var saved_resolution: Vector2i = save_config.get_value("video","resolution",MINIMUM_WINDOW_RESOLUTION)
+		window.size = _normalize_window_resolution(saved_resolution)
+		if window.size != saved_resolution:
+			save_config.set_value("video","resolution",window.size)
+			save_config.save("user://settings.cfg")
 		window.mode=save_config.get_value("video","mode",Window.MODE_WINDOWED)
 		window.borderless=save_config.get_value("video","borderless",false)
 		set_classic(save_config.get_value("video","classic",false))
 	renderer.health_mode=health_mode
+
+static func _normalize_window_resolution(size: Vector2i) -> Vector2i:
+	if size.x < MINIMUM_WINDOW_RESOLUTION.x or size.y < MINIMUM_WINDOW_RESOLUTION.y:
+		return MINIMUM_WINDOW_RESOLUTION
+	return size
 
 func persist_settings() -> void:
 	save_config.set_value("audio","music",music.music_volume)

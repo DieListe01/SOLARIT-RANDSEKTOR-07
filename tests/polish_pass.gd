@@ -104,6 +104,8 @@ func run() -> void:
 	var resolution_option := options.find_child("ResolutionSelect",true,false) as OptionButton
 	var mode_option := options.find_child("WindowModeSelect",true,false) as OptionButton
 	check(resolution_option!=null and mode_option!=null,"Resolution and window mode remain available in the image tab")
+	check(resolution_option!=null and resolution_option.item_count==3 and resolution_option.get_item_text(0)=="1920 × 1080","Resolution options exclude sizes below Full HD")
+	check(game._normalize_window_resolution(Vector2i(1600,900))==Vector2i(1920,1080),"Previously saved sub-Full-HD window sizes migrate to Full HD")
 	# GitHub-hosted Windows runners have no interactive desktop; their virtual
 	# display can report exclusive fullscreen even after requesting windowed mode.
 	# Exercise the real OS transitions on local desktops where they are observable.
@@ -112,8 +114,8 @@ func run() -> void:
 		var original_mode: int=game.get_window().mode
 		var original_borderless: bool=game.get_window().borderless
 		resolution_option.select(0); resolution_option.item_selected.emit(0)
-		check(game.get_window().size==Vector2i(1280,720),"Resolution dropdown applies a new window size")
-		var original_resolution_index := 2
+		check(game.get_window().size==Vector2i(1920,1080),"Resolution dropdown applies Full HD")
+		var original_resolution_index := 0
 		for i in resolution_option.item_count:
 			if resolution_option.get_item_text(i)=="%d × %d" % [original_size.x,original_size.y]: original_resolution_index=i
 		resolution_option.select(original_resolution_index); resolution_option.item_selected.emit(original_resolution_index)
