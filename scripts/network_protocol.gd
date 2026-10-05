@@ -1,11 +1,11 @@
 extends RefCounted
 class_name NetworkProtocol
 
-const VERSION := 5
+const VERSION := 6
 const TICKS_PER_SECOND := 30
 const MAX_FUTURE_TICKS := 300
 const MAX_COMMAND_BYTES := 16384
-const COMMAND_TYPES := ["build","produce","cancel_produce","cancel_queue_at","prioritize_queue","upgrade","move","attack","attack_move","harvest","stop","hold","guard","rally","repair","return"]
+const COMMAND_TYPES := ["build","produce","cancel_produce","cancel_queue_at","prioritize_queue","move_queue","upgrade","move","attack","attack_move","harvest","stop","hold","guard","rally","repair","return"]
 
 static func create_command(session_id: String, player_id: int, sequence: int, target_tick: int, command: Dictionary) -> Dictionary:
 	return {

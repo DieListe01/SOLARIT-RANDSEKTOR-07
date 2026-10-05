@@ -61,7 +61,7 @@ Behoben: Kristallatlas-Kacheln wurden beim Generieren nicht an ihre Rasterpositi
 Fahrzeuggrafiken gecacht, Zählstands-LOD entfernt, Bewegung interpoliert, dynamische Ketten ergänzt, statische Bodendetails in sichtbare 16×16-Kacheln gebündelt und Fahrspuren zusammengefasst. 40 pausierte Fahrzeuge erreichen auf der RTX 3060 rund 51 FPS (vorher 5,9); 60 FPS und große bewegte Gefechte mit VFX bleiben offene Performanceziele. Gebäudegeometrie wird noch live gezeichnet.
 
 ## 0.18 — 02.10.2026
-Laufende FPS-Anzeige ergänzt und automatisches CSV-Protokoll für anhaltende Einbrüche unter 45 FPS. Protokolliert werden Einsatzzeit, Einbruchdauer, mittlere/minimale FPS, alle sowie sichtbare Fahrzeuge und Gebäude (eigene/feindliche), VFX, Zeichenaufrufe, Primitives und Prozesszeiten. Erholung ab 50 FPS schließt den Eintrag.
+Laufende FPS-Anzeige ergänzt und automatisches CSV-Protokoll erweitert: Warnung nach einer Sekunde unter 60 FPS, kritischer Eintrag nach 0,8 Sekunden unter 50 FPS, Messzeilen alle 0,4 Sekunden im Einbruch und Erholung nach einer stabilen Sekunde bei mindestens 60 FPS. Die stille Renderprofilierung startet automatisch am Warnschwellwert. `user://performance_events_v2.csv` erfasst Einheiten/Gebäude nach Seite und Sichtbarkeit, VFX-Unterarten, Draw Calls/Primitives, CPU-/Frame-/Renderzeit nach Teilpass sowie Cachegrößen, Warteschlangen und Treffer/Misses.
 
 ## 0.19 — 02.10.2026
 Nach einem Sieg wird eine missionseigene Top 10 mit Punktzahl, Zeit, Schwierigkeitsgrad, Fraktion und Datum gespeichert. Punktzahl und Rang stehen im Abschlussbildschirm; das Hauptmenü bietet die vollständige Bestenliste. Einsatzkennungen in Spielständen verhindern doppelte Siegesrekorde. Es gibt derzeit ein spielbares Level: Das Veyra-Becken.

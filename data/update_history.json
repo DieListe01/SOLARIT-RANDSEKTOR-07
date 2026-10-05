@@ -1,6 +1,17 @@
 {
-  "current_version": "0.36.2",
+  "current_version": "0.36.3",
   "entries": [
+    {
+      "version": "0.36.3",
+      "date": "05.10.2026",
+      "title": "Gefechtsübersicht und Schlachtfeld-Performance",
+      "changes": [
+        "Schlachtfeld und Einheiteninfos wurden für bessere Lesbarkeit geschärft; veraltete Auswahlhinweise und leere Infokarten werden zuverlässig entfernt.",
+        "Terrainverformung, Fahrzeugdarstellung und Kampfdetails wurden für Full HD optimiert. Bei starker Bildlast werden kurzlebige Mündungsdetails reduziert, während Projektile und Treffer-/Explosionseffekte erhalten bleiben.",
+        "FPS-Diagnose und Benchmark erfassen Einheiten, Gebäude, Effekte und Renderlast; der aktive 40-Einheiten-Test stieg auf dem dokumentierten RTX-3060-System von 34 auf 64 FPS.",
+        "Produktionspriorität, Gebäudekarten, ältere Spielstände und die taktische Kartenbegrenzung wurden korrigiert. Das Windows-Setup wird im bestehenden GitHub-Releasekanal mit Prüfsumme und Versionsmanifest bereitgestellt."
+      ]
+    },
     {
       "version": "0.36.2",
       "date": "04.10.2026",

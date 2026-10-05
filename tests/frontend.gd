@@ -34,7 +34,7 @@ func run() -> void:
 	check(game.intro_active and not game.playing,"Startup enters cinematic intro")
 	check(game.sim==null,"Intro never instantiates gameplay simulation")
 	check(game.music.frontend and game.music.frontend_player.playing,"Own title score starts on first launch")
-	check(absf(game.music.frontend_player.stream.get_length()-32)<0.1,"Full 32-second title theme")
+	check(absf(game.music.frontend_player.stream.get_length()-24)<0.1,"Full 24-second title theme")
 	game.intro_art.elapsed=4.7
 	await capture("intro_planet")
 	game.intro_art.elapsed=8.8

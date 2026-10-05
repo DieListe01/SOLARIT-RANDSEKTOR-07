@@ -172,28 +172,47 @@ func emit_effect(kind: String, data: Dictionary, distance: float = 0.0) -> void:
 func draw_ground(c: WorldRenderer) -> void:
 	# Preserve detailed wrecks in ordinary play; trim only tiny debris marks when
 	# a dense battlefield would otherwise submit thousands of tiny draw commands.
-	var compact_wrecks := ruins.size()>16
+	var compact_wrecks := ruins.size()>12 or c.vfx_budget_tier>=1
 	for mark in craters:
 		if not in_view(c,mark.pos) or not explored(c,mark.pos): continue
 		var fade := 1.0
 		effect_circle(c,mark.pos,mark.radius,Color(0.13,0.065,0.025,0.42*fade))
 		effect_circle(c,mark.pos+Vector2(2,2),mark.radius*0.70,Color(0.11,0.055,0.03,0.18))
-		c.draw_arc(mark.pos,mark.radius,0.2,PI,32,Color(0.85,0.61,0.32,0.22*fade),2,true)
-		for i in 9:
+		c.draw_arc(mark.pos,mark.radius,0.2,PI,16 if c.vfx_budget_tier>=2 else 32,Color(0.85,0.61,0.32,0.22*fade),2,true)
+		for i in (3 if c.vfx_budget_tier>=2 else 9):
 			var q: Vector2 = mark.pos+Vector2.from_angle(i*2.4)*mark.radius*0.82
 			c.draw_line(q,q+Vector2(3,-1),Color(0.58,0.36,0.18,0.38),2,true)
 	# All scorch decals precede all remaining structures, including overlapping deaths.
 	var wreck_started:=Time.get_ticks_usec() if c.profile_enabled else 0
+	var visible_ruin_count := 0
+	for visible_ruin in ruins:
+		if in_view(c,visible_ruin.pos) and explored(c,visible_ruin.pos): visible_ruin_count+=1
+	var very_dense_wrecks := visible_ruin_count>18 or c.vfx_budget_tier>=3
 	for ruin in ruins:
 		if not in_view(c,ruin.pos) or not explored(c,ruin.pos): continue
 		var scorch := PackedVector2Array()
-		var scorch_segments := 16 if compact_wrecks else 24
+		var scorch_segments := 12 if c.vfx_budget_tier>=2 else (16 if compact_wrecks else 24)
 		for i in scorch_segments: scorch.append(ruin.pos+Vector2.from_angle(i*TAU/scorch_segments)*float(ruin.radius)*(0.65+float(i%3)*0.055))
 		c.smooth_polygon(scorch,Color(0.12,0.055,0.025,0.14))
 	for ruin in ruins:
 		if not in_view(c,ruin.pos) or not explored(c,ruin.pos): continue
 		var r: float = ruin.get("radius",42.0 if ruin.building else 21.0)
 		var fade := 1.0
+		var aged_compact := (float(ruin.get("age",0.0))>18.0 and very_dense_wrecks) or (c.vfx_budget_tier>=2 and float(ruin.get("age",0.0))>30.0)
+		if aged_compact:
+			if ruin.building:
+				var extent_simple := Vector2(ruin.footprint[0],ruin.footprint[1])*32.0*0.40
+				var simple_base := Rect2(ruin.pos-extent_simple,extent_simple*2)
+				c.draw_rect(simple_base,Color(0.20,0.15,0.11,0.58))
+				c.draw_line(simple_base.position+Vector2(5,5),simple_base.end-Vector2(6,6),Color(0.42,0.31,0.21,0.65),2,true)
+				c.draw_line(Vector2(simple_base.end.x-6,simple_base.position.y+6),Vector2(simple_base.position.x+6,simple_base.end.y-6),Color(0.10,0.07,0.05,0.55),2,true)
+			else:
+				var direction_simple := Vector2.from_angle(ruin.angle)
+				var side_simple := direction_simple.orthogonal()
+				var length_simple := 12.0 if ruin.object_kind=="scout" else (21.0 if ruin.object_kind in ["siege","harvester"] else 17.0)
+				c.smooth_polygon(PackedVector2Array([ruin.pos-direction_simple*length_simple-side_simple*7,ruin.pos+direction_simple*length_simple-side_simple*6,ruin.pos+direction_simple*(length_simple-3)+side_simple*7,ruin.pos-direction_simple*(length_simple-2)+side_simple*7]),Color(0.19,0.14,0.10,0.72))
+				c.draw_line(ruin.pos-direction_simple*length_simple,ruin.pos+direction_simple*length_simple,Color(0.42,0.31,0.21,0.55),2,true)
+			continue
 		if ruin.building:
 			c.smooth_polygon(PackedVector2Array([ruin.pos+Vector2(-r,-r*0.55),ruin.pos+Vector2(r*0.6,-r*0.5),ruin.pos+Vector2(r,r*0.45),ruin.pos+Vector2(-r*0.7,r*0.5)]),Color(0.24,0.18,0.12,0.65*fade))
 		if ruin.building:
@@ -268,7 +287,7 @@ func draw_ground(c: WorldRenderer) -> void:
 			elif ruin.object_kind=="harvester":
 				for rib in 5: c.draw_line(ruin.pos-direction*13+direction*rib*6-side*6,ruin.pos-direction*13+direction*rib*6+side*5,Color("6a5137"),2,true)
 				c.draw_polyline(PackedVector2Array([ruin.pos+direction*17,ruin.pos+direction*29+side*8,ruin.pos+direction*32+side*2]),Color("876442"),3,true)
-		var fragment_count := (7 if ruin.core else 6) if compact_wrecks and ruin.building else (4 if compact_wrecks else (12 if ruin.building else 6))
+		var fragment_count := (4 if ruin.core else 3) if c.vfx_budget_tier>=2 and ruin.building else ((7 if ruin.core else 6) if compact_wrecks and ruin.building else (3 if c.vfx_budget_tier>=2 else (4 if compact_wrecks else (12 if ruin.building else 6))))
 		for i in fragment_count:
 			var angle: float = i*2.399+ruin.angle
 			var direction := Vector2.from_angle(angle)
@@ -296,6 +315,9 @@ func effect_circle(c: WorldRenderer, center: Vector2, radius: float, color: Colo
 	# Dynamic effect discs are appended to one color-mesh and submitted in one draw call.
 	c.append_impact_disc(center,radius,color)
 
+func effect_puff(c: WorldRenderer, center: Vector2, radius: float, color: Color, variant: float = 0.0) -> void:
+	c.append_pixel_puff(center,radius,color,variant)
+
 func smoke_strength(ruin: Dictionary) -> float:
 	var age: float = ruin.age
 	var hot_end := 10.0 if ruin.building else 5.0
@@ -318,7 +340,7 @@ func draw_effects(c: WorldRenderer) -> void:
 		if p.kind=="destroy": visible_destructions+=1
 		var bucket := Vector2i(floori(p.pos.x/96),floori(p.pos.y/96))
 		smoke_density[bucket]=int(smoke_density.get(bucket,0))+1
-	var dense_effects := visible_destructions>10 or c.vfx_budget_tier>=2
+	var dense_effects := visible_destructions>7 or c.vfx_budget_tier>=1
 	var destruction_index := 0
 	for p in particles:
 		if not in_view(c,p.pos) or not visible(c,p.pos): continue
@@ -335,10 +357,11 @@ func draw_effects(c: WorldRenderer) -> void:
 		if p.kind=="dust":
 			for i in 7:
 				var q: Vector2 = p.pos+Vector2.from_angle(i*2.4)*p.radius*t
-				effect_circle(c,q,2+t*9,Color(0.72,0.44,0.21,fade*0.13))
+				effect_puff(c,q,2+t*7,Color(0.72,0.44,0.21,fade*0.13))
 			if c.profile_enabled: profile_dust_ms+=float(Time.get_ticks_usec()-particle_started)/1000.0
 			continue
 		if p.kind=="hit":
+			if p.age<0.065: effect_puff(c,p.pos,3.5,Color(1,0.93,0.66,fade),p.rotation)
 			var line_count:=3+quality if c.vfx_budget_tier==0 else (2 if c.vfx_budget_tier==1 else 1)
 			var fade_bucket:=clampi(floori(fade*4),0,3)
 			var spark_batch: PackedVector2Array=hit_spark_batches[fade_bucket]
@@ -355,7 +378,7 @@ func draw_effects(c: WorldRenderer) -> void:
 			if p.family in ["BALLISTIC_HEAVY","ARTILLERY","SIEGE"]:
 				for i in 6+quality*3:
 					var q: Vector2 = p.origin+Vector2.from_angle(i*2.4)*p.radius*t*0.5
-					effect_circle(c,q,3+t*10,Color(0.72,0.48,0.26,fade*0.17))
+					effect_puff(c,q,3+t*7,Color(0.72,0.48,0.26,fade*0.17))
 			if p.family=="MISSILE":
 				c.smooth_polygon(PackedVector2Array([p.pos,p.pos-Vector2.from_angle(p.angle)*28+Vector2(0,5),p.pos-Vector2.from_angle(p.angle)*40,p.pos-Vector2.from_angle(p.angle)*28-Vector2(0,5)]),Color(1,0.42,0.08,fade))
 			if p.family=="AUTOCANNON":
@@ -363,7 +386,7 @@ func draw_effects(c: WorldRenderer) -> void:
 			if p.energy:
 				c.append_impact_arc(p.pos,5+t*18,0,TAU,24,Color(hot,fade*0.7))
 			else:
-				effect_circle(c,p.pos-Vector2(0,t*15),4+t*12,Color(0.22,0.17,0.12,fade*0.35))
+				effect_puff(c,p.pos-Vector2(0,t*15),3+t*8,Color(0.22,0.17,0.12,fade*0.35))
 			var forward := Vector2.from_angle(p.angle)
 			c.append_impact_glow(p.pos,p.radius*fade,Color(hot,fade*0.65))
 			c.smooth_polygon(PackedVector2Array([p.pos-forward*5,p.pos+forward*(18+p.variant*3)*fade+forward.orthogonal()*(4+p.variant),p.pos+forward*(32+p.variant*4)*fade,p.pos+forward*18*fade-forward.orthogonal()*4]),Color(hot,fade))
@@ -380,7 +403,7 @@ func draw_effects(c: WorldRenderer) -> void:
 				effect_circle(c,q,0.7+fade,Color(hot,fade*0.65))
 			if c.profile_enabled: profile_impact_ms+=float(Time.get_ticks_usec()-particle_started)/1000.0
 			continue
-		var r: float = p.radius
+		var r: float = p.radius*(1.0 if p.kind=="destroy" else 0.68)
 		var precursor := 0.32 if p.core else (0.18 if p.kind=="destroy" and p.get("building",false) else 0.0)
 		var blast_age: float = maxf(0,p.age-precursor)
 		if p.age<precursor:
@@ -393,32 +416,33 @@ func draw_effects(c: WorldRenderer) -> void:
 		var fire := 0.0 if p.age<precursor else 1.0-fire_age
 		c.append_impact_glow(p.pos,r*(0.6+fire_age*0.4),Color(hot,fire*0.7))
 		if p.age>=precursor and blast_age<0.10: effect_circle(c,p.pos,r*0.24,Color(1,0.98,0.87,1-blast_age*10))
-		var count := 8+quality*6 if detailed_blast else 5
+		var count := (7+quality*3 if p.kind=="destroy" else 4+quality) if detailed_blast else 4
 		for i in count:
 			var direction := Vector2.from_angle(i*2.39996+p.rotation)
 			var spread := r*fire_age*(0.35+float(i%5)*0.15)
 			var q: Vector2 = p.pos+direction*spread
 			if fire>0:
 				var flame_size := (3+r*0.09+float(i%4)*2)*fire
-				effect_circle(c,q,flame_size,Color(hot.lerp(Color("e75117"),fire_age),fire*0.8))
+				effect_puff(c,q,flame_size,Color(hot.lerp(Color("e75117"),fire_age),fire*0.8))
 				if not p.energy and p.kind=="destroy":
 					for lobe in (3 if detailed_blast else 1):
 						var lift := float(lobe)*flame_size*0.5
 						var curl := sin(i+clock*7+lobe)*flame_size*0.2
-						effect_circle(c,q+Vector2(curl,-lift),flame_size*(0.65-lobe*0.16),Color(1,0.50+fire*0.3,0.12,fire*0.48))
-					effect_circle(c,q-Vector2(0,flame_size*0.2),flame_size*0.35,Color(1,0.91,0.52,fire*0.8))
+						effect_puff(c,q+Vector2(curl,-lift),flame_size*(0.65-lobe*0.16),Color(1,0.50+fire*0.3,0.12,fire*0.48))
+					effect_puff(c,q-Vector2(0,flame_size*0.2),flame_size*0.35,Color(1,0.91,0.52,fire*0.8))
 				c.append_impact_line(q,q-direction*(3+fire*8),Color(1,0.77,0.32,fire),1.3)
 			if p.kind=="destroy" or not p.energy:
 				var smoke: Vector2 = p.pos+direction*r*t*0.6+Vector2(sin(i)*t*12,-t*r*(1.4 if p.core else 0.85))
 				if detailed_blast or i%2==0:
-					effect_circle(c,smoke,3+r*(0.07+t*0.10),Color(0.14,0.11,0.085,sin(t*PI)*0.21*smoke_opacity))
+					effect_puff(c,smoke,3+r*(0.045+t*0.065),Color(0.14,0.11,0.085,sin(t*PI)*0.17*smoke_opacity),i+p.rotation)
 				var dust: Vector2 = p.pos+direction*r*sqrt(t)
 				if detailed_blast or i%2==0:
-					effect_circle(c,dust,3+r*t*0.1,Color(0.72,0.42,0.20,fade*0.10))
+					effect_puff(c,dust,3+r*t*0.07,Color(0.72,0.42,0.20,fade*0.10))
 			if (p.kind=="destroy" and (detailed_blast or i%3==0)) or (p.family in ["SIEGE","ARTILLERY","BALLISTIC_HEAVY"] and i%2==0):
 				var fragment: Vector2 = p.pos+direction*r*minf(1,p.age)*0.8-Vector2(0,sin(minf(1,p.age)*PI)*r*0.4)
 				c.append_impact_line(fragment,fragment+direction*(3+i%4),Color(0.38,0.28,0.18,fade),2)
-		c.append_impact_arc(p.pos,r*sqrt(t),0,TAU,64 if detailed_blast else 28,Color(hot,fade*0.25))
+		if p.kind=="destroy" or p.family in ["SIEGE","ARTILLERY"]:
+			c.append_impact_arc(p.pos,r*sqrt(t),p.rotation,p.rotation+PI*1.6,32 if detailed_blast else 20,Color(hot,fade*0.12))
 		if p.kind=="destroy" and p.get("building",false):
 			for i in ((7 if p.core else 4) if detailed_blast else (3 if p.core else 1)):
 				var delay := 0.12+i*0.23
@@ -447,7 +471,7 @@ func draw_effects(c: WorldRenderer) -> void:
 		if not in_view(c,ruin.pos) or not visible(c,ruin.pos): continue
 		var smoking := smoke_strength(ruin)
 		if smoking<=0: continue
-		if smoke_sources>=(8 if dense_effects else 8+quality*8): break
+		if smoke_sources>=(5 if c.vfx_budget_tier>=2 else (7 if dense_effects else 8+quality*8)): break
 		var bucket := Vector2i(floori(ruin.pos.x/96),floori(ruin.pos.y/96))
 		if int(smoke_buckets.get(bucket,0))>=2: continue
 		smoke_buckets[bucket]=int(smoke_buckets.get(bucket,0))+1
@@ -462,13 +486,13 @@ func draw_effects(c: WorldRenderer) -> void:
 				for layer in (4 if not dense_effects else 2):
 					var t := float(layer)/4
 					var lobe: Vector2 = q+Vector2(sin(clock*7+i+t*3)*2*t,-h*t)
-					effect_circle(c,lobe,(3.4-t*2)*(1-age/fire_end),Color(1,0.34+t*0.4,0.06,0.55))
-					effect_circle(c,lobe+Vector2(0,1),1.2*(1-t),Color(1,0.91,0.54,0.6))
+					effect_puff(c,lobe,(3.4-t*2)*(1-age/fire_end),Color(1,0.34+t*0.4,0.06,0.55))
+					effect_puff(c,lobe+Vector2(0,1),1.2*(1-t),Color(1,0.91,0.54,0.6))
 		if age<(30.0 if ruin.building else 20.0):
 			for i in 3: effect_circle(c,ruin.pos+Vector2(i*7-7,2),1.4,Color(0.95,0.34,0.08,0.5))
 		for i in (3+quality if not dense_effects else 2):
 			var phase := fposmod(clock*0.3+i*0.21,1)
-			effect_circle(c,ruin.pos+Vector2(phase*16+sin(i)*10,-phase*(95 if ruin.core else 45)),4+phase*14,Color(0.12,0.09,0.07,(1-phase)*smoking*0.28))
+			effect_puff(c,ruin.pos+Vector2(phase*16+sin(i)*10,-phase*(95 if ruin.core else 45)),4+phase*10,Color(0.12,0.09,0.07,(1-phase)*smoking*0.22),i+ruin.variant)
 		if c.profile_enabled: profile_smoke_ms+=float(Time.get_ticks_usec()-smoke_started)/1000.0
 
 func draw_projectile(c: WorldRenderer, p: Dictionary, detail_tier: int=0) -> void:

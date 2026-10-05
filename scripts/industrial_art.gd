@@ -175,28 +175,30 @@ func building(target: CanvasItem, e: Dictionary, size_value: Vector2, team: Colo
 		for i in 8:
 			var age := fposmod(clock*0.5+i*0.13,1.0)
 			ellipse(Vector2(-w*0.5+i*w/7,h*0.43+age*5),Vector2(2+age*5,1+age*2),Color(0.72,0.43,0.20,(1-age)*0.15))
-		if progress>0.2:
+		if progress>=0.25:
 			box(Rect2(-w*0.32,-h*0.25,w*0.64,h*0.55),4+progress*14,STEEL.darkened(0.3))
-		if progress>0.55:
+		if progress>=0.50:
 			vent(Rect2(-w*0.2,-h*0.15-12,w*0.4,h*0.2))
 			pipe([Vector2(-w*0.4,h*0.3),Vector2(-w*0.4,-h*0.2),Vector2(-w*0.25,-h*0.2)])
-		if progress>0.8:
+		if progress>=0.85:
 			light(Vector2(w*0.25,-h*0.2-18),team.lightened(0.5),2)
 		for x in [-w*0.35,w*0.35]:
 			line(Vector2(x,h*0.35),Vector2(x,-h*0.3-18),STEEL,2)
 		line(Vector2(-w*0.35,-h*0.3-18),Vector2(w*0.35,-h*0.3-18),team,3)
 		for i in 4: line(Vector2(-w*0.35+i*w*0.18,h*0.35),Vector2(-w*0.17+i*w*0.18,-h*0.3-18),STEEL.darkened(0.3),1)
-		var welder := Vector2(sin(clock*1.8)*w*0.3,-h*0.15-10)
-		light(welder,Color("c9f8ff"),1.5)
-		for i in 6:
-			var age := fposmod(clock*2+i*0.17,1.0)
-			line(welder+Vector2(i-3,age*14),welder+Vector2(i-3,age*14+2),Color(1,0.75,0.35,1-age),0.8)
-		# A moving assembly scan and recognizable systems precede the online pulse.
-		var scan_y := h*0.32-fposmod(clock*14,h*0.62+24)
-		line(Vector2(-w*0.35,scan_y),Vector2(w*0.35,scan_y),Color(team,0.35),1.4)
-		if progress>0.80:
+		if progress>=0.25:
+			var welder := Vector2(sin(clock*1.8)*w*0.3,-h*0.15-10)
+			light(welder,Color("c9f8ff"),1.1 if progress<0.5 else 1.7)
+			for i in (3 if progress<0.5 else 6):
+				var age := fposmod(clock*2+i*0.17,1.0)
+				line(welder+Vector2(i-3,age*14),welder+Vector2(i-3,age*14+2),Color(1,0.75,0.35,1-age),0.8)
+		# A moving assembly scan only appears once the structural frame exists.
+		if progress>=0.50:
+			var scan_y := h*0.32-fposmod(clock*14,h*0.62+24)
+			line(Vector2(-w*0.35,scan_y),Vector2(w*0.35,scan_y),Color(team,0.35),1.4)
+		if progress>=0.85:
 			var saved_opacity := opacity
-			opacity*=0.50+(progress-0.80)*2
+			opacity*=0.55+(progress-0.85)*3.0
 			role_details(e,w,h,team,faction)
 			opacity=saved_opacity
 		rect(Rect2(-w*0.3,0,w*0.6,5),RUBBER)
@@ -278,10 +280,12 @@ func building(target: CanvasItem, e: Dictionary, size_value: Vector2, team: Colo
 			line(Vector2(w*0.42,-h*0.05),Vector2(w*0.42,h*0.21),DARK,1)
 			hazard(Vector2(-w*0.15,h*0.32),w*0.3)
 		"factory":
+			var factory_busy: bool=not e.get("queue",[]).is_empty()
 			for side in [-1,1]:
 				line(Vector2(side*w*0.36,-h*0.05),Vector2(side*w*0.36,-h*0.28-31),DARK,4)
 			line(Vector2(-w*0.36,-h*0.28-31),Vector2(w*0.36,-h*0.28-31),STEEL,4)
-			var carriage := Vector2(sin(clock*0.45)*w*0.2,-h*0.28-31)
+			var carriage_speed: float=1.15 if factory_busy else 0.18
+			var carriage := Vector2(sin(clock*carriage_speed)*w*0.2,-h*0.28-31)
 			box(Rect2(carriage-Vector2(4,3),Vector2(8,6)),2,team)
 			line(carriage,carriage+Vector2(0,13+sin(clock*0.6)*4),EDGE,0.8)
 			box(Rect2(-w*0.38,-h*0.36,w*0.76,h*0.6),16,STEEL.darkened(0.18))
@@ -300,6 +304,25 @@ func building(target: CanvasItem, e: Dictionary, size_value: Vector2, team: Colo
 				rect(Rect2(q,Vector2(w*0.08,h*0.055)),Color("83b6c1"))
 				line(q,q+Vector2(w*0.08,0),EDGE,0.7)
 			pipe([Vector2(w*0.35,-h*0.15),Vector2(w*0.35,h*0.15),Vector2(w*0.29,h*0.22)],2)
+			if factory_busy:
+				var active_job: Dictionary=e.get("queue",[])[0]
+				var active_def: Dictionary=target.sim.db.units.get(str(active_job.get("kind","")),{})
+				var active_time: float=maxf(0.01,float(active_def.get("time",1.0))*(0.85 if int(e.get("upgrade_level",0))>0 else 1.0))
+				var assembly_ratio: float=clampf(float(e.get("progress",0.0))/active_time,0.0,1.0)
+				var gate_glow: Color=team.lightened(0.45)
+				# Assembly lights progress across the bay instead of running when idle.
+				for lamp_index in 5:
+					var lit: bool=float(lamp_index)/5.0<=assembly_ratio
+					light(Vector2(-w*0.20+lamp_index*w*0.10,h*0.16-12),gate_glow if lit else STEEL.darkened(0.35),1.15 if lit else 0.55)
+				var weld: Vector2=Vector2(-w*0.18+fposmod(clock*18.0,w*0.36),-h*0.05)
+				light(weld,Color("d5fbff"),1.8)
+				for spark_index in 4:
+					var spark_age: float=fposmod(clock*2.4+spark_index*0.21,1.0)
+					line(weld+Vector2(spark_index-2,spark_age*10),weld+Vector2(spark_index-2,spark_age*10+2),Color(1.0,0.72,0.30,1.0-spark_age),0.8)
+				# The bay door brightens as a vehicle approaches completion.
+				if assembly_ratio>0.78:
+					var door_open: float=clampf((assembly_ratio-0.78)/0.22,0.0,1.0)
+					rect(Rect2(-w*0.23,h*0.1-12,w*0.46,h*0.2*(1.0-door_open)),Color(RUBBER.r,RUBBER.g,RUBBER.b,0.95))
 		"tower":
 			box(Rect2(-11,-11,22,22),12,STEEL.darkened(0.3))
 			ellipse(Vector2(-3,-13),Vector2(12,9),team.darkened(0.15))
@@ -428,7 +451,7 @@ func simplified_vehicle(e: Dictionary, team: Color, faction: String, length: flo
 			var x := -length*0.54+i*length*0.52
 			line(Vector2(x,side*(width-4.5)),Vector2(x+2,side*(width-1)),STEEL.darkened(0.16),1.4)
 	var hull := [Vector2(-length+2,-width+3),Vector2(length-5,-width+3),Vector2(length,0),Vector2(length-5,width-3),Vector2(-length+2,width-3),Vector2(-length,0)]
-	poly(hull,team.darkened(0.34))
+	poly(hull,STEEL.darkened(0.32).lerp(team,0.18))
 	poly([Vector2(-length*0.72,-width*0.55),Vector2(length*0.47,-width*0.55),Vector2(length*0.72,0),Vector2(length*0.47,width*0.55),Vector2(-length*0.72,width*0.55)],STEEL.darkened(0.18))
 	line(Vector2(-length*0.46,-width*0.58),Vector2(length*0.35,-width*0.58),team.lightened(0.08),2.5)
 	if faction=="drift": poly([Vector2(length-5,-width*0.65),Vector2(length+7,0),Vector2(length-5,width*0.65)],team.lightened(0.16))
@@ -452,7 +475,7 @@ func simplified_vehicle(e: Dictionary, team: Color, faction: String, length: flo
 	elif e.kind=="bulwark":
 		var direction:=Vector2.from_angle(float(e.turret)-float(e.angle))
 		var turret:=Vector2(1,-2)
-		box(Rect2(-length*0.52,-width*0.73,length*0.84,width*1.46),5,team.darkened(0.04))
+		box(Rect2(-length*0.52,-width*0.73,length*0.84,width*1.46),5,STEEL.darkened(0.12).lerp(team,0.22))
 		for side in [-1,1]:
 			poly([Vector2(-length*0.38,side*width*0.68),Vector2(length*0.38,side*width*0.68),Vector2(length*0.48,side*width*0.90),Vector2(-length*0.48,side*width*0.90)],STEEL.darkened(0.25))
 			line(Vector2(-length*0.36,side*width*0.72),Vector2(length*0.35,side*width*0.72),EDGE,1.2)
@@ -460,12 +483,20 @@ func simplified_vehicle(e: Dictionary, team: Color, faction: String, length: flo
 		line(turret,turret+direction*27,DARK,8)
 		line(turret+Vector2(0,-1),turret+direction*25,Color("ffd18a"),3.2)
 		light(turret+direction*25,Color("ffd18a"),1.3)
+	elif e.kind=="harvester":
+		box(Rect2(-length*0.64,-width*0.78,length*1.05,width*1.56),2,STEEL.darkened(0.12))
+		for side in [-1,1]:
+			line(Vector2(-length*0.65,side*width*0.77),Vector2(length*0.3,side*width*0.77),team,3)
+			line(Vector2(length*0.4,side*width*0.8),Vector2(length+6,side*width),EDGE,3)
+		for i in 3: line(Vector2(-length*0.4+i*7,-width*0.5),Vector2(-length*0.4+i*7,width*0.5),DARK,2)
 	else:
 		var direction := Vector2.from_angle(float(e.turret)-float(e.angle))
 		var turret := Vector2(1,-2)
 		ellipse(turret,Vector2(8,7),DARK)
 		line(turret,turret+direction*(27 if e.kind=="siege" else 19),STEEL.darkened(0.12),4.2)
 		line(turret+Vector2(0,-1),turret+direction*(24 if e.kind=="siege" else 16)+Vector2(0,-1),team.lightened(0.15),1.3)
+		if e.kind=="siege":
+			for side in [-1,1]: line(Vector2(-length-3,side*(width+2)),Vector2(length*0.5,side*(width+2)),STEEL,3)
 	light(Vector2(length-3,-width*0.48),Color("ffe5b3"),1.1)
 	light(Vector2(length-3,width*0.48),Color("ffe5b3"),1.1)
 
@@ -507,7 +538,7 @@ func vehicle(target: CanvasItem, e: Dictionary, team: Color, faction: String, el
 	var contact: Array = []
 	for v in hull: contact.append(v+Vector2(2,4))
 	poly(contact,Color(0.11,0.065,0.04,0.78))
-	poly(hull,team.darkened(0.40))
+	poly(hull,STEEL.darkened(0.38).lerp(team,0.18))
 	var roof: Array = []
 	for v in hull: roof.append(v*Vector2(0.85,0.82)-Vector2(1,2))
 	poly(roof,STEEL.darkened(0.15))
@@ -515,7 +546,7 @@ func vehicle(target: CanvasItem, e: Dictionary, team: Color, faction: String, el
 		for sign_value in [-1,1]:
 			poly([Vector2(length-6,sign_value*width*0.6),Vector2(length+1,sign_value*width*0.45),Vector2(length-1,sign_value*width*0.78),Vector2(length-8,sign_value*width*0.82)],team.darkened(0.12))
 			line(Vector2(length-7,sign_value*width*0.57),Vector2(length,sign_value*width*0.42),EDGE,1.2)
-	box(Rect2(-length*0.48,-width*0.6,length*0.82,width*1.2),1.5,team.darkened(0.12))
+	box(Rect2(-length*0.48,-width*0.6,length*0.82,width*1.2),1.5,STEEL.darkened(0.18).lerp(team,0.22))
 	if faction=="drift":
 		# Slanted prow and asymmetric armor distinguish the mobile faction.
 		poly([Vector2(length-5,-width+2),Vector2(length+7,-width*0.1),Vector2(length-2,width*0.65)],team.darkened(0.12))
@@ -659,8 +690,8 @@ func vehicle(target: CanvasItem, e: Dictionary, team: Color, faction: String, el
 		line(turret-side,turret-side+direction*gun_length,STEEL,3)
 		line(turret+direction*(gun_length-4)-side*2,turret+direction*(gun_length-4)+side*2,STEEL.darkened(0.25),4)
 		poly([turret-direction*6+side*7,turret+direction*10+side*3,turret+direction*10+side*3+Vector2(0,3),turret-direction*6+side*7+Vector2(0,3)],team.darkened(0.42))
-		poly([turret-direction*7-side*6,turret+direction*8-side*5,turret+direction*10+side*3,turret-direction*6+side*7],team.darkened(0.05))
-		poly([turret-direction*7-side*6,turret+direction*8-side*5,turret+direction*6-side*3,turret-direction*5-side*4],team.lightened(0.15))
+		poly([turret-direction*7-side*6,turret+direction*8-side*5,turret+direction*10+side*3,turret-direction*6+side*7],STEEL.darkened(0.1))
+		poly([turret-direction*7-side*6,turret+direction*8-side*5,turret+direction*6-side*3,turret-direction*5-side*4],STEEL.lightened(0.12))
 		line(turret-direction*6+side*6,turret+direction*7+side*4,team,3)
 		ellipse(turret-direction*3,Vector2.ONE*3,DARK)
 		ellipse(turret-direction*3-Vector2(0,0.7),Vector2.ONE*2.2,EDGE)

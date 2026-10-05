@@ -28,16 +28,16 @@ vec2 stone(vec2 p) {
 	}
 	return vec2(second-first,identifier);
 }
-float kind_at(sampler2D terrain_map, vec2 world) {
-	vec2 warp=vec2(noise(world*0.07),noise(world*0.07+91.0))-0.5;
+float kind_at(sampler2D terrain_map, vec2 world, vec2 warp) {
 	vec2 cell=(world+warp*18.0)/32.0;
 	return floor(texture(terrain_map,(floor(cell)+0.5)/map_cells).r*8.0);
 }
 void fragment() {
 	vec2 world=UV*map_cells*32.0;
-	float kind=kind_at(TEXTURE,world);
+	vec2 warp=vec2(noise(world*0.07),noise(world*0.07+91.0))-0.5;
+	float kind=kind_at(TEXTURE,world,warp);
 	vec3 base=material(kind);
-	vec3 neighbors=(material(kind_at(TEXTURE,world+vec2(6,0)))+material(kind_at(TEXTURE,world-vec2(6,0)))+material(kind_at(TEXTURE,world+vec2(0,6)))+material(kind_at(TEXTURE,world-vec2(0,6))))*0.25;
+	vec3 neighbors=(material(kind_at(TEXTURE,world+vec2(6,0),warp))+material(kind_at(TEXTURE,world-vec2(6,0),warp))+material(kind_at(TEXTURE,world+vec2(0,6),warp))+material(kind_at(TEXTURE,world-vec2(0,6),warp)))*0.25;
 	base=mix(base,neighbors,0.34);
 	float large=noise(world*0.015);
 	float medium=noise(world*0.13);
@@ -51,8 +51,8 @@ void fragment() {
 		variation+=(rock.y-0.5)*0.075;
 		variation-=(1.0-smoothstep(0.0,0.025,rock.x))*0.085;
 		variation+=smoothstep(0.025,0.04,rock.x)*(1.0-smoothstep(0.04,0.09,rock.x))*0.02;
-		float south=kind_at(TEXTURE,world+vec2(0,7));
-		float north=kind_at(TEXTURE,world-vec2(0,5));
+		float south=kind_at(TEXTURE,world+vec2(0,7),warp);
+		float north=kind_at(TEXTURE,world-vec2(0,5),warp);
 		if(south==0.0 || south==2.0) variation-=0.10;
 		if(north==0.0 || north==2.0) variation+=0.08;
 		float dust=smoothstep(0.38,0.73,noise(world*0.012+13.0));

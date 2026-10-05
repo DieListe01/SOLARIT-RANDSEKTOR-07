@@ -138,7 +138,9 @@ func nearest_vehicle_texture(key: String, requested_frame: int) -> Texture2D:
 
 func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float, ratio: float) -> bool:
 	var relative := wrapf(entity.turret-entity.angle,-PI,PI)
-	var turret_frame := posmod(roundi((relative+PI)*64.0/TAU),64)
+	# Half as many turret snapshots keep continuously turning units from rebuilding
+	# an unbounded set of nearly identical 256px textures during large fights.
+	var turret_frame := posmod(roundi((relative+PI)*32.0/TAU)*2,64)
 	var turret_angle := float(turret_frame)*TAU/64.0-PI
 	var hp_ratio: float=entity.hp/entity.max_hp
 	var damage_state := 2 if hp_ratio<0.35 else (1 if hp_ratio<0.65 else 0)
@@ -149,7 +151,7 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	var texture: Texture2D=vehicle_texture_cache.get(key)
 	if texture==null:
 		vehicle_cache_misses+=1
-		if not vehicle_cache_pending.has(key):
+		if not vehicle_cache_pending.has(key) and vehicle_cache_queue.size()<16:
 			vehicle_cache_pending[key]=true
 			vehicle_cache_queue.append({"key":key,"entity":entity.duplicate(true),"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner],"turret":turret_angle})
 			process_vehicle_cache_queue.call_deferred()
@@ -383,7 +385,9 @@ func _process(dt: float) -> void:
 			for x in sim.grid.width:
 				var index := y*sim.grid.width+x
 				var alpha := 1.0 if sim.explored[sim.view_owner][index]==0 else (0.62 if sim.fog[sim.view_owner][index]==0 else 0.0)
-				mask.set_pixel(x,y,Color(0.12,0.085,0.065,alpha))
+				var grain := sin(float(x*73+y*179))*0.0035
+				var strata := sin(float(x)*0.37+sin(float(y)*0.23))*0.006
+				mask.set_pixel(x,y,Color(0.09+grain+strata,0.075+grain+strata,0.066+grain+strata,alpha))
 		if fog_texture==null: fog_texture=ImageTexture.create_from_image(mask)
 		else: fog_texture.update(mask)
 	marker_time=maxf(0,marker_time-dt)
@@ -424,6 +428,14 @@ func _draw() -> void:
 	var combat_load:=sim.projectiles.size()+sim.effects.size()+combat_fx.particles.size()+visual_bursts.size()
 	if combat_load>160: vfx_budget_tier=2
 	elif combat_load>80: vfx_budget_tier=1
+	# React to real frame pressure as well as effect count. A dense battle can be
+	# expensive even with a modest number of logical effects because each effect
+	# expands into many submitted primitives. This adaptive tier preserves the
+	# important flash/projectile silhouettes while trimming secondary dust/smoke.
+	var live_fps:=Engine.get_frames_per_second()
+	if live_fps>0 and live_fps<46: vfx_budget_tier=maxi(vfx_budget_tier,3)
+	elif live_fps>0 and live_fps<58: vfx_budget_tier=maxi(vfx_budget_tier,2)
+	elif live_fps>0 and live_fps<82: vfx_budget_tier=maxi(vfx_budget_tier,1)
 	visible_terrain_chunk_count=0
 	for chunk_y in range(maxi(0,floori(float(from.y)/DETAIL_CHUNK_SIZE)),mini(ceili(float(g.height)/DETAIL_CHUNK_SIZE),floori(float(to.y)/DETAIL_CHUNK_SIZE)+1)):
 		for chunk_x in range(maxi(0,floori(float(from.x)/DETAIL_CHUNK_SIZE)),mini(ceili(float(g.width)/DETAIL_CHUNK_SIZE),floori(float(to.x)/DETAIL_CHUNK_SIZE)+1)):
@@ -447,7 +459,9 @@ func _draw() -> void:
 	var tracks_started := Time.get_ticks_usec() if profile_enabled else 0
 	var track_points := PackedVector2Array()
 	var track_colors := PackedColorArray()
-	for track in tracks:
+	var track_step:=1 if vfx_budget_tier==0 else (2 if vfx_budget_tier==1 else (3 if vfx_budget_tier==2 else 5))
+	for track_index in range(0,tracks.size(),track_step):
+		var track: Dictionary=tracks[track_index]
 		var offset := Vector2.from_angle(track.angle).orthogonal()*9
 		var shade := Color(0.10,0.12,0.10,0.18*track.life/50.0)
 		for sign_value in [-1,1]:
@@ -471,7 +485,7 @@ func _draw() -> void:
 				draw_rect(Rect2(memory.pos-Vector2(sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[0],sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[1])*g.tile*0.5,Vector2(sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[0],sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[1])*g.tile),Color("3c3023"))
 	var sorted := sim.entities.values()
 	sorted.sort_custom(func(a,b):return a.pos.y<b.pos.y)
-	if movement_vfx_enabled:
+	if movement_vfx_enabled and vfx_budget_tier<3:
 		var tread_points := PackedVector2Array()
 		var tread_colors := PackedColorArray()
 		for e in sorted:
@@ -482,7 +496,8 @@ func _draw() -> void:
 			var width := 16.0 if visual.kind=="harvester" else (17.0 if visual.kind=="lancer" else (14.0 if visual.kind=="siege" else 13.0))
 			var phase := fposmod(elapsed*visual.velocity.length()*0.22,4.0)
 			for side in [-1,1]:
-				for i in range(-int(length)+1,int(length),4):
+				var tread_step:=4 if vfx_budget_tier==0 else (6 if vfx_budget_tier==1 else 8)
+				for i in range(-int(length)+1,int(length),tread_step):
 					var tread := float(i)+phase
 					tread_points.append(visual.pos+Vector2(tread,side*width-2.8).rotated(visual.angle))
 					tread_points.append(visual.pos+Vector2(tread,side*width+2.8).rotated(visual.angle))
@@ -499,9 +514,10 @@ func _draw() -> void:
 		var visual := interpolated_entity(e)
 		if absf(visual.pos.x-camera.x)>half.x+120 or absf(visual.pos.y-camera.y)>half.y+120: continue
 		if e.building: visible_building_count+=1
-		if movement_vfx_enabled and not e.building and e.velocity.length()>8:
+		if movement_vfx_enabled and not e.building and e.velocity.length()>8 and vfx_budget_tier<2:
 			var heavy: bool = e.kind in ["harvester","siege","tank"]
-			for i in (7 if heavy else 4):
+			var dust_count: int=(7 if heavy else 4) if vfx_budget_tier==0 else (3 if heavy else 2)
+			for i in dust_count:
 				var age := fposmod(elapsed*0.65+i*0.19,1.0)
 				var pos: Vector2 = visual.pos-Vector2.from_angle(visual.angle)*(16+age*23)+Vector2(sin(i*3.1)*age*8,4)
 				paint_circle(pos,2+age*(10 if heavy else 5),Color(0.76,0.49,0.24,(1-age)*(0.14 if heavy else 0.09)))
@@ -543,6 +559,9 @@ func _draw() -> void:
 	flush_impact_batch()
 	for burst in visual_bursts:
 		if profile_enabled: profile_particle_count+=1
+		# At the emergency budget, keep completed-building pulses but drop the short-lived
+		# per-shot muzzle decoration. The projectile and hit effects remain untouched.
+		if vfx_budget_tier>=3 and burst.get("kind","shot")!="complete": continue
 		var age: float = 1.0-burst.life/burst.duration
 		if burst.get("kind","shot")=="complete":
 			glow_at(burst.pos,55,Color(0.3,0.95,0.8,(1-age)*0.32))
@@ -563,7 +582,8 @@ func _draw() -> void:
 		profile_projectiles_ms+=combat_fx.profile_shot_ms
 		profile_smoke_ms=combat_fx.profile_smoke_ms+combat_fx.profile_dust_ms
 	if profile_enabled: profile_particle_count+=combat_fx.particles.size()
-	for i in 18:
+	var wind_count:=18 if vfx_budget_tier==0 else (10 if vfx_budget_tier==1 else (5 if vfx_budget_tier==2 else 2))
+	for i in wind_count:
 		var wind := camera+Vector2(fposmod(elapsed*13+i*79,half.x*2)-half.x,fposmod(i*143.0,half.y*2)-half.y)
 		if combat_fx.visible(self,wind): draw_line(wind,wind+Vector2(18+i%4*5,2),Color(0.95,0.73,0.38,0.055),0.8,true)
 	var fog_started := Time.get_ticks_usec() if profile_enabled else 0
@@ -578,22 +598,23 @@ func _draw() -> void:
 		if e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner): continue
 		if absf(e.pos.x-camera.x)>half.x+120 or absf(e.pos.y-camera.y)>half.y+120: continue
 		var visual := interpolated_entity(e)
-		if selected.has(e.id) or health_mode=="always" or (health_mode=="damaged" and e.hp<e.max_hp):
+		if selected.has(e.id) or health_mode=="always" or (health_mode=="damaged" and (e.hp<e.max_hp or int(e.id)==hovered_entity_id)):
 			if health_mode!="off" or selected.has(e.id):
-				var w := 48.0 if e.building else 27.0
-				var p: Vector2 = visual.pos-Vector2(w/2,float({"core":88,"power":74,"radar":80,"refinery":68,"factory":66,"repair":65,"armory":70}.get(e.kind,58)) if e.building else 25)
+				var w := 42.0 if e.building else 24.0
+				var elevation := float({"core":88,"power":74,"radar":80,"refinery":68,"factory":66,"repair":65,"armory":70}.get(e.kind,58)) if e.building else sim.unit_radius(e.kind)+11.0
+				var p: Vector2 = visual.pos-Vector2(w/2,elevation)
 				var anchor := p
-				for attempt in 12:
+				for attempt in 3:
 					var overlaps := false
 					for used in occupied_bars:
-						if used.intersects(Rect2(p-Vector2(2,2),Vector2(w+4,11))): overlaps=true; break
+						if used.intersects(Rect2(p-Vector2(1,1),Vector2(w+2,5))): overlaps=true; break
 					if not overlaps: break
-					p=anchor+Vector2((attempt%3-1)*8,-(attempt+1)*10)
-				occupied_bars.append(Rect2(p-Vector2(2,2),Vector2(w+4,11)))
-				if p!=anchor: draw_line(p+Vector2(w/2,8),anchor+Vector2(w/2,8),Color(0.65,0.55,0.40,0.45),0.65,true)
-				draw_rect(Rect2(p,Vector2(w,4)),INK)
-				draw_line(p+Vector2(0,6),p+Vector2(w,6),sim.team_color(e.owner),1.8,true)
-				draw_rect(Rect2(p,Vector2(w*maxf(0,e.hp/e.max_hp),4)),TeamIdentity.health(e.hp/e.max_hp))
+					p=anchor-Vector2(0,(attempt+1)*4)
+				occupied_bars.append(Rect2(p-Vector2(1,1),Vector2(w+2,5)))
+				draw_rect(Rect2(p-Vector2.ONE,Vector2(w+2,5)),INK)
+				draw_rect(Rect2(p,Vector2(w*clampf(e.hp/e.max_hp,0,1),3)),Color(TeamIdentity.health(e.hp/e.max_hp),0.85))
+		if e.owner==sim.view_owner and e.building:
+			draw_world_progress(e,visual)
 		if selected.has(e.id):
 			draw_selection(visual)
 			if e.owner==sim.view_owner and e.kind=="repair" and e.complete:
@@ -625,8 +646,66 @@ func _draw() -> void:
 		for y in range(0,int(output.y),3): draw_line(Vector2(0,y),Vector2(output.x,y),Color(0,0,0,0.1 if crt==1 else 0.22),1)
 	if profile_enabled: profile_total_ms=float(Time.get_ticks_usec()-profile_started)/1000.0
 
+
+func _construction_phase(progress: float) -> String:
+	if progress < 0.25: return "FUNDAMENT"
+	if progress < 0.50: return "RAHMEN"
+	if progress < 0.85: return "MONTAGE"
+	if progress < 1.0: return "INBETRIEBNAHME"
+	return "BETRIEBSBEREIT"
+
+func _world_progress_data(e: Dictionary) -> Dictionary:
+	if sim==null or e.owner!=sim.view_owner or not e.building: return {}
+	if not e.complete:
+		var total: float=maxf(0.01,float(sim.definition(e).time))
+		var ratio: float=clampf(float(e.get("build_progress",0.0))/total,0.0,1.0)
+		return {"ratio":ratio,"title":str(sim.definition(e).name),"detail":_construction_phase(ratio),"queue":0,"kind":"build"}
+	if e.get("upgrading",false):
+		var upgrade_total: float=maxf(0.01,float(e.get("upgrade_time",1.0)))
+		var upgrade_ratio: float=clampf(float(e.get("upgrade_progress",0.0))/upgrade_total,0.0,1.0)
+		return {"ratio":upgrade_ratio,"title":str(sim.definition(e).name),"detail":"AUSBAU STUFE %d"%int(e.get("upgrade_target",1)),"queue":0,"kind":"upgrade"}
+	if e.kind=="factory" and not e.get("queue",[]).is_empty():
+		var job: Dictionary=e.queue[0]
+		var unit_def: Dictionary=sim.db.units.get(str(job.kind),{})
+		var production_time: float=maxf(0.01,float(unit_def.get("time",1.0))*(0.85 if int(e.get("upgrade_level",0))>0 else 1.0))
+		var production_ratio: float=clampf(float(e.get("progress",0.0))/production_time,0.0,1.0)
+		return {"ratio":production_ratio,"title":str(unit_def.get("name",job.kind)),"detail":"MONTAGE","queue":e.queue.size(),"kind":"production"}
+	return {}
+
+func draw_world_progress(e: Dictionary, visual: Dictionary) -> void:
+	var data: Dictionary=_world_progress_data(e)
+	if data.is_empty(): return
+	var focused: bool=selected.has(e.id) or int(e.id)==hovered_entity_id
+	var ratio: float=float(data.ratio)
+	var building_height: float=float({"core":88,"power":74,"radar":80,"refinery":68,"factory":66,"repair":65,"armory":70}.get(e.kind,58))
+	# Construction stays readable in-world. Running factories show their active product at
+	# normal zoom, but collapse to a tiny progress bar when the camera is far away.
+	var show_label: bool=str(data.kind)!="production" or focused or zoom>=0.90
+	var bar_width: float=72.0 if show_label else 42.0
+	var y_offset: float=building_height+(8.0 if show_label else 6.0)
+	var top_left: Vector2=visual.pos-Vector2(bar_width*0.5,y_offset)
+	var fill_color: Color=Color("78e3c5") if str(data.kind)!="production" else Color("e7bd78")
+	if show_label:
+		var plate_width: float=maxf(116.0,bar_width)
+		top_left.x=visual.pos.x-plate_width*0.5
+		draw_rect(Rect2(top_left-Vector2(6,24),Vector2(plate_width+12,41)),Color("130f0c",0.88))
+		draw_rect(Rect2(top_left-Vector2(6,24),Vector2(plate_width+12,41)),Color("8f6b3f",0.8),false,1.0)
+		var short_title: String=str(data.title)
+		if str(data.kind)=="production" and short_title.contains("·"):
+			short_title=short_title.get_slice("·",1).strip_edges()
+		if short_title.length()>22: short_title=short_title.left(21)+"…"
+		var detail_text: String="%s · %d%%"%[str(data.detail),int(ratio*100.0)]
+		if int(data.queue)>1: detail_text+=" · +%d"%[int(data.queue)-1]
+		draw_string(ThemeDB.fallback_font,top_left-Vector2(0,8),short_title,HORIZONTAL_ALIGNMENT_CENTER,plate_width,11,Color("e8dfcf"))
+		draw_string(ThemeDB.fallback_font,top_left+Vector2(0,7),detail_text,HORIZONTAL_ALIGNMENT_CENTER,plate_width,10,fill_color)
+		top_left=Vector2(visual.pos.x-bar_width*0.5,top_left.y+15)
+	draw_rect(Rect2(top_left,Vector2(bar_width,4)),Color("16110d",0.95))
+	draw_rect(Rect2(top_left,Vector2(bar_width*ratio,4)),fill_color)
+
 func draw_selection(e: Dictionary, hover: bool = false) -> void:
 	var color := Color("e7bd78") if hover else sim.team_color(e.owner)
+	var focused: bool = not hover and (selected.size()==1 or (not selected.is_empty() and e.id==selected[0]))
+	var emphasis := 0.3 if hover else (0.86 if focused else 0.42)
 	if e.building:
 		var footprint: Array = sim.footprint(e)
 		var extent := Vector2(footprint[0],footprint[1])*sim.grid.tile*0.5+Vector2(4,5)
@@ -635,18 +714,18 @@ func draw_selection(e: Dictionary, hover: bool = false) -> void:
 				var corner: Vector2 = e.pos+extent*Vector2(x,y)
 				var points := PackedVector2Array([corner-Vector2(x*12,0),corner,corner-Vector2(0,y*12)])
 				draw_polyline(points,Color(0.12,0.08,0.05,0.65),3,true)
-				draw_polyline(points,Color(color,0.88),1.4,true)
+				draw_polyline(points,Color(color,emphasis),1.1,true)
 	else:
-		var length: float = {"scout":19.0,"tank":26.0,"siege":30.0,"harvester":32.0}.get(e.kind,25.0)
-		var width: float = 13.0 if e.kind=="scout" else 20.0
+		var length: float = {"scout":19.0,"tank":26.0,"siege":31.0,"harvester":33.0,"raider":27.0,"lancer":35.0,"scorcher":27.0,"bulwark":40.0}.get(e.kind,25.0)
+		var width: float = {"scout":12.0,"tank":17.0,"siege":18.0,"harvester":21.0,"raider":16.0,"lancer":21.0,"scorcher":18.0,"bulwark":25.0}.get(e.kind,20.0)
 		var forward := Vector2.from_angle(e.angle)
 		var side := forward.orthogonal()
 		for x in [-1,1]:
 			for y in [-1,1]:
 				var corner: Vector2 = e.pos+forward*length*x+side*width*y
-				var points := PackedVector2Array([corner-forward*x*6,corner,corner-side*y*5])
+				var points := PackedVector2Array([corner-forward*x*(6 if focused else 4),corner,corner-side*y*4])
 				draw_polyline(points,Color(0.12,0.08,0.05,0.6),2.4,true)
-				draw_polyline(points,Color(color,0.72),0.9,true)
+				draw_polyline(points,Color(color,emphasis),0.9,true)
 
 func draw_building(e: Dictionary) -> void:
 	var d: Dictionary = sim.definition(e)
@@ -675,6 +754,14 @@ func _build_terrain_detail_mesh() -> void:
 					var cell := Vector2i(x,y)
 					var terrain := grid.type_at(cell)
 					var seed_value := x*37+y*71
+					var region := Vector2i(x/8,y/8)
+					# Sparse regional seams and old hardstand panels share the terrain mesh.
+					if terrain in [1,4] and posmod(region.x*7+region.y*13,5)==0:
+						var origin := Vector2(cell*grid.tile)
+						if x%3==0:
+							_append_detail_line(vertices,colors,indices,origin+Vector2(9,0),origin+Vector2(11,32),0.9,Color(0.12,0.09,0.06,0.26))
+						if y%4==0:
+							_append_detail_line(vertices,colors,indices,origin+Vector2(0,8),origin+Vector2(32,8),0.8,Color(0.63,0.51,0.36,0.16))
 					if terrain==2:
 						if seed_value%5==0:
 							var grass_start := Vector2(cell*grid.tile)+Vector2(seed_value%28,(seed_value*17)%30)
@@ -721,11 +808,17 @@ func _build_solarit_detail_chunk(chunk: Vector2i) -> void:
 			var variation:=posmod(seed_value*17+x*y,4)
 			var atlas_origin:=Vector2(variation*32,tier*32)
 			var cell_origin:=Vector2(cell*grid.tile)
+			var center := cell_origin+Vector2(16+sin(seed_value*1.7)*4.0,16+cos(seed_value*2.3)*4.0)
+			var radius := 12.0+float(posmod(seed_value*13+x*y,9))*0.65
+			var rotation := sin(seed_value*0.71)*0.32
 			var first:=vertices.size()
-			vertices.append_array(PackedVector3Array([Vector3(cell_origin.x,cell_origin.y,0),Vector3(cell_origin.x+32,cell_origin.y,0),Vector3(cell_origin.x+32,cell_origin.y+32,0),Vector3(cell_origin.x,cell_origin.y+32,0)]))
+			for corner in [Vector2(-1,-1),Vector2(1,-1),Vector2(1,1),Vector2(-1,1)]:
+				var p: Vector2=center+(corner*radius*Vector2(1.0,0.88+float(posmod(seed_value,4))*0.08)).rotated(rotation)
+				vertices.append(Vector3(p.x,p.y,0))
 			var atlas_size:=Vector2(solarit_atlas.get_width(),solarit_atlas.get_height())
 			for uv in [atlas_origin,atlas_origin+Vector2(32,0),atlas_origin+Vector2(32,32),atlas_origin+Vector2(0,32)]: uvs.append(uv/atlas_size)
-			var tint:=Color(1,1,1,0.68+0.32*depletion)
+			var brightness := 0.88+float(posmod(seed_value*3,7))*0.025
+			var tint:=Color(brightness,brightness,brightness,0.68+0.32*depletion)
 			for _i in 4: colors.append(tint)
 			indices.append_array(PackedInt32Array([first,first+1,first+2,first,first+2,first+3]))
 	if vertices.is_empty():
@@ -822,6 +915,21 @@ func append_impact_disc(center: Vector2, radius: float, color: Color) -> void:
 		var p:=center+Vector2(cos(angle),sin(angle))*radius
 		impact_disc_vertices.append(Vector3(p.x,p.y,0)); impact_disc_colors.append(color)
 	for i in segments: impact_disc_indices.append_array(PackedInt32Array([first,first+i+1,first+(i+1)%segments+1]))
+
+func append_pixel_puff(center: Vector2, radius: float, color: Color, seed_value: float = 0.0) -> void:
+	# Three stepped lobes share the existing colour mesh; no nodes or extra draw calls.
+	var step := maxf(1.0,radius*0.24)
+	var origin := (center/step).floor()*step
+	for lobe in 3:
+		var offset := Vector2(sin(seed_value+lobe*2.4),cos(seed_value*0.7+lobe*2.1))*radius*0.42
+		var extent := Vector2(radius*(0.50+float(lobe%2)*0.18),radius*(0.38+float((lobe+1)%2)*0.20))
+		var first := impact_disc_vertices.size()
+		var tint := Color(color, color.a*(0.7 if lobe==2 else 1.0))
+		for corner in [Vector2(-1,-1),Vector2(1,-1),Vector2(1,1),Vector2(-1,1)]:
+			var p: Vector2 = origin+offset+corner*extent
+			p=(p/step).round()*step
+			impact_disc_vertices.append(Vector3(p.x,p.y,0)); impact_disc_colors.append(tint)
+		impact_disc_indices.append_array(PackedInt32Array([first,first+1,first+2,first,first+2,first+3]))
 
 func append_impact_glow(center: Vector2, radius: float, color: Color) -> void:
 	var first:=impact_glow_vertices.size()

@@ -152,7 +152,7 @@ func _process(dt: float) -> void:
 	for e in sim.entities.values():
 		if e.owner!=sim.view_owner and sim.is_visible(e,sim.view_owner): visible_enemies+=1
 	var desired := clampf(sim.combat_heat+visible_enemies*0.025+(0.4 if sim.base_alarm>0 else 0.0),0,1)
-	intensity=move_toward(intensity,desired,dt*0.2)
+	intensity=move_toward(intensity,desired,dt*0.45)
 	var next := "BASE_CALM"
 	if sim.result!="": next=sim.result.to_upper()
 	elif sim.base_alarm>0: next="BASE_UNDER_ATTACK"
@@ -167,15 +167,23 @@ func _process(dt: float) -> void:
 	var music_bar := floori(playhead/2.0)
 	var crossed_bar := music_bar!=last_music_bar
 	last_music_bar=music_bar
-	if pending!=state and age>4 and crossed_bar:
+	if pending!=state and age>2.0 and crossed_bar:
 		state=pending; age=0
 	if sim.result!="" and not ended:
 		ended=true; state=sim.result.to_upper(); cue(sim.result)
-	var gains := [0.6,0.0,0.0,0.0]
-	if state in ["ENEMY_CONTACT","SKIRMISH","BATTLE","MAJOR_BATTLE","BASE_UNDER_ATTACK"]: gains[1]=0.65
-	if state in ["SKIRMISH","BATTLE","MAJOR_BATTLE","BASE_UNDER_ATTACK"]: gains[2]=0.35 if state=="SKIRMISH" else 0.8
-	if state in ["MAJOR_BATTLE","BASE_UNDER_ATTACK"]: gains[3]=0.7
-	if ended: gains=[0.25,0.0,0.0,0.0]
+	# Strongly differentiated adaptive arrangements. The four synchronized stems are
+	# intentionally mixed very differently per tactical state, so contact, economy,
+	# battle and base alarm are immediately audible rather than feeling like one loop.
+	var gains := [0.72,0.0,0.0,0.0]
+	match state:
+		"ECONOMY": gains=[0.58,0.20,0.0,0.0]
+		"ENEMY_CONTACT": gains=[0.38,0.92,0.0,0.0]
+		"SKIRMISH": gains=[0.28,0.62,0.55,0.0]
+		"BATTLE": gains=[0.16,0.34,1.0,0.0]
+		"MAJOR_BATTLE": gains=[0.10,0.26,1.0,0.70]
+		"BASE_UNDER_ATTACK": gains=[0.06,0.18,0.88,1.0]
+		"VICTORY", "DEFEAT": gains=[0.22,0.0,0.0,0.0]
+	if ended: gains=[0.22,0.0,0.0,0.0]
 	for i in layers.size():
 		var target_db := linear_to_db(maxf(0.002,float(gains[i])*music_volume))
 		layers[i].volume_db=move_toward(layers[i].volume_db,target_db,dt*15)

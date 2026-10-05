@@ -1,6 +1,6 @@
 extends Control
 
-const WORLD_RECT = Rect2(20,86,1560,944)
+const WORLD_RECT = Rect2(20,86,1530,944)
 const SAVE_PATH = "user://quick_save.json"
 const HIGHSCORE_PATH = "user://highscores.json"
 const CAMPAIGN_PATH = "user://campaign_progress.json"
@@ -64,6 +64,8 @@ var select_same := false
 var group_last := 0
 var group_time := 0.0
 var status: Label
+var energy_label: Label
+var mission_clock: Label
 var information: Label
 var details_button: Button
 var repair_button: Button
@@ -76,6 +78,7 @@ var notification: Label
 var objective: Label
 var minimap: TacticalMap
 var radar_caption: Label
+var side_panel: Panel
 var low_power_alerted := false
 var buttons: Dictionary = {}
 var requirement_marks: Dictionary = {}
@@ -110,10 +113,13 @@ var options_tab := "BILD"
 const GOLD = Color("e7bd78")
 const MINT = Color("79d9bd")
 const MUTED = Color("b4a58d")
-const PERFORMANCE_LOG_PATH := "user://performance_events.csv"
-const LOW_FPS_THRESHOLD := 45.0
-const RECOVERY_FPS_THRESHOLD := 50.0
+const PERFORMANCE_LOG_PATH := "user://performance_events_v2.csv"
+const LOW_FPS_WARNING_THRESHOLD := 60.0
+const LOW_FPS_CRITICAL_THRESHOLD := 50.0
+const RECOVERY_FPS_THRESHOLD := 60.0
 const LOW_FPS_TRIGGER_SECONDS := 1.0
+const LOW_FPS_CRITICAL_TRIGGER_SECONDS := 0.8
+const FPS_RECOVERY_TRIGGER_SECONDS := 1.0
 var fps_label: Label
 var performance_log_path := PERFORMANCE_LOG_PATH
 var fps_sample_elapsed := 0.0
@@ -122,12 +128,22 @@ var low_fps_seconds := 0.0
 var low_fps_minimum := INF
 var low_fps_weighted_sum := 0.0
 var low_fps_recorded_seconds := 0.0
+var low_fps_critical_seconds := 0.0
+var low_fps_critical_minimum := INF
+var low_fps_critical_weighted_sum := 0.0
+var low_fps_critical_recorded_seconds := 0.0
+var low_fps_recovery_seconds := 0.0
 var low_fps_active := false
+var low_fps_critical_logged := false
+var fps_auto_profile := false
+var profiler_overlay_visible := false
 var performance_log_error_reported := false
 var highscore_path := HIGHSCORE_PATH
 var campaign_progress: Dictionary = {"format_version":1,"unlocked_mission":0,"tech_level":0,"completed":[]}
 var campaign_progress_path := CAMPAIGN_PATH
 var run_id := ""
+var highscore_mission_index := -1
+var last_load_path := ""
 
 func _ready() -> void:
 	mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -198,8 +214,8 @@ func setup_theme() -> void:
 	var tooltip := StyleBoxFlat.new()
 	tooltip.bg_color=Color("302317"); tooltip.border_color=GOLD
 	tooltip.set_border_width_all(1)
-	tooltip.content_margin_left=12; tooltip.content_margin_right=12
-	tooltip.content_margin_top=10; tooltip.content_margin_bottom=10
+	tooltip.content_margin_left=9; tooltip.content_margin_right=9
+	tooltip.content_margin_top=6; tooltip.content_margin_bottom=6
 	t.set_stylebox("panel","TooltipPanel",tooltip)
 	t.set_font_size("font_size","TooltipLabel",17)
 	theme=t
@@ -223,6 +239,14 @@ func setup_world() -> void:
 
 func clear(node: Node) -> void:
 	for child in node.get_children(): node.remove_child(child); child.queue_free()
+
+func modal_overlay_active() -> bool:
+	return is_instance_valid(overlay) and overlay.get_child_count()>0
+
+func suppress_world_hover() -> void:
+	hovered_entity_id=0
+	if is_instance_valid(renderer): renderer.hovered_entity_id=0
+	if is_instance_valid(hover_panel): hover_panel.visible=false
 
 func migrate_legacy_user_data() -> void:
 	var destination:=OS.get_user_data_dir()
@@ -275,7 +299,8 @@ func label(parent: Node, text_value: String, pos: Vector2, font_size: int = 20, 
 	return l
 
 func button(parent: Node, text_value: String, rect: Rect2, callback: Callable) -> Button:
-	var b := Button.new()
+	var b: Button = preload("res://scripts/system_button.gd").new()
+	b.clip_text=true
 	b.text=text_value; b.position=rect.position; b.size=rect.size
 	b.pressed.connect(callback)
 	parent.add_child(b)
@@ -286,6 +311,7 @@ func show_main_menu() -> void:
 	var scene_time := intro_art.elapsed if is_instance_valid(intro_art) else 0.0
 	intro_active=false
 	playing=false; paused=true; placement=""; renderer.placement=""
+	suppress_world_hover()
 	clear(ui); clear(overlay)
 	view_container.visible=false
 	var art := FrontendBackdrop.new()
@@ -299,7 +325,7 @@ func show_main_menu() -> void:
 	menu_buttons.clear()
 	menu_buttons.start=menu_button("01","EINSATZ WÄHLEN",526,show_briefing,true)
 	menu_buttons.multiplayer=menu_button("02","MULTIPLAYER",600,show_online_menu)
-	menu_buttons.load=menu_button("03","SPIELSTAND LADEN",658,load_game)
+	menu_buttons.load=menu_button("03","SPIELSTAND LADEN",658,func():show_load_dialog(show_main_menu))
 	menu_buttons.load.disabled=not FileAccess.file_exists(SAVE_PATH) and not FileAccess.file_exists("user://autosave.json")
 	menu_buttons.options=menu_button("04","OPTIONEN",716,func():show_options(show_main_menu))
 	menu_buttons.credits=menu_button("05","MUSIK & CREDITS",774,show_credits)
@@ -495,8 +521,30 @@ func _input(event: InputEvent) -> void:
 			skip_intro()
 			get_viewport().set_input_as_handled()
 		return
+	# Escape is handled in _input(), not _unhandled_input(), because focused GUI controls
+	# can consume it before the gameplay handler sees it. This keeps ESC reliable in HUD,
+	# catalog, pause and overlay screens. Remapping and chat input retain priority.
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_ESCAPE:
+		if remap_action=="":
+			if not (is_instance_valid(chat_input) and chat_input.has_focus()):
+				if harvest_mode:
+					harvest_mode=false
+				elif placement!="":
+					placement=""; renderer.placement=""
+				elif playing:
+					if paused and not ended: resume_game()
+					elif not ended: show_pause()
+				elif overlay.get_child_count()>0:
+					clear(overlay)
+				get_viewport().set_input_as_handled()
+				return
 	if event is InputEventMouse:
 		pointer_local=get_global_transform_with_canvas().affine_inverse()*event.position
+	if modal_overlay_active():
+		right_held=false; right_panning=false; middle_drag=false; dragging=false
+		if is_instance_valid(renderer): renderer.selecting=false
+		suppress_world_hover()
+		return
 	# Once started in the world, finish the gesture even when the pointer crosses the HUD.
 	if not right_held or not playing or paused or not event is InputEventMouse: return
 	var inverse := get_global_transform_with_canvas().affine_inverse()
@@ -544,17 +592,19 @@ func show_briefing() -> void:
 	ui.add_child(veil)
 	label(ui,"SOLARIT: RANDSEKTOR 07   /   EINSATZVORBEREITUNG",Vector2(72,34),17,MINT)
 	var p := panel(ui,Rect2(300,64,1320,950),Color("202a29"))
+	p.clip_contents=true
 	var rail := ColorRect.new(); rail.color=MINT; rail.position=Vector2.ZERO; rail.size=Vector2(5,950); rail.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(rail)
 	label(p,"EINSATZ / %02d     ·     VEYRA-FRONT" % (mission_index+1),Vector2(48,27),17,MINT)
 	label(p,str(db.mission.get("display_name",db.mission.get("name","Einsatz"))),Vector2(48,62),42,GOLD)
-	label(p,db.mission.briefing,Vector2(48,116),19,Color("d5ded5"),1215)
+	var description:=label(p,db.mission.briefing,Vector2(48,116),19,Color("d5ded5"),1215)
+	description.name="MissionDescription"; description.size=Vector2(1215,96); description.clip_contents=true
 	label(p,"KAMPAGNENFOLGE  ·  EINSATZ %02d / %02d" % [mission_index+1,MISSION_PATHS.size()],Vector2(48,234),14,MUTED)
 	for i in range(MISSION_PATHS.size()):
 		var preview:=Catalog.new(MISSION_PATHS[i])
 		var unlocked:=i<=int(campaign_progress.unlocked_mission)
 		var mission_button:=button(p,("%02d  %s" % [i+1,str(preview.mission.get("short_name",preview.mission.get("display_name","Einsatz")))]) if unlocked else ("%02d  SIGNAL GESPERRT"%[i+1]),Rect2(48+i*406,260,386,55),func():select_mission(i))
 		mission_button.disabled=not unlocked
-		mission_button.tooltip_text=(str(preview.mission.get("briefing","")) if unlocked else "Wird nach dem Sieg im vorherigen Einsatz freigeschaltet.")
+		mission_button.tooltip_text="" if unlocked else "Wird nach dem Sieg im vorherigen Einsatz freigeschaltet."
 		var mission_style:=StyleBoxFlat.new(); mission_style.bg_color=Color("173732") if i==mission_index else Color("263331"); mission_style.border_color=MINT if i==mission_index else Color("485b55"); mission_style.set_border_width_all(1); mission_style.set_corner_radius_all(4)
 		mission_button.add_theme_stylebox_override("normal",mission_style); mission_button.add_theme_color_override("font_color",Color("82e3c0") if unlocked and i==mission_index else (Color("d5ded5") if unlocked else MUTED))
 		var completed_missions: Array=campaign_progress.get("completed",[])
@@ -592,9 +642,9 @@ func show_briefing() -> void:
 	label(p,"BEDROHUNG",Vector2(842,574),12,MUTED,100)
 	var threat_names: Array[String]=["NIEDRIG","MITTEL","HOCH"]
 	label(p,threat_names[threat_level-1],Vector2(946,572),13,Color("e8b963") if threat_level<3 else Color("e06d4e"),112)
-	for threat_index in range(3):
-		var threat_mark:=ColorRect.new(); threat_mark.position=Vector2(1064+threat_index*68,578); threat_mark.size=Vector2(58,6)
-		threat_mark.color=(Color("e06d4e") if threat_level==3 else Color("e8b963")) if threat_index<threat_level else Color("3b3a35")
+	for threat_index in range(5):
+		var threat_mark:=ColorRect.new(); threat_mark.position=Vector2(1064+threat_index*42,578); threat_mark.size=Vector2(34,6)
+		threat_mark.color=Color("e8b963") if threat_index<threat_level*2-1 else Color("3b3a35")
 		threat_mark.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(threat_mark)
 	label(p,"AUFTRAG",Vector2(48,606),14,MUTED)
 	label(p,mission_objective_brief(),Vector2(48,631),16,Color("d5ded5"),720)
@@ -606,10 +656,10 @@ func show_briefing() -> void:
 	label(p,"TAKTISCHE LAGE",Vector2(832,606),14,MUTED)
 	var tactical_preview := MissionTacticalPreview.new()
 	tactical_preview.name="MissionTacticalPreview"
-	tactical_preview.position=Vector2(832,631); tactical_preview.size=Vector2(440,154); tactical_preview.mission_data=db.mission
+	tactical_preview.position=Vector2(802,631); tactical_preview.size=Vector2(470,180); tactical_preview.mission_data=db.mission
 	tactical_preview.tooltip_text="Einsatzkarte mit Gelände, Solaritfeldern, bekannten Gegnern und Hauptziel"
 	p.add_child(tactical_preview)
-	label(p,"RANDSEKTOR 07   ·   %d × %d FELDER   ·   SOLARITVORKOMMEN" % [int(db.mission.get("width",64)),int(db.mission.get("height",64))],Vector2(832,797),13,MUTED,440)
+	label(p,"RANDSEKTOR 07   ·   %d × %d FELDER   ·   SOLARITVORKOMMEN" % [int(db.mission.get("width",64)),int(db.mission.get("height",64))],Vector2(802,820),12,MUTED,470)
 	button(p,"ZURÜCK ZUM HAUPTMENÜ",Rect2(48,854,350,58),show_main_menu)
 	button(p,"MULTIPLAYER",Rect2(420,854,340,58),show_online_menu)
 	var launch := button(p,"EINSATZ STARTEN     →",Rect2(798,854,474,58),start_game)
@@ -880,23 +930,29 @@ func build_hud() -> void:
 	clear(ui)
 	buttons.clear()
 	var top := panel(ui,Rect2(20,16,1880,56))
-	label(top,"SOLARIT: RANDSEKTOR 07",Vector2(18,9),25,GOLD)
-	status=label(top,"",Vector2(212,17),18,MINT,500)
-	status.size.y=30
+	label(top,"SOLARIT",Vector2(18,4),11,MUTED)
+	status=label(top,"",Vector2(18,21),21,Color("d8d1c4"),165)
+	label(top,"ENERGIE / FREI",Vector2(203,4),11,MUTED)
+	energy_label=label(top,"",Vector2(203,21),21,MINT,150)
+	label(top,"ZEIT",Vector2(380,4),11,MUTED)
+	mission_clock=label(top,"",Vector2(380,21),16,Color("d8d1c4"),95)
+	status.size.y=30; energy_label.size.y=30; mission_clock.size.y=25
 	status.tooltip_text="Solarit ist die Bau- und Produktionswährung. Energie zeigt Verbrauch / Erzeugung; Gebäudeüberlastung verlangsamt Bau und Fahrzeugmontage, pausiert Geschütze und Reparaturen. Schwere Fahrzeuge benötigen zusätzlich freie Energie zum Start der Montage."
-	objective=label(top,sim.hud_objective_text(),Vector2(730,19),16,MUTED,440)
+	label(top,"AUFTRAG",Vector2(610,4),11,MUTED)
+	objective=label(top,sim.hud_objective_text(),Vector2(610,23),15,Color("d8d1c4"),530)
 	fps_label=label(top,"FPS --",Vector2(1197,18),16,MINT,112)
 	fps_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
-	fps_label.tooltip_text="Bildrate live. Einbruchprotokoll mit Objektzahlen: user://performance_events.csv (unter Windows im Godot-Appdatenordner)."
+	fps_label.tooltip_text="Bildrate live. Einbruchprotokoll ab 60 FPS: performance_events_v2.csv (unter Windows im Godot-Appdatenordner)."
 	button(top,"PAUSE / ESC",Rect2(1695,8,166,40),show_pause)
-	var side := panel(ui,Rect2(1600,86,300,944))
-	label(side,"TAKTISCHE ÜBERSICHT",Vector2(18,12),16,GOLD)
+	var side := panel(ui,Rect2(1570,86,330,944))
+	side_panel=side
 	minimap=TacticalMap.new()
 	minimap.position=Vector2(1400,820); minimap.size=Vector2(164,138); minimap.sim=sim
 	minimap.navigate.connect(func(point):renderer.camera=point; clamp_camera())
 	ui.add_child(minimap)
-	radar_caption=label(side,"Signalstation schaltet Radar frei",Vector2(18,43),14,MUTED)
-	information=label(side,"",Vector2(76,72),14,Color("cbd9d0"),206)
+	radar_caption=label(side,"RADAR OFFLINE",Vector2(18,12),11,MUTED,120)
+	radar_caption.tooltip_text="Signalstation errichten und mit Energie versorgen, um den Radar zu aktivieren."
+	information=label(side,"",Vector2(76,30),13,Color("cbd9d0"),236)
 	information.mouse_filter=Control.MOUSE_FILTER_STOP
 	information.tooltip_text="Anklicken: technische Daten und Reparatur"
 	information.gui_input.connect(func(event):
@@ -907,9 +963,15 @@ func build_hud() -> void:
 	repair_button=button(top,"REPARIEREN · R",Rect2(1498,8,180,40),repair_selection)
 	details_button.add_theme_font_size_override("font_size",14)
 	repair_button.add_theme_font_size_override("font_size",14)
-	var build_tab := button(side,"BAU",Rect2(18,220,84,43),func():category="buildings"; build_hud())
-	var unit_tab := button(side,"FAHRZEUGE",Rect2(108,220,84,43),func():category="units"; build_hud())
-	var production_tab := button(side,"PRODUKTION",Rect2(198,220,84,43),func():category="production"; build_hud())
+	var build_tab := button(side,"BAU",Rect2(18,118,92,38),func():category="buildings"; build_hud())
+	var unit_tab := button(side,"FAHRZEUGE",Rect2(116,118,92,38),func():category="units"; build_hud())
+	var production_tab := button(side,"PRODUKTION",Rect2(214,118,92,38),func():category="production"; build_hud())
+	build_tab.add_theme_font_size_override("font_size",14)
+	for tab in [build_tab,unit_tab,production_tab]:
+		for state in ["normal","hover","pressed","disabled","focus"]:
+			var tab_style: StyleBoxFlat=tab.get_theme_stylebox(state).duplicate()
+			tab_style.content_margin_left=4; tab_style.content_margin_right=4
+			tab.add_theme_stylebox_override(state,tab_style)
 	unit_tab.add_theme_font_size_override("font_size",11)
 	production_tab.add_theme_font_size_override("font_size",11)
 	var active_tab: Button = build_tab if category=="buildings" else (unit_tab if category=="units" else production_tab)
@@ -921,14 +983,15 @@ func build_hud() -> void:
 	selection_icons.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	side.add_child(selection_icons); selection_signature=""
 	var catalog_scroll := ScrollContainer.new()
-	catalog_scroll.position=Vector2(18,279)
-	catalog_scroll.size=Vector2(264,511)
+	catalog_scroll.name="CatalogScroll"
+	catalog_scroll.position=Vector2(18,168)
+	catalog_scroll.size=Vector2(294,744)
 	catalog_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
 	catalog_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO
 	catalog_scroll.mouse_filter=Control.MOUSE_FILTER_PASS
 	side.add_child(catalog_scroll)
 	var catalog_content := Control.new()
-	catalog_content.custom_minimum_size=Vector2(264,0)
+	catalog_content.custom_minimum_size=Vector2(274,0)
 	catalog_scroll.add_child(catalog_content)
 	production_content=catalog_content if category=="production" else null
 	var y := 0
@@ -940,7 +1003,7 @@ func build_hud() -> void:
 		var factories:=sim.buildings(local_owner(),"factory",false)
 		factories.sort_custom(func(a,b):return int(a.id)<int(b.id))
 		if factories.is_empty():
-			production_empty_label=label(catalog_content,"KEINE FAHRZEUGWERFT\n\nErrichte im Tab Bau eine Fahrzeugwerft. Dort werden alle Fahrzeuge montiert.",Vector2(6,10),15,MUTED,250)
+			production_empty_label=label(catalog_content,"KEINE FAHRZEUGWERFT\n\nErrichte im Tab Bau eine Fahrzeugwerft. Dort werden alle Fahrzeuge montiert.",Vector2(6,10),15,MUTED,302)
 			production_empty_label.size.y=125
 			production_signature=""
 	else:
@@ -948,7 +1011,7 @@ func build_hud() -> void:
 			var target_text: String="AUTOMATIK · KÜRZESTE WARTESCHLANGE"
 			if production_target_factory_id>0 and sim.entities.has(production_target_factory_id):
 				target_text="ZIELWERFT %02d · HIER EINREIHEN"%production_factory_number(production_target_factory_id)
-			var target_banner:=label(catalog_content,target_text,Vector2(4,2),11,MINT if production_target_factory_id>0 else MUTED,256)
+			var target_banner:=label(catalog_content,target_text,Vector2(4,2),11,MINT if production_target_factory_id>0 else MUTED,266)
 			target_banner.size.y=22
 			target_banner.tooltip_text="Im Tab Produktion eine Werft auswählen. Neue Fahrzeuge werden dann gezielt dort eingereiht."
 			y=25
@@ -957,27 +1020,65 @@ func build_hud() -> void:
 			if id=="core": continue
 			catalog_count+=1
 			var d: Dictionary = table[id]
-			var b := button(catalog_content,"",Rect2(0,y,264,48),func():catalog_click(id,false))
+			var b := button(catalog_content,"",Rect2(0,y,274,72),func():catalog_click(id,false))
+			b.clip_contents=true
 			b.alignment=HORIZONTAL_ALIGNMENT_LEFT
-			b.add_theme_font_size_override("font_size",14)
+			b.add_theme_font_size_override("font_size",12)
 			for state in ["normal","hover","pressed","disabled","focus"]:
 				var style: StyleBoxFlat = b.get_theme_stylebox(state).duplicate()
 				style.content_margin_left=61
+				style.content_margin_right=76 if category=="units" else 5
 				b.add_theme_stylebox_override(state,style)
 			var icon := IndustrialThumbnail.new()
-			icon.sim=sim; icon.team_owner=local_owner(); icon.kind=id; icon.position=Vector2(6,1); icon.size=Vector2(47,46)
+			icon.name="CatalogArtwork"
+			icon.sim=sim; icon.team_owner=local_owner(); icon.kind=id; icon.position=Vector2(6,10); icon.size=Vector2(47,46)
 			icon.mouse_filter=Control.MOUSE_FILTER_IGNORE
 			b.add_child(icon)
 			var marker:=ColorRect.new()
-			marker.position=Vector2.ZERO; marker.size=Vector2(4,48); marker.color=Color("9e524c"); marker.visible=false
+			marker.position=Vector2.ZERO; marker.size=Vector2(3,72); marker.color=Color("9e524c"); marker.visible=false
 			marker.mouse_filter=Control.MOUSE_FILTER_IGNORE
 			b.add_child(marker); requirement_marks[id]=marker
+			var activity_bar := ProgressBar.new()
+			activity_bar.name="CatalogActivityBar"
+			activity_bar.position=Vector2(61,61)
+			activity_bar.size=Vector2(136,4) if category=="units" else Vector2(206,4)
+			activity_bar.show_percentage=false
+			activity_bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
+			activity_bar.visible=false
+			activity_bar.add_theme_font_size_override("font_size",1)
+			var activity_fill := StyleBoxFlat.new()
+			activity_fill.bg_color=MINT
+			activity_bar.add_theme_stylebox_override("fill",activity_fill)
+			var activity_background := StyleBoxFlat.new()
+			activity_background.bg_color=Color("18110c")
+			activity_bar.add_theme_stylebox_override("background",activity_background)
+			b.add_child(activity_bar)
+			if category=="units":
+				var minus:=button(b,"−",Rect2(201,5,24,25),catalog_adjust_quantity.bind(id,-1))
+				minus.name="QtyMinus"
+				minus.tooltip_text="1 entfernen"
+				var qty:=label(b,"×0",Vector2(225,7),11,MUTED,26)
+				qty.name="QtyLabel"; qty.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; qty.mouse_filter=Control.MOUSE_FILTER_IGNORE
+				var plus:=button(b,"+",Rect2(250,5,24,25),catalog_adjust_quantity.bind(id,1))
+				plus.name="QtyPlus"
+				plus.tooltip_text="1 hinzufügen"
+				var up:=button(b,"↑",Rect2(214,34,28,24),catalog_adjust_priority.bind(id,-1))
+				up.name="PriorityUp"; up.tooltip_text="Nach oben"
+				var down:=button(b,"↓",Rect2(246,34,28,24),catalog_adjust_priority.bind(id,1))
+				down.name="PriorityDown"; down.tooltip_text="Nach unten"
+				for compact in [minus,plus,up,down]:
+					compact.add_theme_font_size_override("font_size",13)
+					for compact_state in ["normal","hover","pressed","disabled","focus"]:
+						var compact_style: StyleBoxFlat=compact.get_theme_stylebox(compact_state).duplicate()
+						compact_style.content_margin_left=2; compact_style.content_margin_right=2
+						compact_style.content_margin_top=1; compact_style.content_margin_bottom=1
+						compact.add_theme_stylebox_override(compact_state,compact_style)
 			b.tooltip_text="%s\n%s\nBauzeit: %s s\nVoraussetzungen: %s" % [d.name,d.description,d.time,", ".join(d.get("requires",[]))]
 			b.gui_input.connect(func(e):
 				if e is InputEventMouseButton and e.pressed and e.button_index==MOUSE_BUTTON_RIGHT: catalog_click(id,true); b.accept_event())
 			buttons[id]=b
-			y+=54
-	catalog_content.custom_minimum_size=Vector2(264,maxf(511,y-6))
+			y+=78
+	catalog_content.custom_minimum_size=Vector2(274,maxf(744,y-6))
 	queue_label=label(side,"",Vector2(18,857),16,MUTED,264)
 	production_bar=ProgressBar.new()
 	production_bar.position=Vector2(18,842); production_bar.size=Vector2(264,8)
@@ -991,12 +1092,18 @@ func build_hud() -> void:
 	production_bar.add_theme_stylebox_override("background",progress_background)
 	side.add_child(production_bar)
 	production_bar.size=Vector2(264,8)
-	harvest_button=button(side,"FELD WÄHLEN",Rect2(18,903,128,32),func():
+	harvest_button=button(side,"FELD WÄHLEN",Rect2(18,903,138,32),func():
 		harvest_mode=true; attack_mode=false; placement=""; notify("Solaritfeld mit Linksklick zuweisen. Rechtsklick auf Solarit sammelt ebenfalls."))
-	unload_button=button(side,"ABLADEN",Rect2(154,903,128,32),func():
+	unload_button=button(side,"ABLADEN",Rect2(164,903,138,32),func():
 		dispatch_order(selected,Vector2.ZERO,"return"); harvest_mode=false; notify("Sammler kehrt zur Raffinerie zurück."))
 	harvest_button.add_theme_font_size_override("font_size",13)
 	unload_button.add_theme_font_size_override("font_size",13)
+	harvest_button.tooltip_text="Nur für ausgewählte Solarit-Sammler: ein Solaritfeld als Sammelziel wählen."
+	unload_button.tooltip_text="Nur für ausgewählte Solarit-Sammler: Ladung zur Raffinerie zurückbringen."
+	# These are unit-context actions, not generic construction controls. update_hud()
+	# only reveals them while at least one own harvester is selected.
+	harvest_button.visible=false
+	unload_button.visible=false
 	var bottom := panel(ui,Rect2(20,1042,1880,28))
 	label(bottom,"LMB Auswahl   RMB Klick: Befehl · Ziehen: Karte   A Angriff   S Stopp   H Halten   Strg+1–9 Gruppen   F5/F9 Speichern/Laden",Vector2(12,4),14,MUTED)
 	alert_panel=panel(ui,Rect2(32,975,1515,45),Color(0.16,0.10,0.055,0.86))
@@ -1012,6 +1119,56 @@ func build_hud() -> void:
 		button(ui,"CHAT · ENTER",Rect2(36,145,175,36),toggle_chat)
 		build_online_chat(ui,Rect2(36,188,590,295),false)
 	update_hud()
+
+func catalog_factories_for_controls() -> Array:
+	var factories:=sim.buildings(local_owner(),"factory",false)
+	factories.sort_custom(func(a,b): return int(a.id)<int(b.id))
+	if production_target_factory_id>0:
+		return factories.filter(func(factory): return int(factory.id)==production_target_factory_id)
+	return factories
+
+func catalog_queue_count(kind: String) -> int:
+	var count:=0
+	for factory in catalog_factories_for_controls():
+		for job in factory.queue:
+			if str(job.kind)==kind: count+=1
+	return count
+
+func catalog_priority_target(kind: String, direction: int) -> Dictionary:
+	for factory in catalog_factories_for_controls():
+		if not factory.complete: continue
+		if direction<0:
+			for queue_index in range(2,factory.queue.size()):
+				if str(factory.queue[queue_index].kind)==kind:
+					return {"factory_id":int(factory.id),"queue_index":queue_index}
+		else:
+			for queue_index in range(1,maxi(1,factory.queue.size()-1)):
+				if queue_index<factory.queue.size()-1 and str(factory.queue[queue_index].kind)==kind:
+					return {"factory_id":int(factory.id),"queue_index":queue_index}
+	return {}
+
+func catalog_adjust_quantity(kind: String, delta: int) -> void:
+	if paused or delta==0: return
+	if delta>0:
+		catalog_click(kind,false)
+		return
+	var factories:=catalog_factories_for_controls()
+	for factory_index in range(factories.size()-1,-1,-1):
+		var factory: Dictionary=factories[factory_index]
+		for queue_index in range(factory.queue.size()-1,-1,-1):
+			if str(factory.queue[queue_index].kind)!=kind: continue
+			if submit_player_command({"type":"cancel_queue_at","owner_id":local_owner(),"factory_id":int(factory.id),"queue_index":queue_index}):
+				music.cue("error")
+				update_hud()
+			return
+
+func catalog_adjust_priority(kind: String, direction: int) -> void:
+	if paused or direction not in [-1,1]: return
+	var target:=catalog_priority_target(kind,direction)
+	if target.is_empty(): return
+	if submit_player_command({"type":"move_queue","owner_id":local_owner(),"factory_id":int(target.factory_id),"queue_index":int(target.queue_index),"direction":direction}):
+		music.cue("select")
+		update_hud()
 
 func catalog_click(id: String, cancel: bool) -> void:
 	if paused: return
@@ -1069,13 +1226,78 @@ func focus_production_building(building_id: int) -> void:
 	if production_target_factory_id==building_id: notify("Neue Fahrzeuge werden gezielt in Werft %02d eingereiht."%production_factory_number(building_id))
 	else: notify("Automatische Verteilung auf die kürzeste Warteschlange aktiv.")
 
+func construction_phase_label(progress: float) -> String:
+	if progress < 0.25: return "FUNDAMENT"
+	if progress < 0.50: return "RAHMEN"
+	if progress < 0.85: return "MONTAGE"
+	if progress < 1.0: return "INBETRIEBNAHME"
+	return "BETRIEBSBEREIT"
+
+func localized_armor_label(value: String) -> String:
+	return {"light":"LEICHT","medium":"MITTEL","heavy":"SCHWER","structure":"GEBÄUDE"}.get(value,value.to_upper())
+
+func localized_order_label(value: String) -> String:
+	return {"GUARD":"BEWACHEN","ATTACK":"ANGRIFF","HOLD":"POSITION HALTEN","MOVE":"BEWEGEN","STOP":"STOPP","REPAIR":"REPARIEREN","IDLE":"BEREIT"}.get(value,value.replace("_"," ").to_upper())
+
+func catalog_activity_state(id: String) -> Dictionary:
+	var result := {"active":false,"line":"","ratio":-1.0,"tooltip":""}
+	if db.buildings.has(id):
+		var active_sites: Array = sim.buildings(local_owner(),id,false)
+		active_sites = active_sites.filter(func(site): return not bool(site.complete))
+		if not active_sites.is_empty():
+			active_sites.sort_custom(func(a,b): return int(a.id) < int(b.id))
+			var site: Dictionary = active_sites[0]
+			var ratio: float = clampf(float(site.get("build_progress",0.0)) / maxf(0.01,float(sim.definition(site).time)),0.0,1.0)
+			var count: int = active_sites.size()
+			result.active = true
+			result.line = "IM BAU · %d%% · %s%s" % [int(ratio * 100.0), construction_phase_label(ratio), " · +%d" % (count - 1) if count > 1 else ""]
+			result.ratio = ratio
+			result.tooltip = "Aktive Baustelle: %s · %d%% · %s" % [sim.definition(site).name, int(ratio * 100.0), construction_phase_label(ratio)]
+			return result
+		var upgrade_sites: Array = sim.buildings(local_owner(),id)
+		upgrade_sites = upgrade_sites.filter(func(site): return bool(site.get("upgrading",false)))
+		if not upgrade_sites.is_empty():
+			upgrade_sites.sort_custom(func(a,b): return int(a.id) < int(b.id))
+			var site: Dictionary = upgrade_sites[0]
+			var ratio: float = clampf(float(site.get("upgrade_progress",0.0)) / maxf(0.01,float(site.get("upgrade_time",1.0))),0.0,1.0)
+			result.active = true
+			result.line = "AUSBAU · %d%% · STUFE %d" % [int(ratio * 100.0), int(site.get("upgrade_target",1))]
+			result.ratio = ratio
+			result.tooltip = "Ausbau läuft: %s · Stufe %d → %d · %d%%" % [sim.definition(site).name, int(site.get("upgrade_level",0)), int(site.get("upgrade_target",1)), int(ratio * 100.0)]
+			return result
+	else:
+		var total_orders := 0
+		for factory in sim.buildings(local_owner(),"factory"):
+			for job_index in range(factory.queue.size()):
+				var job: Dictionary = factory.queue[job_index]
+				if str(job.kind) != id:
+					continue
+				total_orders += 1
+				if job_index == 0:
+					var unit_def: Dictionary = db.units[id]
+					var production_time: float = maxf(0.01,float(unit_def.time) * (0.85 if int(factory.get("upgrade_level",0)) > 0 else 1.0))
+					var ratio: float = clampf(float(factory.progress) / production_time,0.0,1.0)
+					result.active = true
+					result.line = "MONTAGE · %d%% · WERFT %02d" % [int(ratio * 100.0), production_factory_number(int(factory.id))]
+					result.ratio = ratio
+					result.tooltip = "Produktion aktiv: %s · %d%% in Werft %02d" % [unit_def.name, int(ratio * 100.0), production_factory_number(int(factory.id))]
+					return result
+		if total_orders > 0:
+			result.active = true
+			result.line = "WARTESCHLANGE · %d AUFTRÄGE" % total_orders
+			result.tooltip = "%d Produktionsaufträge für dieses Fahrzeug eingereiht." % total_orders
+	return result
+
 func update_hud() -> void:
 	if not playing or sim==null or not is_instance_valid(status): return
 	var ui_started:=Time.get_ticks_usec() if renderer.profile_enabled else 0
 	var p := sim.power(local_owner())
-	radar_caption.text="RADAR / SCANNER AKTIV" if not sim.buildings(local_owner(),"radar").is_empty() and sim.powered(local_owner()) else "Signalstation schaltet Radar frei"
-	status.text="SOLARIT %04d · ENERGIE %d/%d · FREI %d · %02d:%02d%s" % [int(sim.credits[local_owner()]),int(p.x),int(p.y),int(p.y-p.x),int(sim.time)/60,int(sim.time)%60,"  !" if p.x>p.y else ""]
-	status.modulate=Color("ffb17c") if p.x>p.y else Color.WHITE
+	radar_caption.text="RADAR AKTIV" if not sim.buildings(local_owner(),"radar").is_empty() and sim.powered(local_owner()) else "RADAR OFFLINE"
+	status.text=format_score(int(sim.credits[local_owner()]))
+	energy_label.text="%+d"%int(p.y-p.x)
+	energy_label.modulate=Color("ffb17c") if p.x>p.y else Color.WHITE
+	energy_label.tooltip_text="Verbrauch %d / Erzeugung %d · freie Energie %+d"%[int(p.x),int(p.y),int(p.y-p.x)]
+	mission_clock.text="%02d:%02d"%[int(sim.time)/60,int(sim.time)%60]
 	if is_instance_valid(objective): objective.text=sim.hud_objective_text()
 	if p.x>p.y and not low_power_alerted:
 		notify("ENERGIE KNAPP / IMPULSWERK BAUEN"); music.cue("alarm")
@@ -1089,7 +1311,15 @@ func update_hud() -> void:
 	refresh_selection_icons()
 	var has_harvester := false
 	for id in selected:
-		if sim.entities[int(id)].kind=="harvester": has_harvester=true
+		if not sim.entities.has(int(id)): continue
+		var selected_entity: Dictionary=sim.entities[int(id)]
+		if selected_entity.owner==local_owner() and selected_entity.kind=="harvester" and selected_entity.complete:
+			has_harvester=true
+	# Harvester commands must not occupy the construction/production footer for buildings.
+	# Showing them only in the matching unit context avoids misleading FELD WÄHLEN / ABLADEN
+	# buttons while a construction site, factory or other building is selected.
+	harvest_button.visible=has_harvester
+	unload_button.visible=has_harvester
 	harvest_button.disabled=not has_harvester
 	unload_button.disabled=not has_harvester
 	details_button.disabled=placement=="" and selected.is_empty() and inspected==0
@@ -1101,7 +1331,21 @@ func update_hud() -> void:
 		var e: Dictionary = sim.entities[inspected if inspected>0 else int(selected[0])]
 		information.add_theme_color_override("font_color",sim.team_color(e.owner).lightened(0.15))
 		var states := {"SEARCH_RESOURCE":"Sucht Solarit", "MOVE_TO_RESOURCE":"Fährt zum Solarit", "HARVEST":"Sammelt", "RETURN_TO_BASE":"Kehrt zurück", "UNLOAD":"Lädt ab", "IDLE":"Wartet auf Auftrag", "EVADE":"Weicht Angriff aus"}
-		information.text="%s\nHP %d/%d · %s\n%s" % [TeamIdentity.symbol(e.owner)+" "+sim.definition(e).name,int(e.hp),int(e.max_hp),sim.definition(e).armor,states.get(e.harvest_state,e.harvest_state)+" · %d / %d"%[int(e.cargo),int(db.rules.harvest_capacity)] if e.kind=="harvester" else e.order.to_upper()]
+		information.text="%s\nHP %d/%d · %s\n%s" % [TeamIdentity.symbol(e.owner)+" "+sim.definition(e).name,int(e.hp),int(e.max_hp),localized_armor_label(str(sim.definition(e).armor)),states.get(e.harvest_state,e.harvest_state)+" · %d / %d"%[int(e.cargo),int(db.rules.harvest_capacity)] if e.kind=="harvester" else localized_order_label(str(e.order))]
+		if e.building and e.owner==local_owner():
+			if not e.complete:
+				var build_ratio: float=clampf(float(e.get("build_progress",0.0))/maxf(0.01,float(sim.definition(e).time)),0.0,1.0)
+				var build_phase: String=construction_phase_label(build_ratio)
+				information.text="%s\nHP %d/%d · %s\nBAU %d%% · %s"%[TeamIdentity.symbol(e.owner)+" "+sim.definition(e).name,int(e.hp),int(e.max_hp),localized_armor_label(str(sim.definition(e).armor)),int(build_ratio*100.0),build_phase]
+			elif e.kind=="factory" and not e.queue.is_empty():
+				var active_job: Dictionary=e.queue[0]
+				var active_def: Dictionary=db.units[str(active_job.kind)]
+				var active_time: float=maxf(0.01,float(active_def.time)*(0.85 if int(e.get("upgrade_level",0))>0 else 1.0))
+				var active_ratio: float=clampf(float(e.progress)/active_time,0.0,1.0)
+				information.text="%s\nHP %d/%d · %s\nMONTAGE: %s · %d%%\nQUEUE: %d"%[TeamIdentity.symbol(e.owner)+" "+sim.definition(e).name,int(e.hp),int(e.max_hp),localized_armor_label(str(sim.definition(e).armor)),active_def.name,int(active_ratio*100.0),e.queue.size()]
+			elif e.get("upgrading",false):
+				var upgrade_ratio: float=clampf(float(e.get("upgrade_progress",0.0))/maxf(0.01,float(e.get("upgrade_time",1.0))),0.0,1.0)
+				information.text="%s\nHP %d/%d · %s\nAUSBAU STUFE %d · %d%%"%[TeamIdentity.symbol(e.owner)+" "+sim.definition(e).name,int(e.hp),int(e.max_hp),localized_armor_label(str(sim.definition(e).armor)),int(e.get("upgrade_target",1)),int(upgrade_ratio*100.0)]
 		if e.kind=="harvester": information.text=information.text.replace("\n"+states.get(e.harvest_state,e.harvest_state),"\nAUTO / "+states.get(e.harvest_state,e.harvest_state))
 		elif not e.building:
 			var weapon_id: String = sim.definition(e).get("weapon","")
@@ -1117,57 +1361,74 @@ func update_hud() -> void:
 				if j.kind==id: count+=1
 		var missing:=sim.missing_requirements(id,local_owner())
 		var affordable: bool=sim.credits[local_owner()]>=sim.cost(id,local_owner())
-		var availability: String="VORAUSSETZUNGEN FEHLEN" if not missing.is_empty() else ("SOLARIT REICHT NICHT" if not affordable else "%d Solarit · %s s%s" % [sim.cost(id,local_owner()),d.time,"  ×%d"%count if count>0 else ""])
-		if not missing.is_empty() and not affordable: availability="VORAUSSETZUNGEN + SOLARIT FEHLEN"
-		buttons[id].text="%s\n%s" % [d.name,availability]
+		var locked: bool=int(d.get("campaign_level",0))>sim.campaign_tech_level
+		var roles := {"scout":"AUFKLÄRUNG","tank":"KAMPFPANZER","harvester":"RESSOURCENFÖRDERUNG","siege":"FERNUNTERSTÜTZUNG","raider":"STURMFAHRZEUG","lancer":"ENERGIEWAFFE","scorcher":"NAHKAMPF / FEUER","bulwark":"SCHWERER DURCHBRUCH","power":"ENERGIEVERSORGUNG","refinery":"SOLARITVERARBEITUNG","factory":"FAHRZEUGMONTAGE","tower":"BASISVERTEIDIGUNG","radar":"TAKTISCHES RADAR","repair":"INSTANDSETZUNG","armory":"FAHRZEUGAUSBAU"}
+		var availability: String=str(roles.get(id,"BASISMODUL"))
+		if locked: availability="FREIGABE: EINSATZ %02d"%(int(d.campaign_level)+1)
+		elif not missing.is_empty(): availability="BENÖTIGT: "+str(missing[0]).trim_prefix("Gebäude: ")
+		elif not affordable: availability="FEHLEN %d SOLARIT"%ceili(sim.cost(id,local_owner())-sim.credits[local_owner()])
+		var price: String="%d Solarit · %s s%s"%[sim.cost(id,local_owner()),d.time,"  ×%d"%count if count>0 and db.buildings.has(id) else ""]
+		var activity: Dictionary = catalog_activity_state(id)
+		var detail_line: String = activity.line if bool(activity.active) else availability
+		buttons[id].text="%s%s\n%s\n%s" % ["🔒 " if locked else "",d.name,price,detail_line]
+		buttons[id].set_meta("catalog_state","locked" if locked else ("prerequisite" if not missing.is_empty() else ("credits" if not affordable else ("active" if bool(activity.active) else "available"))))
 		buttons[id].disabled=false
 		# Keep the catalog's neutral surfaces and original unit artwork intact.
 		# Only the label and narrow edge marker carry the blocker state.
 		buttons[id].modulate=Color.WHITE
-		buttons[id].add_theme_color_override("font_color",Color("c07d70") if not missing.is_empty() else (Color("d6b56f") if not affordable else Color("d8d1c4")))
-		requirement_marks[id].visible=not missing.is_empty() or not affordable
+		buttons[id].get_node("CatalogArtwork").modulate=Color(0.4,0.4,0.4) if locked else Color.WHITE
+		buttons[id].add_theme_color_override("font_color",Color("c07d70") if not missing.is_empty() else (Color("d6b56f") if not affordable else (MINT if bool(activity.active) else Color("d8d1c4"))))
+		requirement_marks[id].visible=not bool(activity.active) and (not missing.is_empty() or not affordable)
 		requirement_marks[id].color=Color("9e524c") if not missing.is_empty() else Color("d6b56f")
 		var status_lines: Array[String]=[]
 		if not missing.is_empty(): status_lines.append("VORAUSSETZUNGEN NICHT ERFÜLLT: "+", ".join(missing))
 		if not affordable: status_lines.append("SOLARIT REICHT NICHT AUS: %d vorhanden, %d benötigt"%[int(sim.credits[local_owner()]),sim.cost(id,local_owner())])
+		if bool(activity.active) and str(activity.tooltip) != "": status_lines.append(str(activity.tooltip))
 		if status_lines.is_empty(): status_lines.append("BAUPLATZ WÄHLEN" if db.buildings.has(id) else "BEREIT / Linksklick reiht die Produktion ein")
-		var requirement_text: String="\n".join(status_lines)
 		var energy_text: String="Energie Gebäude: %+d"%int(d.get("power",0))
 		if int(d.get("power_required",0))>0: energy_text+="\nMontage benötigt %d freie Energie"%int(d.power_required)
-		buttons[id].tooltip_text="%s\n%s\nKosten: %d Solarit · Montage: %s s\n%s\n%s" % [d.name,d.description,sim.cost(id,local_owner()),d.time,energy_text,requirement_text]
-	queue_label.text="PRODUKTION / LEER"
+		var compact_status: String=" · ".join(status_lines) if not status_lines.is_empty() else ""
+		buttons[id].tooltip_text="%s\n%d Solarit · %s s\n%s" % [d.description,sim.cost(id,local_owner()),d.time,compact_status]
+		var activity_bar := buttons[id].get_node_or_null("CatalogActivityBar") as ProgressBar
+		if activity_bar != null:
+			activity_bar.visible = bool(activity.active) and float(activity.ratio) >= 0.0
+			activity_bar.value = clampf(float(activity.ratio), 0.0, 1.0) * 100.0
+		if db.units.has(id):
+			var qty_label:=buttons[id].get_node_or_null("QtyLabel") as Label
+			var qty_minus:=buttons[id].get_node_or_null("QtyMinus") as Button
+			var qty_plus:=buttons[id].get_node_or_null("QtyPlus") as Button
+			var priority_up:=buttons[id].get_node_or_null("PriorityUp") as Button
+			var priority_down:=buttons[id].get_node_or_null("PriorityDown") as Button
+			var queued_count:=catalog_queue_count(id)
+			if qty_label!=null: qty_label.text="×%d"%queued_count
+			if qty_minus!=null: qty_minus.disabled=queued_count<=0
+			if qty_plus!=null:
+				var control_factories:=catalog_factories_for_controls()
+				var target_full:=control_factories.is_empty()
+				if not control_factories.is_empty():
+					target_full=true
+					for control_factory in control_factories:
+						if control_factory.queue.size()<12:
+							target_full=false
+							break
+				qty_plus.disabled=locked or not missing.is_empty() or not affordable or target_full
+			if priority_up!=null: priority_up.disabled=catalog_priority_target(id,-1).is_empty()
+			if priority_down!=null: priority_down.disabled=catalog_priority_target(id,1).is_empty()
+	queue_label.text=""
+	queue_label.visible=false
 	production_bar.value=0
+	production_bar.visible=false
 	refresh_production_list()
-	for f in sim.buildings(local_owner(),"factory"):
-		if not f.queue.is_empty():
-			var production_time:=float(db.units[f.queue[0].kind].time)*(0.85 if int(f.get("upgrade_level",0))>0 else 1.0)
-			production_bar.value=f.progress/production_time*100
-			queue_label.text="%s · %d%%\n%d Auftrag/Aufträge · RMB: −1" % [db.units[f.queue[0].kind].name,int(f.progress/production_time*100),f.queue.size()]
-			break
-	if queue_label.text=="PRODUKTION / LEER":
-		for building in sim.entities.values():
-			if not building.building or building.owner!=local_owner() or building.complete: continue
-			var progress: float = building.build_progress/float(sim.definition(building).time)
-			production_bar.value=progress*100
-			queue_label.text="%s · %d%%\n%s" % [sim.definition(building).name,int(progress*100),"FUNDAMENT" if progress<0.2 else ("MONTAGE" if progress<0.55 else ("SYSTEME" if progress<0.8 else "ONLINE-SCHALTUNG"))]
-			break
-	if queue_label.text=="PRODUKTION / LEER":
-		for building in sim.buildings(local_owner()):
-			if building.get("upgrading",false):
-				var upgrade_progress:=float(building.get("upgrade_progress",0.0))/maxf(1.0,float(building.get("upgrade_time",1.0)))
-				production_bar.value=upgrade_progress*100
-				queue_label.text="%s · STUFE %d → %d\nAUSBAU %d%%" % [sim.definition(building).name.to_upper(),building.get("upgrade_level",0),building.get("upgrade_target",1),int(upgrade_progress*100)]
-				break
 	minimap.camera=renderer.camera; minimap.world_view=WORLD_RECT.size/renderer.zoom
-	debug_label.visible=renderer.profile_enabled
-	if renderer.profile_enabled:
+	debug_label.visible=profiler_overlay_visible
+	if profiler_overlay_visible:
 		debug_label.text="FPS %d · %.1f ms | MOBIL %d GEBÄUDE %d VFX %d\nZEICHNEN %.1f ms · Terrain %.1f · Ruinen %.1f · Bauten %.1f · Fahrzeuge %.1f\nPASS · Spuren %.1f · Geschosse %.1f · Treffer %.1f · Explosionen %.1f · Rauch %.1f · Sicht %.1f\nSIM %.1f ms · SOLARIT %d · WRACKS %d · SCHÜSSE %d · EINSCHLÄGE %d · EFFEKTE %d\nDRAW %d · KACHELN %d/%d · GEBÄUDE-CACHE %d/%d · FAHRZEUGE %d/%d · PROC %.2f ms" % [Engine.get_frames_per_second(),1000.0/maxf(1,Engine.get_frames_per_second()),renderer.visible_mobile_count,renderer.visible_building_count,renderer.active_vfx_count,renderer.profile_total_ms,renderer.profile_terrain_ms,renderer.profile_ground_fx_ms,renderer.profile_buildings_ms,renderer.profile_vehicles_ms,renderer.profile_tracks_ms,renderer.profile_projectiles_ms,renderer.profile_impacts_ms,renderer.profile_explosions_ms,renderer.profile_smoke_ms,renderer.profile_fog_ms,renderer.profile_sim_ms,renderer.profile_solarit_count,renderer.profile_ruin_count,renderer.profile_projectile_count,renderer.profile_impact_count,renderer.profile_particle_count,int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),renderer.visible_terrain_chunk_count,renderer.terrain_detail_chunks.size(),renderer.building_cache_hits,renderer.building_cache_misses,renderer.vehicle_cache_hits,renderer.vehicle_cache_misses,Performance.get_monitor(Performance.TIME_PROCESS)*1000.0]
 		debug_label.text+="\nVFX-POOL %d aktiv / %d frei · erstellt %d / recycelt %d / Spitze %d" % [renderer.combat_fx.particles.size(),renderer.combat_fx.free_particles.size(),renderer.combat_fx.particle_pool_created,renderer.combat_fx.particle_pool_reused,renderer.combat_fx.particle_pool_peak]
 		debug_label.text+="\nWRACK-PASS %.2f ms · HUD-UPDATE %.2f ms" % [renderer.profile_wrecks_ms,renderer.profile_ui_ms]
 	else:
 		debug_label.text="FPS %d · %.1f ms | MOBIL %d GEBÄUDE %d VFX %d\nDRAW %d · CHUNK %d/%d · CACHE %d/%d\nPROC %.2f ms · KI %s · MUSIK %s" % [Engine.get_frames_per_second(),1000.0/maxf(1,Engine.get_frames_per_second()),renderer.visible_mobile_count,renderer.visible_building_count,renderer.active_vfx_count,int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),renderer.visible_terrain_chunk_count,renderer.terrain_detail_chunks.size(),renderer.vehicle_cache_hits,renderer.vehicle_cache_misses,Performance.get_monitor(Performance.TIME_PROCESS)*1000.0,sim.ai_state,music.state]
 	fit_wrapped(information)
-	information.size.y=96
+	information.size.y=78
 	fit_wrapped(queue_label)
 	if renderer.profile_enabled: renderer.profile_ui_ms=float(Time.get_ticks_usec()-ui_started)/1000.0
 
@@ -1191,7 +1452,7 @@ func refresh_production_list() -> void:
 		var heading: String="WERFT %02d%s"%[index+1," · ZIEL" if production_target_factory_id==int(factory.id) else ""]
 		if not factory.complete:
 			var build_pct:=int(float(factory.build_progress)/maxf(1.0,float(sim.definition(factory).time))*100.0)
-			row.text="%s · IM BAU\nFundament %d%%"%[heading,build_pct]
+			row.text="%s · IM BAU\n%s · %d%%"%[heading,construction_phase_label(float(build_pct)/100.0),build_pct]
 			continue
 		if factory.queue.is_empty():
 			row.text="%s · BEREIT\nJETZT: — · ALS NÄCHSTES: —"%heading
@@ -1201,6 +1462,8 @@ func refresh_production_list() -> void:
 		var current_def: Dictionary=db.units[current_kind]
 		var production_time:=float(current_def.time)*(0.85 if int(factory.get("upgrade_level",0))>0 else 1.0)
 		var completion:=clampi(int(factory.progress/maxf(1.0,production_time)*100.0),0,99)
+		var job_progress := production_content.get_node_or_null("JobProgress%d"%int(factory.id)) as ProgressBar
+		if job_progress: job_progress.value=completion
 		var next_text: String="—"
 		if factory.queue.size()>1:
 			next_text=production_unit_short_name(str(factory.queue[1].kind))
@@ -1217,11 +1480,11 @@ func rebuild_production_list(factories: Array, signature: String) -> void:
 	production_empty_label=null
 	var y:=0.0
 	if factories.is_empty():
-		production_empty_label=label(production_content,"KEINE FAHRZEUGWERFT\n\nErrichte im Tab Bau eine Fahrzeugwerft. Dort werden alle Fahrzeuge montiert.",Vector2(6,10),15,MUTED,250)
+		production_empty_label=label(production_content,"KEINE FAHRZEUGWERFT\n\nErrichte im Tab Bau eine Fahrzeugwerft. Dort werden alle Fahrzeuge montiert.",Vector2(6,10),15,MUTED,302)
 		production_empty_label.size.y=125
 		y=135
 	else:
-		var automatic:=button(production_content,"AUTOMATIK · KÜRZESTE WARTESCHLANGE",Rect2(0,y,264,34),func():production_target_factory_id=0; update_hud())
+		var automatic:=button(production_content,"AUTOMATIK · KÜRZESTE QUEUE",Rect2(0,y,314,34),func():production_target_factory_id=0; update_hud())
 		automatic.add_theme_font_size_override("font_size",11)
 		automatic.tooltip_text="Neue Aufträge automatisch der Werft mit der kürzesten Warteschlange zuweisen."
 		if production_target_factory_id==0:
@@ -1230,7 +1493,7 @@ func rebuild_production_list(factories: Array, signature: String) -> void:
 		for factory_index in factories.size():
 			var factory: Dictionary=factories[factory_index]
 			var factory_id:=int(factory.id)
-			var header:=button(production_content,"",Rect2(0,y,264,52),focus_production_building.bind(factory_id))
+			var header:=button(production_content,"",Rect2(0,y,314,52),focus_production_building.bind(factory_id))
 			header.alignment=HORIZONTAL_ALIGNMENT_LEFT
 			header.add_theme_font_size_override("font_size",12)
 			header.tooltip_text="Anklicken: als Zielwerft für neue Aufträge auswählen; erneut anklicken: zurück zur Automatik."
@@ -1241,32 +1504,62 @@ func rebuild_production_list(factories: Array, signature: String) -> void:
 			production_rows[factory_id]=header
 			y+=56
 			if factory.queue.is_empty():
-				var empty:=label(production_content,"Warteschlange leer",Vector2(10,y+2),13,MUTED,244)
+				var empty:=label(production_content,"Warteschlange leer",Vector2(10,y+2),13,MUTED,314)
 				empty.size.y=22; y+=25
 			else:
 				for queue_index in factory.queue.size():
 					var job: Dictionary=factory.queue[queue_index]
-					var item_panel:=panel(production_content,Rect2(0,y,264,39),Color("30251b",0.92))
+					var item_panel:=panel(production_content,Rect2(0,y,314,56 if queue_index==0 else 43),Color("27302b",0.92) if queue_index==0 else Color("30251b",0.92))
+					item_panel.clip_contents=true
 					var unit_name: String=str(db.units[str(job.kind)].name)
 					var state_text: String="MONTAGE" if queue_index==0 else ("ALS NÄCHSTES" if queue_index==1 else "WARTET")
-					label(item_panel,"%02d  %s\n%s"%[queue_index+1,unit_name,state_text],Vector2(7,2),11,Color("d6e1d9") if queue_index==0 else MUTED,160)
-					var priority:=button(item_panel,"↑",Rect2(174,5,34,29),prioritize_production_order.bind(factory_id,queue_index))
+					var job_copy:=label(item_panel,"%02d  %s\n%s"%[queue_index+1,unit_name,state_text],Vector2(7,2),11,Color("d6e1d9") if queue_index==0 else MUTED,170)
+					job_copy.size.y=36
+					if queue_index==0:
+						var progress := ProgressBar.new()
+						progress.name="JobProgress%d"%factory_id
+						progress.position=Vector2(7,y+43); progress.size=Vector2(230,5); progress.show_percentage=false
+						var fill := StyleBoxFlat.new(); fill.bg_color=MINT
+						progress.add_theme_stylebox_override("fill",fill)
+						var background := StyleBoxFlat.new(); background.bg_color=Color("18110c")
+						progress.add_theme_stylebox_override("background",background)
+						progress.add_theme_font_size_override("font_size",1)
+						production_content.add_child(progress)
+					var priority:=button(item_panel,"↑",Rect2(184,5,23,27),move_production_order.bind(factory_id,queue_index,-1))
 					priority.tooltip_text="Als Nächstes produzieren"
 					priority.disabled=queue_index<=1 or not factory.complete
 					priority.add_theme_color_override("font_color",MINT)
-					var cancel:=button(item_panel,"×",Rect2(216,5,37,29),cancel_production_order.bind(factory_id,queue_index))
+					var demote:=button(item_panel,"↓",Rect2(210,5,23,27),move_production_order.bind(factory_id,queue_index,1))
+					demote.tooltip_text="Nach unten"
+					demote.disabled=queue_index==0 or queue_index>=factory.queue.size()-1 or not factory.complete
+					var cancel:=button(item_panel,"×",Rect2(236,5,23,27),cancel_production_order.bind(factory_id,queue_index))
+					for action in [priority,demote,cancel]:
+						action.add_theme_font_size_override("font_size",15)
+						for style_name in ["normal","hover","pressed","disabled","focus"]:
+							var small_style: StyleBoxFlat=action.get_theme_stylebox(style_name).duplicate()
+							small_style.content_margin_left=2; small_style.content_margin_right=2
+							small_style.content_margin_top=2; small_style.content_margin_bottom=2
+							action.add_theme_stylebox_override(style_name,small_style)
+						action.size=Vector2(23,27)
 					cancel.tooltip_text="Diesen Auftrag abbrechen · %d Solarit Erstattung"%int(float(job.get("paid",0))*float(db.rules.cancel_refund))
 					cancel.add_theme_color_override("font_color",Color("c07d70"))
-					y+=43
+					y+=60 if queue_index==0 else 47
 			y+=10
-	production_content.custom_minimum_size=Vector2(264,maxf(511,y))
+	production_content.custom_minimum_size=Vector2(314,maxf(744,y))
 	production_signature=signature
 
 func cancel_production_order(factory_id: int, queue_index: int) -> void:
 	if submit_player_command({"type":"cancel_queue_at","owner_id":local_owner(),"factory_id":factory_id,"queue_index":queue_index}): music.cue("error"); update_hud()
 
+func move_production_order(factory_id: int, queue_index: int, direction: int) -> void:
+	var packet: Dictionary={"type":"move_queue","owner_id":local_owner(),"factory_id":factory_id,"queue_index":queue_index,"direction":direction}
+	if direction<0:
+		packet.type="prioritize_queue"
+	if submit_player_command(packet): music.cue("select"); update_hud()
+
 func prioritize_production_order(factory_id: int, queue_index: int) -> void:
-	if submit_player_command({"type":"prioritize_queue","owner_id":local_owner(),"factory_id":factory_id,"queue_index":queue_index}): music.cue("select"); update_hud()
+	# Backward-compatible helper for older UI call sites.
+	move_production_order(factory_id,queue_index,-1)
 
 func capture_render_state() -> Dictionary:
 	var state := {}
@@ -1372,26 +1665,56 @@ func refresh_selection_icons() -> void:
 	var signature := str(ids)
 	if signature==selection_signature: return
 	selection_signature=signature; clear(selection_icons)
-	information.position.x=76 if ids.size()==1 else 18
-	information.custom_minimum_size.x=206 if ids.size()==1 else 264
+	information.position=Vector2(76,30) if ids.size()==1 else Vector2(18,30)
+	information.custom_minimum_size.x=236 if ids.size()==1 else 284
 	information.size.x=information.custom_minimum_size.x
 	if ids.size()==1 and sim.entities.has(int(ids[0])):
 		var portrait := IndustrialThumbnail.new()
 		portrait.sim=sim; portrait.entity_id=int(ids[0]); portrait.kind=sim.entities[int(ids[0])].kind
-		portrait.position=Vector2(18,77); portrait.size=Vector2(52,54)
+		portrait.position=Vector2(18,28); portrait.size=Vector2(50,50)
 		portrait.mouse_filter=Control.MOUSE_FILTER_IGNORE
 		selection_icons.add_child(portrait)
 	elif ids.size()>1:
 		for i in mini(6,ids.size()):
 			var icon := IndustrialThumbnail.new()
 			icon.sim=sim; icon.entity_id=int(ids[i]); icon.kind=sim.entities[int(ids[i])].kind
-			icon.position=Vector2(18+i*43,170); icon.size=Vector2(40,36); icon.scale=Vector2.ONE*0.75
+			icon.position=Vector2(18+i*48,74); icon.size=Vector2(44,38); icon.scale=Vector2.ONE*0.78
 			icon.mouse_filter=Control.MOUSE_FILTER_IGNORE
 			selection_icons.add_child(icon)
 
 func fit_wrapped(control: Label) -> void:
 	var extent := control.get_theme_font("font").get_multiline_string_size(control.text,HORIZONTAL_ALIGNMENT_LEFT,control.size.x,control.get_theme_font_size("font_size"))
 	control.size.y=extent.y+6
+
+func show_world_entity_hover(entity_id: int, local: Vector2) -> bool:
+	if not playing or paused or placement!="" or harvest_mode or dragging or not WORLD_RECT.has_point(local) or not sim.entities.has(entity_id):
+		hovered_entity_id=0; renderer.hovered_entity_id=0
+		hover_label.text=""; hover_panel.visible=false
+		return false
+	var hovered: Dictionary=sim.entities[entity_id]
+	var hovered_name: String=str(sim.definition(hovered).name)
+	if hovered_name.is_empty():
+		hovered_entity_id=0; renderer.hovered_entity_id=0
+		hover_label.text=""; hover_panel.visible=false
+		return false
+	hovered_entity_id=entity_id; renderer.hovered_entity_id=entity_id
+	var team_name: String="Eigene Einheit" if hovered.owner==local_owner() else "Feindliche Einheit"
+	hover_label.text="%s · %s\n%d / %d HP · %s"%[team_name,hovered_name,int(hovered.hp),int(hovered.max_hp),localized_armor_label(str(sim.definition(hovered).armor))]
+	fit_wrapped(hover_label)
+	hover_label.size.y=maxf(38.0,hover_label.size.y)
+	hover_panel.size.y=hover_label.size.y+14.0
+	var hover_x: float=local.x+20.0
+	if hover_x+hover_panel.size.x>WORLD_RECT.end.x-8.0: hover_x=local.x-hover_panel.size.x-20.0
+	var hover_y: float=local.y+18.0
+	if hover_y+hover_panel.size.y>WORLD_RECT.end.y-8.0: hover_y=local.y-hover_panel.size.y-18.0
+	hover_panel.position=Vector2(clampf(hover_x,WORLD_RECT.position.x+8.0,WORLD_RECT.end.x-hover_panel.size.x-8.0),clampf(hover_y,WORLD_RECT.position.y+8.0,WORLD_RECT.end.y-hover_panel.size.y-8.0))
+	hover_panel.visible=not hover_label.text.strip_edges().is_empty()
+	return hover_panel.visible
+
+func update_world_hover(local: Vector2) -> void:
+	var hover_enabled:=playing and not paused and placement=="" and not harvest_mode and not dragging and WORLD_RECT.has_point(local)
+	var entity_id:=entity_at(screen_world(local)) if hover_enabled else 0
+	show_world_entity_hover(entity_id,local)
 
 func screen_world(local: Vector2) -> Vector2:
 	return renderer.camera+(local-WORLD_RECT.position-WORLD_RECT.size*0.5-renderer.visual_offset)/renderer.zoom
@@ -1437,14 +1760,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			else: clear(overlay)
 			return
 		if not playing: return
-		if online.active and overlay.get_child_count()>0: return
+		if modal_overlay_active(): return
 		if event.keycode==hotkeys.load: load_game(); return
 		if event.keycode==hotkeys.save: save_game(); return
 		if paused: return
 		if placement!="" and event.keycode in [KEY_R,KEY_E,KEY_Q]:
 			rotate_placement(-1 if event.keycode==KEY_Q else 1); return
 		if event.keycode==KEY_F3:
-			renderer.profile_enabled=not renderer.profile_enabled
+			profiler_overlay_visible=not profiler_overlay_visible
+			renderer.profile_enabled=profiler_overlay_visible or fps_auto_profile
+			update_hud()
 		if event.keycode==hotkeys.attack and not selected.is_empty(): attack_mode=true; notify("Angriffsmarsch: Ziel mit Linksklick setzen.")
 		if event.keycode==hotkeys.stop: dispatch_order(selected,Vector2.ZERO,"stop")
 		if event.keycode==hotkeys.hold: dispatch_order(selected,Vector2.ZERO,"hold")
@@ -1463,7 +1788,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode>=KEY_F1 and event.keycode<=KEY_F4 and event.keycode!=KEY_F3:
 			if event.shift_pressed: bookmarks[event.keycode]=renderer.camera
 			elif bookmarks.has(event.keycode): renderer.camera=bookmarks[event.keycode]
-	if not playing or paused: return
+	if not playing or paused or modal_overlay_active(): return
 	var local := get_local_mouse_position()
 	if pointer_local.x>-9000: local=pointer_local
 	if event is InputEventMouse:
@@ -1532,8 +1857,9 @@ func _process(dt: float) -> void:
 		var sync: String="SYNCHRON" if online.is_host() or (online.last_snapshot_at>0 and Time.get_ticks_msec()-online.last_snapshot_at<1500) else "WARTE AUF SPIELSTAND"
 		connection_label.text="%s · PING %s · %s"%["1:1" if online.is_versus() else "KOOP",str(online.ping_ms)+" ms" if online.ping_ms>=0 else "–",sync if online.connected else "GETRENNT"]
 	if not playing or sim==null: return
-	if paused:
-		if online.is_host(): online.advance_host(dt,sim)
+	if paused or modal_overlay_active():
+		suppress_world_hover()
+		if paused and online.is_host(): online.advance_host(dt,sim)
 		return
 	if sim.online_mode=="versus" and (not online.active or not online.connected): return
 	var step := 1.0/float(db.rules.tick_rate)
@@ -1557,17 +1883,7 @@ func _process(dt: float) -> void:
 	var local := get_local_mouse_position()
 	if pointer_local.x>-9000: local=pointer_local
 	if WORLD_RECT.has_point(local):
-		var hover_enabled:=placement=="" and not harvest_mode and not dragging
-		hovered_entity_id=entity_at(screen_world(local)) if hover_enabled else 0
-		renderer.hovered_entity_id=hovered_entity_id
-		hover_panel.visible=hovered_entity_id>0
-		if hovered_entity_id>0 and sim.entities.has(hovered_entity_id):
-			var hovered: Dictionary=sim.entities[hovered_entity_id]
-			var hovered_name: String=str(sim.definition(hovered).name)
-			var team_name: String="Eigene Einheit" if hovered.owner==local_owner() else "Feindliche Einheit"
-			hover_label.text="%s · %s\nHP %d/%d · %s"%[team_name,hovered_name,int(hovered.hp),int(hovered.max_hp),sim.definition(hovered).armor]
-			hover_panel.position=Vector2(clampf(local.x+20,8,1920-hover_panel.size.x-8),clampf(local.y+18,8,1080-hover_panel.size.y-8))
-		else: renderer.hovered_entity_id=0
+		update_world_hover(local)
 		renderer.placement=placement
 		renderer.placement_rotation=placement_rotation
 		var direction := Vector2.ZERO
@@ -1607,28 +1923,44 @@ func monitor_frame_rate(dt: float) -> void:
 	var measured_fps:=float(fps_sample_frames)/fps_sample_elapsed
 	if is_instance_valid(fps_label):
 		fps_label.text="FPS %02d" % roundi(measured_fps)
-		fps_label.add_theme_color_override("font_color",MINT if measured_fps>=50.0 else (GOLD if measured_fps>=30.0 else Color("ff765f")))
+		fps_label.add_theme_color_override("font_color",MINT if measured_fps>=60.0 else (GOLD if measured_fps>=50.0 else Color("ff765f")))
 	if playing and sim!=null:
 		record_performance_sample(measured_fps,fps_sample_elapsed)
 	fps_sample_elapsed=0.0
 	fps_sample_frames=0
 
 func record_performance_sample(measured_fps: float, sample_seconds: float) -> void:
-	if measured_fps<LOW_FPS_THRESHOLD:
+	if measured_fps<LOW_FPS_WARNING_THRESHOLD:
+		if not fps_auto_profile and not profiler_overlay_visible:
+			fps_auto_profile=true
+			renderer.profile_enabled=true
 		low_fps_seconds+=sample_seconds
 		low_fps_minimum=minf(low_fps_minimum,measured_fps)
 		low_fps_weighted_sum+=measured_fps*sample_seconds
 		low_fps_recorded_seconds+=sample_seconds
+		low_fps_recovery_seconds=0.0
+		if measured_fps<LOW_FPS_CRITICAL_THRESHOLD:
+			low_fps_critical_seconds+=sample_seconds
+			low_fps_critical_minimum=minf(low_fps_critical_minimum,measured_fps)
+			low_fps_critical_weighted_sum+=measured_fps*sample_seconds
+			low_fps_critical_recorded_seconds+=sample_seconds
+		else:
+			low_fps_critical_seconds=0.0
+			low_fps_critical_minimum=INF
+			low_fps_critical_weighted_sum=0.0
+			low_fps_critical_recorded_seconds=0.0
 		if not low_fps_active and low_fps_seconds>=LOW_FPS_TRIGGER_SECONDS:
 			low_fps_active=true
-			write_performance_event("LOW_FPS",low_fps_seconds,low_fps_minimum,low_fps_weighted_sum/maxf(low_fps_recorded_seconds,0.001))
+			write_performance_event("LOW_FPS_WARNING",low_fps_seconds,low_fps_minimum,low_fps_weighted_sum/maxf(low_fps_recorded_seconds,0.001))
+		elif low_fps_active and not low_fps_critical_logged and low_fps_critical_seconds>=LOW_FPS_CRITICAL_TRIGGER_SECONDS:
+			low_fps_critical_logged=true
+			write_performance_event("LOW_FPS_CRITICAL",low_fps_critical_seconds,low_fps_critical_minimum,low_fps_critical_weighted_sum/maxf(low_fps_critical_recorded_seconds,0.001))
+		elif low_fps_active:
+			write_performance_event("LOW_FPS_SAMPLE",sample_seconds,measured_fps,measured_fps)
 	elif low_fps_active:
-		if measured_fps<RECOVERY_FPS_THRESHOLD:
-			low_fps_seconds+=sample_seconds
-			low_fps_minimum=minf(low_fps_minimum,measured_fps)
-			low_fps_weighted_sum+=measured_fps*sample_seconds
-			low_fps_recorded_seconds+=sample_seconds
-		else:
+		if measured_fps>=RECOVERY_FPS_THRESHOLD:
+			low_fps_recovery_seconds+=sample_seconds
+		if low_fps_recovery_seconds>=FPS_RECOVERY_TRIGGER_SECONDS:
 			write_performance_event("RECOVERED",low_fps_seconds,low_fps_minimum,low_fps_weighted_sum/maxf(low_fps_recorded_seconds,0.001))
 			reset_low_fps_event()
 	else:
@@ -1639,7 +1971,16 @@ func reset_low_fps_event() -> void:
 	low_fps_minimum=INF
 	low_fps_weighted_sum=0.0
 	low_fps_recorded_seconds=0.0
+	low_fps_critical_seconds=0.0
+	low_fps_critical_minimum=INF
+	low_fps_critical_weighted_sum=0.0
+	low_fps_critical_recorded_seconds=0.0
+	low_fps_recovery_seconds=0.0
 	low_fps_active=false
+	low_fps_critical_logged=false
+	if fps_auto_profile:
+		fps_auto_profile=false
+		if is_instance_valid(renderer): renderer.profile_enabled=profiler_overlay_visible
 
 func write_performance_event(event_type: String, duration: float, minimum_fps: float, average_fps: float) -> void:
 	var directory:=performance_log_path.get_base_dir()
@@ -1652,7 +1993,7 @@ func write_performance_event(event_type: String, duration: float, minimum_fps: f
 			performance_log_error_reported=true
 		return
 	if existed: file.seek_end()
-	else: file.store_line("timestamp,event,mission_time_s,duration_s,average_fps,minimum_fps,entities,units,buildings,friendly_units,enemy_units,friendly_buildings,enemy_buildings,visible_units,visible_buildings,vfx,draw_calls,primitives,process_ms,physics_ms,vehicle_cache_hits,vehicle_cache_misses")
+	else: file.store_line("timestamp,event,mission_time_s,duration_s,average_fps,minimum_fps,entities,units,buildings,friendly_units,enemy_units,friendly_buildings,enemy_buildings,visible_units,visible_buildings,vfx,sim_projectiles,sim_impacts,particles,tracks,visual_bursts,ruins,craters,draw_calls,primitives,process_ms,physics_ms,frame_ms,unaccounted_frame_ms,render_ms,terrain_ms,ground_fx_ms,wrecks_ms,buildings_ms,vehicles_ms,tracks_ms,projectiles_ms,impacts_ms,explosions_ms,smoke_ms,fog_ms,sim_ms,ui_update_ms,vehicle_cache_size,vehicle_cache_queue,vehicle_cache_pending,vehicle_cache_hits,vehicle_cache_misses,building_cache_size,building_cache_queue,building_cache_pending,building_cache_hits,building_cache_misses,resolution,zoom")
 	var total_units:=0
 	var total_buildings:=0
 	var friendly_units:=0
@@ -1668,7 +2009,12 @@ func write_performance_event(event_type: String, duration: float, minimum_fps: f
 			total_units+=1
 			if entity.owner==local_owner(): friendly_units+=1
 			else: enemy_units+=1
-	var values:Array = [Time.get_datetime_string_from_system(false),event_type,"%.1f"%sim.time,"%.2f"%duration,"%.2f"%average_fps,"%.2f"%minimum_fps,str(sim.entities.size()),str(total_units),str(total_buildings),str(friendly_units),str(enemy_units),str(friendly_buildings),str(enemy_buildings),str(renderer.visible_mobile_count),str(renderer.visible_building_count),str(renderer.active_vfx_count),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),"%.2f"%(Performance.get_monitor(Performance.TIME_PROCESS)*1000.0),"%.2f"%(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000.0),str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses)]
+	var process_ms:=Performance.get_monitor(Performance.TIME_PROCESS)*1000.0
+	var physics_ms:=Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000.0
+	var frame_ms:=1000.0/maxf(average_fps,0.01)
+	var unaccounted_ms:=maxf(0.0,frame_ms-process_ms-physics_ms)
+	var viewport_size:=renderer.get_viewport_rect().size
+	var values:Array = [Time.get_datetime_string_from_system(false),event_type,"%.1f"%sim.time,"%.2f"%duration,"%.2f"%average_fps,"%.2f"%minimum_fps,str(sim.entities.size()),str(total_units),str(total_buildings),str(friendly_units),str(enemy_units),str(friendly_buildings),str(enemy_buildings),str(renderer.visible_mobile_count),str(renderer.visible_building_count),str(renderer.active_vfx_count),str(sim.projectiles.size()),str(sim.effects.size()),str(renderer.combat_fx.particles.size()),str(renderer.tracks.size()),str(renderer.visual_bursts.size()),str(renderer.combat_fx.ruins.size()),str(renderer.combat_fx.craters.size()),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),"%.2f"%process_ms,"%.2f"%physics_ms,"%.2f"%frame_ms,"%.2f"%unaccounted_ms,"%.2f"%renderer.profile_total_ms,"%.2f"%renderer.profile_terrain_ms,"%.2f"%renderer.profile_ground_fx_ms,"%.2f"%renderer.profile_wrecks_ms,"%.2f"%renderer.profile_buildings_ms,"%.2f"%renderer.profile_vehicles_ms,"%.2f"%renderer.profile_tracks_ms,"%.2f"%renderer.profile_projectiles_ms,"%.2f"%renderer.profile_impacts_ms,"%.2f"%renderer.profile_explosions_ms,"%.2f"%renderer.profile_smoke_ms,"%.2f"%renderer.profile_fog_ms,"%.2f"%renderer.profile_sim_ms,"%.2f"%renderer.profile_ui_ms,str(renderer.vehicle_texture_cache.size()),str(renderer.vehicle_cache_queue.size()),str(renderer.vehicle_cache_pending.size()),str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses),str(renderer.building_texture_cache.size()),str(renderer.building_cache_queue.size()),str(renderer.building_cache_pending.size()),str(renderer.building_cache_hits),str(renderer.building_cache_misses),"%dx%d"%[roundi(viewport_size.x),roundi(viewport_size.y)],"%.2f"%renderer.zoom]
 	var row:=PackedStringArray()
 	for value in values: row.append(str(value))
 	file.store_line(",".join(row))
@@ -1745,7 +2091,7 @@ func show_pause() -> void:
 	var p := panel(overlay,Rect2(650,215,620,650),Color("2b221b"))
 	label(p,"KOMMANDO UNTERBROCHEN",Vector2(40,32),18,MINT)
 	label(p,"Pause",Vector2(40,74),48,GOLD)
-	var actions := [["WEITERSPIELEN",resume_game],["SPEICHERN",func():save_game(); show_pause()],["LADEN",load_game],["OPTIONEN",func():show_options(show_pause)],["UPDATEINFO",func():show_updates(show_pause)],["EINSATZ NEU STARTEN",start_game],["HAUPTMENÜ",show_main_menu]]
+	var actions := [["WEITERSPIELEN",resume_game],["SPEICHERN",func():save_game(); show_pause()],["LADEN",func():show_load_dialog(show_pause)],["OPTIONEN",func():show_options(show_pause)],["UPDATEINFO",func():show_updates(show_pause)],["EINSATZ NEU STARTEN",start_game],["HAUPTMENÜ",show_main_menu]]
 	if online.active:
 		actions=[["WEITERSPIELEN",resume_game],["CHAT",func():resume_game(); toggle_chat()],["OPTIONEN",func():show_options(show_pause)],["HAUPTMENÜ / TRENNEN",show_main_menu]]
 	if sim.online_mode=="versus" and not online.active: actions=[["WIEDERBEITRETEN",show_online_menu],["HAUPTMENÜ",show_main_menu]]
@@ -1756,6 +2102,9 @@ func resume_game() -> void:
 	clear(overlay); paused=false; music.set_paused(false)
 
 func show_end() -> void:
+	if side_panel!=null:
+		side_panel.modulate=Color(1,1,1,0.34)
+		side_panel.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	if sim.online_mode=="versus" or (online.active and sim.online_mode=="coop"):
 		show_online_end(); return
 	paused=true
@@ -1770,6 +2119,7 @@ func show_end() -> void:
 	label(p,"KOMMANDANT / "+str(commander_profile.data.nickname).to_upper(),Vector2(44,132),15,MUTED)
 	label(p,"Zeit                %02d:%02d\nSolarit geliefert   %d\nFahrzeuge gebaut     %d\nFahrzeuge verloren   %d\nFeinde zerstört      %d\nGebäude errichtet    %d\nGebäude verloren     %d" % [int(sim.time)/60,int(sim.time)%60,int(s.gathered),s.produced,s.lost,s.kills,s.built,s.buildings_lost],Vector2(44,164),23,Color("c8d8ce"))
 	if sim.result=="victory":
+		highscore_mission_index=mission_index
 		if not online.active: record_campaign_victory()
 		var score_result := record_highscore() if not online.active else {"score": 0, "rank": 0, "new_best": false}
 		var ranking_text := "PUNKTE  %s    ·    PLATZ %s" % [format_score(int(score_result.score)),"%d / 10" % int(score_result.rank) if int(score_result.rank)>0 else "AUSSERHALB DER TOP 10"]
@@ -1852,7 +2202,7 @@ func show_profile_dialog(mandatory: bool, back: Callable = Callable(), return_to
 	overlay.add_child(shade)
 	var p := panel(overlay, Rect2((screen - panel_size) * 0.5, panel_size), Color("202a29"))
 	p.name = "CommanderProfileDialog"
-	label(p, "SOLARIT: RANDSEKTOR 07 / KOMMANDANTENAKTE", Vector2(34, 24), 17, MINT)
+	label(p, "SOLARIT / KOMMANDANTENAKTE", Vector2(34, 24), 17, MINT)
 	label(p, "Identifikation", Vector2(34, 55), 37, GOLD)
 	label(p, "Unter welchem Namen soll das Kommando dich führen?", Vector2(36, 111), 18, Color("d5ded5"), panel_size.x - 72)
 	label(p, "SPIELERNAME", Vector2(36, 166), 13, MUTED)
@@ -1906,7 +2256,7 @@ func show_commander_file(back: Callable = Callable()) -> void:
 		wins += int(stats[mode].wins)
 		losses += int(stats[mode].losses)
 	var rate := "— %" if wins + losses == 0 else ("%.1f %%" % (float(wins) / float(wins + losses) * 100.0)).replace(".", ",")
-	label(p, "SOLARIT: RANDSEKTOR 07 / KOMMANDANTENAKTE", Vector2(34, 24), 17, MINT)
+	label(p, "SOLARIT / KOMMANDANTENAKTE", Vector2(34, 24), 17, MINT)
 	label(p, str(commander_profile.data.nickname).to_upper(), Vector2(34, 52), 39, GOLD)
 	var rename := button(p, "SPIELERNAME ÄNDERN", Rect2(panel_size.x - 275, 40, 236, 40), func(): show_profile_dialog(false, back))
 	rename.add_theme_font_size_override("font_size", 14)
@@ -2160,30 +2510,85 @@ func leaderboard_preview() -> String:
 func difficulty_label(value: String) -> String:
 	return {"easy":"Ruhig","normal":"Ausgewogen","hard":"Entschlossen"}.get(value,value)
 
-func show_highscores(return_action: Callable = Callable()) -> void:
+func highscore_default_mission_index() -> int:
+	if highscore_mission_index>=0 and highscore_mission_index<MISSION_PATHS.size(): return highscore_mission_index
+	var completed: Array=campaign_progress.get("completed",[])
+	for index in range(MISSION_PATHS.size()-1,-1,-1):
+		var probe:=Catalog.new(MISSION_PATHS[index])
+		if completed.has(str(probe.mission.get("id",""))): return index
+	# If campaign progress is old/missing, use the newest mission for which this profile has a score.
+	for index in range(MISSION_PATHS.size()-1,-1,-1):
+		var probe:=Catalog.new(MISSION_PATHS[index])
+		var mission_id:=str(probe.mission.get("id",""))
+		for entry in load_highscores().entries:
+			if str(entry.get("mission",""))==mission_id and str(entry.get("profile_id",""))==str(commander_profile.data.profile_id): return index
+	return clampi(mission_index,0,MISSION_PATHS.size()-1)
+
+func show_highscores(return_action: Callable = Callable(), requested_index: int = -1) -> void:
 	if not return_action.is_valid(): return_action=show_main_menu
-	clear(overlay)
-	var p:=panel(overlay,Rect2(470,112,980,856),Color("202a29"))
-	label(p,"PILOTENARCHIV / PERSÖNLICHE BESTENLISTE",Vector2(38,28),17,MINT)
-	label(p,"Einsatzrekorde",Vector2(38,60),42,GOLD)
-	label(p,"MISSION   "+db.mission.name,Vector2(38,123),16,MUTED)
+	if requested_index<0: requested_index=highscore_default_mission_index()
+	highscore_mission_index=clampi(requested_index,0,MISSION_PATHS.size()-1)
+	var mission_db:=Catalog.new(MISSION_PATHS[highscore_mission_index])
+	var mission_id:=str(mission_db.mission.get("id",""))
+	var all_data:=load_highscores()
 	var entries: Array=[]
-	for entry in load_highscores().entries:
-		if entry.get("mission","")==db.mission.id: entries.append(entry)
+	var own_entries: Array=[]
+	for entry in all_data.entries:
+		if str(entry.get("mission",""))!=mission_id: continue
+		entries.append(entry)
+		if str(entry.get("profile_id",""))==str(commander_profile.data.profile_id): own_entries.append(entry)
+	clear(overlay); suppress_world_hover()
+	var p:=panel(overlay,Rect2(400,86,1120,900),Color("202a29"))
+	label(p,"PILOTENARCHIV / PERSÖNLICHE BESTENLISTE",Vector2(38,26),17,MINT)
+	label(p,"Einsatzrekorde",Vector2(38,57),42,GOLD)
+	var completed_missions: Array=campaign_progress.get("completed",[])
+	for i in range(MISSION_PATHS.size()):
+		var preview:=Catalog.new(MISSION_PATHS[i])
+		var unlocked:=i<=int(campaign_progress.get("unlocked_mission",0))
+		var done:=completed_missions.has(str(preview.mission.get("id","")))
+		var caption:="%02d  %s%s" % [i+1,str(preview.mission.get("short_name",preview.mission.get("display_name","Einsatz"))),"  ✓" if done else ""]
+		var mission_tab_index:=i
+		var tab:=button(p,caption,Rect2(38+i*347,122,330,48),func():show_highscores(return_action,mission_tab_index))
+		tab.disabled=not unlocked
+		var st:=StyleBoxFlat.new(); st.bg_color=Color("173732") if i==highscore_mission_index else Color("263331"); st.border_color=MINT if i==highscore_mission_index else Color("485b55"); st.set_border_width_all(1); st.set_corner_radius_all(3)
+		tab.add_theme_stylebox_override("normal",st)
+		tab.add_theme_color_override("font_color",MINT if i==highscore_mission_index else (Color("d5ded5") if unlocked else MUTED))
+	label(p,"MISSION %02d / %s" % [highscore_mission_index+1,str(mission_db.mission.get("display_name",mission_db.mission.get("name","Einsatz")))],Vector2(40,187),15,MUTED,680)
+	var stats: Dictionary=commander_profile.data.statistics
+	label(p,"DEINE LÄUFE",Vector2(770,187),12,MUTED)
+	label(p,str(own_entries.size()),Vector2(770,207),25,GOLD)
+	var personal_best:=0
+	for entry in own_entries: personal_best=maxi(personal_best,int(entry.get("score",0)))
+	label(p,"BESTWERT",Vector2(900,187),12,MUTED)
+	label(p,format_score(personal_best) if personal_best>0 else "—",Vector2(900,207),25,GOLD)
 	if entries.is_empty():
-		label(p,"Noch kein Einsatz abgeschlossen.\nSichere das Becken, um deinen ersten Eintrag freizuschalten.",Vector2(42,210),23,Color("c8d8ce"),875)
+		label(p,"Für diesen Einsatz gibt es noch keinen abgeschlossenen Lauf.",Vector2(42,286),23,Color("c8d8ce"),850)
+		if not completed_missions.has(mission_id): label(p,"Schließe den Einsatz erfolgreich ab, um den ersten Rekord freizuschalten.",Vector2(42,326),16,MUTED,850)
 	else:
-		label(p,"RANG   KOMMANDANT       PUNKTE       ZEIT       WIDERSTAND       FRAKTION       DATUM",Vector2(42,186),15,MUTED)
-		var y:=222
+		label(p,"RANG   KOMMANDANT       PUNKTE       ZEIT       WIDERSTAND       FRAKTION       DATUM",Vector2(42,265),15,MUTED)
+		var y:=302
 		for i in mini(entries.size(),10):
 			var entry: Dictionary=entries[i]
 			var style:=Color("e7bd78") if i==0 else Color("c8d8ce")
-			var commander_name:=str(entry.get("nickname","UNBEKANNT")).to_upper()
+			var raw_name:=str(entry.get("nickname","UNBEKANNT")).to_upper()
+			var commander_name:="LEGACY" if raw_name=="UNBEKANNT" else raw_name
 			var own_entry:=str(entry.get("profile_id",""))==str(commander_profile.data.profile_id) and not str(commander_profile.data.profile_id).is_empty()
-			label(p,"%02d   %s%s   %s   %02d:%02d   %s   %s   %s" % [i+1,"> " if own_entry else "",commander_name,format_score(int(entry.score)),int(float(entry.time))/60,int(float(entry.time))%60,difficulty_label(str(entry.difficulty)),str(entry.faction),str(entry.date)],Vector2(42,y),17,MINT if own_entry else style,885)
-			y+=52
-	label(p,"Wertung: 1.000 Basis · Abschuss +250 · Solarit ×0,5 · Produktion +120 · Bau +100.\nZeitbonus: max. 0, (1.800 s − Zeit) ×2 · eigene Verluste −200 je Fahrzeug, −500 je Gebäude.",Vector2(42,746),15,MUTED,890)
-	button(p,"ZURÜCK",Rect2(42,804,260,42),return_action)
+			label(p,"%02d   %s%s   %s   %02d:%02d   %s   %s   %s" % [i+1,"> " if own_entry else "",commander_name,format_score(int(entry.score)),int(float(entry.time))/60,int(float(entry.time))%60,difficulty_label(str(entry.difficulty)),str(entry.faction),str(entry.date)],Vector2(42,y),16,MINT if own_entry else style,1030)
+			y+=48
+	var formula:=button(p,"PUNKTEBERECHNUNG  ?",Rect2(42,804,250,40),func():show_score_formula(return_action,highscore_mission_index))
+	ghost_button_style(formula)
+	label(p,"Gesamt: %d Einsätze · %d Siege · %d Niederlagen" % [int(stats.singleplayer.missions),int(stats.singleplayer.wins),int(stats.singleplayer.losses)],Vector2(330,817),14,MUTED,480)
+	button(p,"ZURÜCK",Rect2(830,800,250,46),return_action)
+
+func show_score_formula(return_action: Callable, mission_tab: int) -> void:
+	clear(overlay); suppress_world_hover()
+	var screen:=get_viewport_rect().size
+	var shade:=ColorRect.new(); shade.color=Color(0.01,0.016,0.018,0.70); shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); shade.mouse_filter=Control.MOUSE_FILTER_STOP; overlay.add_child(shade)
+	var p:=panel(overlay,Rect2((screen-Vector2(760,430))*0.5,Vector2(760,430)),Color("211b17"))
+	label(p,"PILOTENARCHIV / WERTUNG",Vector2(34,26),15,MINT)
+	label(p,"Punkteberechnung",Vector2(34,56),34,GOLD)
+	label(p,"Basiswert                         1.000\nAbschuss                           +250\nGeliefertes Solarit                 ×0,5\nProduziertes Fahrzeug               +120\nErrichtetes Gebäude                 +100\nZeitbonus                 (1.800 s − Zeit) ×2\nEigenes Fahrzeug verloren           −200\nEigenes Gebäude verloren            −500",Vector2(40,124),18,Color("d5ded5"),670)
+	button(p,"ZUR BESTENLISTE",Rect2(40,360,300,44),func():show_highscores(return_action,mission_tab))
 
 func save_game(path: String = SAVE_PATH, feedback: bool = true) -> void:
 	if online.active or (playing and sim!=null and sim.online_mode=="versus"):
@@ -2201,6 +2606,18 @@ func save_game(path: String = SAVE_PATH, feedback: bool = true) -> void:
 	data["placement"]=placement
 	data["placement_rotation"]=placement_rotation
 	data["visual_state"]=renderer.combat_fx.persistence_snapshot()
+	data["saved_at"]=Time.get_datetime_string_from_system(false,true)
+	data["game_version"]=str(update_history.get("current_version","unbekannt"))
+	data["mission_name"]=str(db.mission.get("display_name",db.mission.get("name",db.mission.get("id","Einsatz"))))
+	data["save_kind"]="AUTOSAVE" if path.ends_with("autosave.json") else "SCHNELLSPEICHERSTAND"
+	data["category"]=category
+	data["inspected"]=inspected
+	data["production_target_factory_id"]=production_target_factory_id
+	var bookmark_save: Dictionary={}
+	for key in bookmarks:
+		var point: Vector2=bookmarks[key]
+		bookmark_save[str(key)]=[point.x,point.y]
+	data["bookmarks"]=bookmark_save
 	var temporary := path+".tmp"
 	var file := FileAccess.open(temporary,FileAccess.WRITE)
 	if file==null: notify("Speichern fehlgeschlagen: "+error_string(FileAccess.get_open_error())); return
@@ -2209,9 +2626,73 @@ func save_game(path: String = SAVE_PATH, feedback: bool = true) -> void:
 	if err!=OK: notify("Speichern fehlgeschlagen: "+error_string(err)); return
 	if feedback: music.cue("save"); notify("Spielstand gespeichert.")
 
-func load_game() -> void:
+func save_slot_info(path: String) -> Dictionary:
+	var info := {"path":path,"exists":false,"valid":false,"slot":"AUTOSAVE" if path.ends_with("autosave.json") else "SCHNELLSPEICHERSTAND","mission":"Unbekannter Einsatz","mission_id":"","time":0.0,"saved_at":"","commander":"","difficulty":"","faction":"","version":""}
+	if not FileAccess.file_exists(path): return info
+	info.exists=true
+	var parser:=JSON.new()
+	if parser.parse(FileAccess.get_file_as_string(path))!=OK or not parser.data is Dictionary: return info
+	var data: Dictionary=parser.data
+	var saved_index:=mission_index_for_id(str(data.get("mission","")))
+	if saved_index<0: return info
+	var preview:=Catalog.new(MISSION_PATHS[saved_index])
+	if not preview.errors.is_empty(): return info
+	info.valid=true
+	info.mission_id=str(data.get("mission",""))
+	info.mission=str(data.get("mission_name",preview.mission.get("display_name",preview.mission.get("name",info.mission_id))))
+	info.time=float(data.get("time",0.0)) if data.get("time",0.0) is int or data.get("time",0.0) is float else 0.0
+	info.saved_at=str(data.get("saved_at",""))
+	info.commander=str(data.get("commander_nickname",""))
+	info.difficulty=difficulty_label(str(data.get("difficulty","normal")))
+	var saved_factions: Variant=data.get("factions",[])
+	if saved_factions is Array and not saved_factions.is_empty() and preview.factions.has(str(saved_factions[0])):
+		info.faction=str(preview.factions[str(saved_factions[0])].name)
+	info.version=str(data.get("game_version",""))
+	return info
+
+func format_save_clock(seconds: float) -> String:
+	var total:=maxi(0,int(seconds))
+	return "%02d:%02d" % [total/60,total%60]
+
+func show_load_dialog(return_action: Callable = Callable()) -> void:
+	if not return_action.is_valid(): return_action=show_main_menu if not playing else show_pause
+	clear(overlay); suppress_world_hover()
+	var screen:=get_viewport_rect().size
+	var size:=Vector2(minf(900.0,screen.x-64.0),minf(640.0,screen.y-64.0))
+	var shade:=ColorRect.new(); shade.color=Color(0.01,0.016,0.018,0.68); shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); shade.mouse_filter=Control.MOUSE_FILTER_STOP; overlay.add_child(shade)
+	var p:=panel(overlay,Rect2((screen-size)*0.5,size),Color("202a29"))
+	p.name="LoadGamePanel"
+	label(p,"SYSTEM / SPIELSTAND",Vector2(34,25),15,MINT)
+	label(p,"Spielstand laden",Vector2(34,52),36,GOLD)
+	label(p,"Wähle bewusst zwischen deinem letzten Schnellspeicherstand und dem automatischen Sicherungspunkt.",Vector2(36,103),16,Color("d5ded5"),size.x-72)
+	var slots: Array=[save_slot_info(SAVE_PATH),save_slot_info("user://autosave.json")]
+	for i in range(slots.size()):
+		var info: Dictionary=slots[i]
+		var y:=158.0+i*174.0
+		var card:=panel(p,Rect2(34,y,size.x-68,150),Color("182220") if bool(info.valid) else Color("1e1a17"))
+		label(card,str(info.slot),Vector2(20,16),14,MINT if bool(info.valid) else MUTED)
+		if bool(info.valid):
+			label(card,str(info.mission),Vector2(20,42),24,GOLD,430)
+			var facts: Array[String]=["ZEIT "+format_save_clock(float(info.time)),str(info.difficulty)]
+			if not str(info.faction).is_empty(): facts.append(str(info.faction))
+			label(card,"  ·  ".join(facts),Vector2(20,78),14,Color("c8d8ce"),520)
+			var metadata: Array[String]=[]
+			if not str(info.commander).is_empty(): metadata.append("Kommandant "+str(info.commander).to_upper())
+			if not str(info.saved_at).is_empty(): metadata.append(str(info.saved_at).replace("T"," "))
+			if not str(info.version).is_empty(): metadata.append("v"+str(info.version))
+			label(card,"  ·  ".join(metadata),Vector2(20,106),12,MUTED,560)
+			var slot_path:=str(info.path)
+			var load_button:=button(card,"DIESEN STAND LADEN  →",Rect2(size.x-350,45,300,54),func():load_game(slot_path))
+			load_button.add_theme_color_override("font_color",GOLD)
+		else:
+			label(card,"Kein gültiger Spielstand vorhanden.",Vector2(20,54),19,MUTED,520)
+			if bool(info.exists): label(card,"Die Datei ist vorhanden, kann aber nicht als kompatibler SOLARIT-Spielstand gelesen werden.",Vector2(20,86),13,Color("c07d70"),560)
+	label(p,"Hinweis: F9 lädt weiterhin direkt den Schnellspeicherstand; falls keiner existiert, wird der Autosave verwendet.",Vector2(36,size.y-84),13,MUTED,size.x-72)
+	button(p,"ZURÜCK",Rect2(34,size.y-54,250,38),return_action)
+
+func load_game(path: String = "") -> void:
 	if online.active or (playing and sim!=null and sim.online_mode=="versus"): notify("Für lokale Spielstände zuerst die Online-Verbindung trennen."); return
-	var path := SAVE_PATH if FileAccess.file_exists(SAVE_PATH) else "user://autosave.json"
+	if path.is_empty(): path=SAVE_PATH if FileAccess.file_exists(SAVE_PATH) else "user://autosave.json"
 	if not FileAccess.file_exists(path): show_error("Noch kein Spielstand vorhanden."); return
 	var parser := JSON.new()
 	if parser.parse(FileAccess.get_file_as_string(path))!=OK: show_error("Spielstand enthält ungültiges JSON."); return
@@ -2221,12 +2702,15 @@ func load_game() -> void:
 	if saved_mission_index<0: show_error("Mission des Spielstands ist nicht verfügbar."); return
 	mission_index=saved_mission_index
 	db=Catalog.new(MISSION_PATHS[mission_index])
+	if not db.errors.is_empty(): show_error("Spieldaten der gespeicherten Mission sind ungültig."); return
 	var model := Simulation.new(db,"forge","normal",int(campaign_progress.tech_level))
 	if model.restore(data)!=OK: show_error("Spielstandversion oder Spieldaten passen nicht."); return
 	var local_visuals := CombatEffects.new()
 	if data.has("visual_state") and local_visuals.restore_persistence(data.visual_state,Vector2(model.grid.width,model.grid.height)*model.grid.tile)!=OK:
 		show_error("Ungültige visuelle Zerstörungsspuren im Spielstand."); return
 	sim=model; run_id=str(data.get("run_id","")); if run_id.is_empty(): run_id=create_run_id()
+	last_load_path=path
+	match_report_saved=false
 	connect_sim(); playing=true; paused=false; ended=false
 	render_previous=capture_render_state(); render_current=render_previous.duplicate(true)
 	renderer.set_interpolation(render_previous,render_current,1.0)
@@ -2245,6 +2729,11 @@ func load_game() -> void:
 			groups[int(k)]=[]
 			for id in data.groups[k]:
 				if sim.number(id) and sim.entities.has(int(id)): groups[int(k)].append(int(id))
+	bookmarks={}
+	var saved_bookmarks: Dictionary=data.get("bookmarks",{}) if data.get("bookmarks",{}) is Dictionary else {}
+	for k in saved_bookmarks:
+		var raw_point: Variant=saved_bookmarks[k]
+		if sim.vector_valid(raw_point): bookmarks[int(k)]=Vector2(float(raw_point[0]),float(raw_point[1]))
 	var camera_value = data.get("camera",[400,1450])
 	if not sim.vector_valid(camera_value): camera_value=[400,1450]
 	renderer.camera=Vector2(camera_value[0],camera_value[1])
@@ -2254,8 +2743,20 @@ func load_game() -> void:
 	placement_rotation=int(data.get("placement_rotation",0))%4
 	renderer.placement_rotation=placement_rotation
 	renderer.placement=placement
-	accumulator=0; clear(overlay); view_container.visible=true
-	build_hud(); music.start(sim); music.set_paused(false); notify("Spielstand geladen.")
+	category=str(data.get("category","buildings"))
+	if category not in ["buildings","units","production"]: category="buildings"
+	inspected=int(data.get("inspected",0)) if sim.number(data.get("inspected",0)) and sim.entities.has(int(data.get("inspected",0))) else 0
+	production_target_factory_id=int(data.get("production_target_factory_id",0)) if sim.number(data.get("production_target_factory_id",0)) else 0
+	if production_target_factory_id>0 and (not sim.entities.has(production_target_factory_id) or str(sim.entities[production_target_factory_id].kind)!="factory" or int(sim.entities[production_target_factory_id].owner)!=local_owner()): production_target_factory_id=0
+	accumulator=0; autosave_timer=120.0; clear(overlay); view_container.visible=true
+	build_hud()
+	# A loaded run needs a fresh recorder context; otherwise the eventual debrief can
+	# accidentally finish a recorder from a previous run or no recorder at all.
+	var opponent_name:="Gegner-KI"
+	match_recorder.begin(sim,{"match_id":run_id,"game_version":str(update_history.get("current_version","unbekannt")),"mode":"singleplayer","side_0_nickname":str(commander_profile.data.nickname),"side_1_nickname":opponent_name})
+	music.start(sim); music.set_paused(false)
+	var slot_name:="Autosave" if path.ends_with("autosave.json") else "Schnellspeicherstand"
+	notify(slot_name+" geladen · "+str(db.mission.get("display_name",db.mission.get("name","Einsatz")))+" · "+format_save_clock(sim.time))
 	if sim.result!="": ended=true; show_end()
 
 func show_error(message: String) -> void:
@@ -2273,7 +2774,7 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 	var shade := ColorRect.new()
 	shade.color=Color(0.015,0.02,0.022,0.54)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	shade.mouse_filter=Control.MOUSE_FILTER_STOP
 	overlay.add_child(shade)
 	var p := panel(overlay,Rect2(panel_pos,panel_size),Color("171714"))
 	p.name="OptionsPanel"

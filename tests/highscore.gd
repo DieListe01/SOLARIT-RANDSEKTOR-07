@@ -53,12 +53,19 @@ func run() -> void:
 	var sorted: Array=game.load_highscores().entries
 	check(sorted.size()==2 and int(sorted[0].score)>int(sorted[1].score),"Personal mission leaderboard is sorted by score")
 	check(str(sorted[0].nickname)=="DIRK" and str(sorted[1].nickname)=="COMMANDER-D", "Renaming a commander preserves historical highscore names")
+	# The archive should default to the last completed mission, not a newly unlocked mission with no result.
+	game.mission_index=1
+	game.db=Catalog.new(game.MISSION_PATHS[1])
+	game.highscore_mission_index=-1
 	game.show_highscores()
+	check(game.highscore_mission_index==0,"Leaderboard defaults to the last completed mission")
 	var highscores_panel: Control=game.overlay.get_child(0)
 	var list_text: String=""
 	for child in highscores_panel.get_children():
 		if child is Label: list_text+=child.text
 	check(list_text.contains("Einsatzrekorde") and list_text.contains("5.740") and list_text.contains("1.250") and list_text.contains("DIRK"),"Full leaderboard shows saved scores and commander names")
+	game.mission_index=0
+	game.db=Catalog.new(game.MISSION_PATHS[0])
 	game.show_main_menu()
 	check(game.menu_buttons.has("highscores"),"Main menu exposes the leaderboard")
 	var count_before: int=game.load_highscores().entries.size()

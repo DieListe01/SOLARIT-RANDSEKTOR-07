@@ -73,13 +73,13 @@ func run() -> void:
 	var starting_solarit: float=game.sim.credits[0]
 	game.sim.credits[0]=50000
 	game.update_hud()
-	check(game.buttons.refinery.text.contains("VORAUSSETZUNGEN FEHLEN"),"Catalog clearly distinguishes missing prerequisites")
+	check(game.buttons.refinery.text.contains("BENÖTIGT: Impulswerk"),"Catalog clearly distinguishes missing prerequisites")
 	check(game.buttons.refinery.modulate==Color.WHITE and game.requirement_marks.refinery.color==Color("9e524c"),"Blocked catalog row keeps its original artwork and uses a restrained red marker")
 	game.sim.credits[0]=0
 	game.update_hud()
-	check(game.buttons.power.text.contains("SOLARIT REICHT NICHT"),"Catalog clearly marks insufficient Solarit")
+	check(game.buttons.power.text.contains("FEHLEN"),"Catalog clearly marks insufficient Solarit")
 	check(game.buttons.power.modulate==Color.WHITE and game.requirement_marks.power.color==Color("d6b56f"),"Solarit warning stays amber without tinting the row")
-	check(game.buttons.refinery.text.contains("VORAUSSETZUNGEN + SOLARIT"),"Catalog displays both blockers when both apply")
+	check(game.buttons.refinery.text.contains("BENÖTIGT:") and game.buttons.refinery.tooltip_text.contains("SOLARIT REICHT NICHT"),"Catalog displays both blockers when both apply")
 	game.sim.credits[0]=starting_solarit
 	game.update_hud()
 	await click_world(game.sim.buildings(0,"core")[0].pos)
@@ -196,14 +196,25 @@ func run() -> void:
 	game.save_game("user://ui_test_save.json",false)
 	var save = JSON.parse_string(FileAccess.get_file_as_string("user://ui_test_save.json"))
 	check(save.groups.has("1") and save.selected.size()==game.selected.size(),"Groups and selection saved")
+	game.category="units"
+	game.bookmarks[KEY_F1]=Vector2(512,768)
 	game.save_game()
+	var saved_json: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("user://quick_save.json"))
+	check(saved_json.has("saved_at") and saved_json.has("mission_name") and str(saved_json.get("category",""))=="units","Save contains preview metadata and UI state")
 	var saved_credits: float = game.sim.credits[0]
 	var saved_selection: Array = game.selected.duplicate()
 	game.sim.credits[0]+=12345
+	game.category="buildings"
+	game.bookmarks.clear()
 	game.load_game()
 	check(is_equal_approx(game.sim.credits[0],saved_credits),"Main-menu load restores saved credits")
 	check(game.selected==saved_selection and game.groups.has(1),"Load restores usable integer selection and control groups")
 	check(game.renderer.selected.has(game.selected[0]),"Loaded selection is highlighted")
+	check(game.category=="units" and game.bookmarks.has(KEY_F1),"Load restores catalog tab and camera bookmarks")
+	check(not game.match_recorder.report.is_empty() and str(game.match_recorder.report.get("match_id",""))==game.run_id,"Load starts a recorder context for the restored run")
+	game.show_load_dialog(game.show_pause)
+	check(game.overlay.get_node_or_null("LoadGamePanel")!=null,"Load command opens an explicit save-slot chooser")
+	game.load_game()
 	game.show_pause()
 	var t: float = game.sim.time
 	game._process(0.5)

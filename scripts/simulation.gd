@@ -36,6 +36,44 @@ var rng := RandomNumberGenerator.new()
 var objective_announced: Dictionary = {}
 var triggered_waves: Dictionary = {}
 
+# Approximate body radii; ephemeral neighbour buckets never enter save/network data.
+const UNIT_RADII := {"scout":14.0,"tank":22.0,"siege":26.0,"harvester":28.0,"raider":21.0,"lancer":29.0,"scorcher":23.0,"bulwark":34.0}
+var movement_buckets: Dictionary = {}
+
+func unit_radius(kind: String) -> float:
+	return float(UNIT_RADII.get(kind,22.0))
+
+func rebuild_movement_buckets() -> void:
+	movement_buckets.clear()
+	for e in entities.values():
+		if e.building: continue
+		var cell := Vector2i(floor(e.pos.x/80.0),floor(e.pos.y/80.0))
+		if not movement_buckets.has(cell): movement_buckets[cell]=[]
+		movement_buckets[cell].append(e)
+
+func unit_separation(e: Dictionary) -> Vector2:
+	var force := Vector2.ZERO
+	var cell := Vector2i(floor(e.pos.x/80.0),floor(e.pos.y/80.0))
+	for y in range(-1,2):
+		for x in range(-1,2):
+			for other in movement_buckets.get(cell+Vector2i(x,y),[]):
+				if other.id==e.id or not entities.has(other.id): continue
+				var difference: Vector2 = e.pos-other.pos
+				var distance := difference.length()
+				var gap := unit_radius(e.kind)+unit_radius(other.kind)+4.0
+				var combat_spread := false
+				if e.order in ["attack","attack_move"] and int(e.get("target",0))>0 and entities.has(int(e.target)):
+					var combat_target: Dictionary=entities[int(e.target)]
+					combat_spread=combat_target.building and e.pos.distance_to(combat_target.pos)<190.0
+				if combat_spread: gap+=8.0
+				if distance>=gap: continue
+				# A deterministic opposite impulse also resolves coincident spawn points.
+				var away := difference/distance if distance>0.01 else Vector2.from_angle(float(mini(e.id,other.id)%17)*0.37)*(1.0 if e.id>other.id else -1.0)
+				if distance<gap*0.65:
+					away=away.rotated(sin(float(mini(e.id,other.id)*7+maxi(e.id,other.id)*3))*0.5)
+				force+=away*(gap-distance)*(2.05 if combat_spread else 1.6)
+	return force
+
 func team_color(owner: int) -> Color:
 	return Color(player_colors[owner]) if owner>=0 and owner<player_colors.size() else Color("eac557")
 
@@ -243,8 +281,57 @@ func prioritize_queue(factory_id: int, queue_index: int, owner: int) -> bool:
 	event.emit("queue_priority",factory.pos,"Auftrag priorisiert · %s"%db.units[str(job.kind)].name)
 	return true
 
+func move_queue(factory_id: int, queue_index: int, direction: int, owner: int) -> bool:
+	if not entities.has(factory_id): return false
+	var factory: Dictionary=entities[factory_id]
+	if factory.owner!=owner or factory.kind!="factory" or queue_index<1 or queue_index>=factory.queue.size(): return false
+	if direction not in [-1,1]: return false
+	var target_index: int=queue_index+direction
+	# Index 0 is already in production and must never be displaced by priority changes.
+	if target_index<1 or target_index>=factory.queue.size(): return false
+	var job: Dictionary=factory.queue.pop_at(queue_index)
+	factory.queue.insert(target_index,job)
+	event.emit("queue_priority",factory.pos,("Priorität erhöht · " if direction<0 else "Priorität gesenkt · ")+db.units[str(job.kind)].name)
+	return true
+
+func formation_destination(preferred: Vector2, reserved_cells: Dictionary) -> Vector2:
+	var preferred_cell:=grid.cell(preferred)
+	if grid.inside(preferred_cell) and grid.is_free(preferred_cell) and not reserved_cells.has(preferred_cell):
+		reserved_cells[preferred_cell]=true
+		return preferred
+	# Formation slots may land inside a building footprint or on the far side of an
+	# obstacle. Resolve to the nearest free, unclaimed neighbouring cell instead of
+	# letting several units converge on the same blocked destination.
+	var best_cell:=Vector2i(-1,-1)
+	var best_distance:=INF
+	for radius in range(1,5):
+		for y in range(-radius,radius+1):
+			for x in range(-radius,radius+1):
+				if abs(x)!=radius and abs(y)!=radius: continue
+				var cell:=preferred_cell+Vector2i(x,y)
+				if not grid.inside(cell) or not grid.is_free(cell) or reserved_cells.has(cell): continue
+				var distance:=grid.center(cell).distance_squared_to(preferred)
+				if distance<best_distance:
+					best_distance=distance
+					best_cell=cell
+		if best_cell.x>=0: break
+	if best_cell.x>=0:
+		reserved_cells[best_cell]=true
+		return grid.center(best_cell)
+	return preferred
+
 func command(ids: Array, point: Vector2, order: String = "move", target: int = 0) -> void:
 	var count := 0
+	var mobile_count := 0
+	var spacing := 32.0
+	for id in ids:
+		if not entities.has(int(id)) or entities[int(id)].building: continue
+		if order=="return" and entities[int(id)].kind!="harvester": continue
+		mobile_count+=1
+		spacing=maxf(spacing,unit_radius(entities[int(id)].kind)*2.0+10.0)
+	var columns := maxi(1,ceili(sqrt(float(mobile_count))))
+	var rows := ceili(float(mobile_count)/columns)
+	var reserved_destinations: Dictionary={}
 	for id in ids:
 		if not entities.has(int(id)): continue
 		var e: Dictionary = entities[int(id)]
@@ -257,8 +344,13 @@ func command(ids: Array, point: Vector2, order: String = "move", target: int = 0
 		e.path_pending=false; e.path=[]
 		e.order=order
 		e.target=target
-		var offset := Vector2((count%4)-1.5,floor(count/4.0))*28 if ids.size()>1 else Vector2.ZERO
-		e.destination=point+offset
+		var offset := Vector2.ZERO
+		if mobile_count>1:
+			var row := count/columns
+			var stagger := 0.22 if row%2 else -0.22
+			offset=Vector2(float(count%columns)-(columns-1)*0.5+stagger,float(row)-(rows-1)*0.5)*spacing
+			offset+=Vector2(sin(count*2.4),cos(count*1.7))*3.0
+		e.destination=formation_destination(point+offset,reserved_destinations) if order not in ["stop","hold","guard"] else point+offset
 		if order in ["stop","hold","guard"]:
 			e.path=[]
 			e.destination=e.pos
@@ -281,18 +373,21 @@ func submit_command(packet: Dictionary, issuer: int) -> bool:
 	if issuer<0 or issuer>=factions.size(): return false
 	if not number(packet.get("owner_id")) or float(packet.owner_id)!=issuer: return false
 	var kind: String = str(packet.get("type",""))
-	if kind in ["build","produce","cancel_produce","cancel_queue_at","prioritize_queue","upgrade"]:
+	if kind in ["build","produce","cancel_produce","cancel_queue_at","prioritize_queue","move_queue","upgrade"]:
 		var item: String = str(packet.get("kind",""))
 		if kind=="upgrade":
 			var building_id=packet.get("id")
 			if not number(building_id) or float(building_id)!=floor(float(building_id)): return false
 			return upgrade_building(int(building_id),issuer)
-		if kind in ["cancel_queue_at","prioritize_queue"]:
+		if kind in ["cancel_queue_at","prioritize_queue","move_queue"]:
 			var factory_id=packet.get("factory_id")
 			var queue_index=packet.get("queue_index")
 			if not number(factory_id) or float(factory_id)!=floor(float(factory_id)) or not number(queue_index) or float(queue_index)!=floor(float(queue_index)): return false
 			if kind=="cancel_queue_at": return cancel_queue_at(int(factory_id),int(queue_index),issuer)
-			return prioritize_queue(int(factory_id),int(queue_index),issuer)
+			if kind=="prioritize_queue": return prioritize_queue(int(factory_id),int(queue_index),issuer)
+			var direction=packet.get("direction")
+			if not number(direction) or float(direction)!=floor(float(direction)) or int(direction) not in [-1,1]: return false
+			return move_queue(int(factory_id),int(queue_index),int(direction),issuer)
 		if kind=="build":
 			if not db.buildings.has(item) or item=="core" or not vector_valid(packet.get("cell")): return false
 			if float(packet.cell[0])!=floor(float(packet.cell[0])) or float(packet.cell[1])!=floor(float(packet.cell[1])): return false
@@ -379,6 +474,7 @@ func tick(dt: float) -> void:
 			var e: Dictionary = entities[id]
 			e.path=grid.path(e.pos,e.path_goal)
 			e.path_pending=false
+	rebuild_movement_buckets()
 	for e in entities.values():
 		if not entities.has(e.id): continue
 		if e.building:
@@ -473,6 +569,9 @@ func repair_entity(e: Dictionary, owner: int, dt: float) -> void:
 func move_unit(e: Dictionary, dt: float) -> void:
 	if e.path.is_empty():
 		e.velocity=Vector2.ZERO
+		var settle := unit_separation(e).limit_length(18.0)*dt
+		if settle.length_squared()>0.01 and grid.is_free(grid.cell(e.pos+settle)):
+			e.pos+=settle
 		return
 	var target: Vector2 = e.path[0]
 	var direction: Vector2 = target-e.pos
@@ -484,12 +583,7 @@ func move_unit(e: Dictionary, dt: float) -> void:
 	var speed := float(d.speed)*float(db.factions[factions[e.owner]].speed)
 	if grid.type_at(grid.cell(e.pos))==2: speed*=0.6
 	var desired: Vector2 = direction.normalized()*speed
-	var separation := Vector2.ZERO
-	for other in entities.values():
-		if other.id==e.id or other.building: continue
-		var difference: Vector2 = e.pos-other.pos
-		var distance := difference.length()
-		if distance<25 and distance>0.01: separation+=difference.normalized()*(25-distance)*3.0
+	var separation := unit_separation(e)
 	e.velocity=e.velocity.move_toward(desired,dt*speed*4)
 	var delta_pos: Vector2 = (e.velocity+separation.limit_length(speed*0.6))*dt
 	if delta_pos.length()>direction.length(): delta_pos=direction

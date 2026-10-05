@@ -33,6 +33,9 @@ if ($LASTEXITCODE -ne 0) { throw "Style Consolidation fehlgeschlagen" }
 & $enginePath --path $gameRoot --script "tests/persistent_destruction.gd"
 if ($LASTEXITCODE -ne 0) { throw "Persistent Destruction fehlgeschlagen" }
 
+& $enginePath --path $gameRoot --script 'tests/battlefield_polish.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Schlachtfelddarstellung und Gruppenabstände fehlgeschlagen' }
+
 & $enginePath --headless --path $gameRoot --script "tests/performance_monitor.gd"
 if ($LASTEXITCODE -ne 0) { throw "FPS-Monitor fehlgeschlagen" }
 & $enginePath --path $gameRoot --script "tests/highscore.gd"
