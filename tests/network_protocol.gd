@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Protocol = preload("res://scripts/network_protocol.gd")
+const Session = preload("res://scripts/online_session.gd")
 var checks := 0
 var failures := 0
 
@@ -11,6 +12,14 @@ func check(condition: bool, message: String) -> void:
 		push_error("NETWORK PROTOCOL: "+message)
 
 func _initialize() -> void:
+	var session := Session.new()
+	session.host_tick=590
+	session.ping_ms=-1
+	session.last_snapshot_at=Time.get_ticks_msec()
+	check(session.command_target_tick()==605,"fresh snapshots use the minimum safe command lead")
+	session.last_snapshot_at=Time.get_ticks_msec()-1000
+	session.ping_ms=200
+	check(session.command_target_tick()>605 and session.command_target_tick()<=650,"stale snapshots and measured ping extend command lead: %d"%session.command_target_tick())
 	var command={"type":"move","owner_id":1,"ids":[12,13],"point":[550.0,900.0]}
 	var packet:=Protocol.create_command("session_123456",1,1,600,command)
 	var accepted:=Protocol.validate_command(packet,"session_123456",590,0,[0,1])

@@ -131,10 +131,19 @@ func set_authority(simulation: Simulation) -> void:
 func send_command(command: Dictionary) -> bool:
 	if not is_client() or not connected or not client_ready or last_snapshot_sequence==0 or session_id.is_empty(): return false
 	command_sequence+=1
-	var packet: Dictionary=PROTOCOL.create_command(session_id,1,command_sequence,host_tick+15,command)
+	var packet: Dictionary=PROTOCOL.create_command(session_id,1,command_sequence,command_target_tick(),command)
 	packet["mission_sequence"]=mission_sequence
 	rpc_id(1,"receive_command_request",packet)
 	return true
+
+func command_lead_ticks() -> int:
+	var snapshot_age_ms:= maxi(0,Time.get_ticks_msec()-last_snapshot_at) if last_snapshot_at>0 else 0
+	var round_trip_ms:=maxi(0,ping_ms)
+	var observed_delay_ticks:=ceili(float(snapshot_age_ms+round_trip_ms)*PROTOCOL.TICKS_PER_SECOND/1000.0)
+	return clampi(15+observed_delay_ticks,15,PROTOCOL.MAX_FUTURE_TICKS)
+
+func command_target_tick() -> int:
+	return host_tick+command_lead_ticks()
 
 func submit_local_host_command(command: Dictionary) -> bool:
 	if not is_host() or authority_sim==null: return false

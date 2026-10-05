@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.3",
+  "current_version": "0.36.4",
   "entries": [
+    {
+      "version": "0.36.4",
+      "date": "05.10.2026",
+      "title": "Zuverlässigere Befehle bei Netzwerklatenz",
+      "changes": [
+        "Multiplayer-Befehle berücksichtigen jetzt die gemessene Pingzeit und das Alter des letzten Weltzustands. Dadurch werden Eingaben bei langsamem oder kurz stockendem Netzwerk nicht mehr mit veraltetem Tick abgewiesen.",
+        "Der GitHub-Release-Workflow prüft die neue Laufzeitabstimmung zusammen mit dem Battlefield-Polish und baut das Windows-Setup samt Prüfsumme und Versionsmanifest."
+      ]
+    },
     {
       "version": "0.36.3",
       "date": "05.10.2026",
