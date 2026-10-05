@@ -70,6 +70,8 @@ func run() -> void:
 	game.sim.ai_timer=99999
 	check(game.playing and not game.paused,"Start mission")
 	check(game.minimap.get_parent()==game.ui and game.minimap.position.x>=1400 and game.minimap.position.y>=800 and game.minimap.size.x<=180,"Small minimap sits at the lower-right of the battlefield")
+	await process_frame
+	check(game.minimap.terrain_texture!=null and game.minimap.terrain_texture.get_width()==game.sim.grid.width and game.minimap.terrain_texture.get_height()==game.sim.grid.height,"Minimap terrain is rasterized to one map-sized texture")
 	var starting_solarit: float=game.sim.credits[0]
 	game.sim.credits[0]=50000
 	game.update_hud()

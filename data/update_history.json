@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.4",
+  "current_version": "0.36.5",
   "entries": [
+    {
+      "version": "0.36.5",
+      "date": "05.10.2026",
+      "title": "Sichtbare Einheiten und flüssigeres Schlachtfeld",
+      "changes": [
+        "Die Schlachtfelddarstellung filtert Einheiten außerhalb des Bildschirms und im Nebel vor dem Rendern; zusätzliche Einheiten außerhalb der Sichtweite erhöhen so die Renderlast deutlich weniger.",
+        "Einheiten- und Gebäudeindizes sowie die Minimap-Aktualisierung wurden optimiert. Diagnose und Benchmark erfassen nun sichtbare, verdeckte und außerhalb des Bildschirms liegende Einheiten getrennt.",
+        "GitHub Actions prüft die Tests, baut das Windows-Setup und veröffentlicht Installer, Prüfsumme sowie Versionsmanifest."
+      ]
+    },
     {
       "version": "0.36.4",
       "date": "05.10.2026",

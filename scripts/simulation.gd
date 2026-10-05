@@ -39,17 +39,23 @@ var triggered_waves: Dictionary = {}
 # Approximate body radii; ephemeral neighbour buckets never enter save/network data.
 const UNIT_RADII := {"scout":14.0,"tank":22.0,"siege":26.0,"harvester":28.0,"raider":21.0,"lancer":29.0,"scorcher":23.0,"bulwark":34.0}
 var movement_buckets: Dictionary = {}
+var movement_buckets_valid := false
+var building_ids: Array[int] = []
+var mobile_entity_count := 0
 
 func unit_radius(kind: String) -> float:
 	return float(UNIT_RADII.get(kind,22.0))
 
 func rebuild_movement_buckets() -> void:
 	movement_buckets.clear()
+	mobile_entity_count=0
 	for e in entities.values():
 		if e.building: continue
+		mobile_entity_count+=1
 		var cell := Vector2i(floor(e.pos.x/80.0),floor(e.pos.y/80.0))
 		if not movement_buckets.has(cell): movement_buckets[cell]=[]
 		movement_buckets[cell].append(e)
+	movement_buckets_valid=true
 
 func unit_separation(e: Dictionary) -> Vector2:
 	var force := Vector2.ZERO
@@ -126,13 +132,22 @@ func spawn(kind: String, owner: int, pos: Vector2, building: bool, completed: bo
 		grid.reserve(c,size_value,next_id,true)
 	e.path_goal=e.destination
 	entities[next_id] = e
+	if building: building_ids.append(next_id)
+	else:
+		mobile_entity_count+=1
+		if movement_buckets_valid:
+			var movement_cell:=Vector2i(floor(e.pos.x/80.0),floor(e.pos.y/80.0))
+			if not movement_buckets.has(movement_cell): movement_buckets[movement_cell]=[]
+			movement_buckets[movement_cell].append(e)
 	next_id += 1
 	return next_id-1
 
 func buildings(owner: int, kind: String = "", completed: bool = true) -> Array:
 	var found: Array = []
-	for e in entities.values():
-		if e.owner==owner and e.building and (kind=="" or e.kind==kind) and (not completed or e.complete): found.append(e)
+	for id in building_ids:
+		if not entities.has(id): continue
+		var e: Dictionary=entities[id]
+		if e.owner==owner and (kind=="" or e.kind==kind) and (not completed or e.complete): found.append(e)
 	return found
 
 func missing_requirements(kind: String, owner: int) -> Array[String]:
@@ -766,6 +781,8 @@ func destroy(id: int) -> void:
 	if e.building: grid.reserve(e.cell,footprint(e),id,false)
 	if e.building: side_stats[e.owner].buildings_lost+=1
 	else: side_stats[e.owner].lost+=1
+	if e.building: building_ids.erase(id)
+	else: mobile_entity_count=maxi(0,mobile_entity_count-1)
 	side_stats[1-e.owner].kills+=1
 	effects.append({"pos":e.pos,"life":0.8,"max_life":0.8,"radius":55.0 if e.building else 30.0,"event_backed":true})
 	presentation.emit("destroy",{"id":e.id,"pos":e.pos,"owner":e.owner,"building":e.building,"kind":e.kind,"angle":float(e.get("rotation",0))*PI/2 if e.building else e.angle,"visual_footprint":footprint(e) if e.building else [1,1],"visual_size":maxf(float(footprint(e)[0]),float(footprint(e)[1])) if e.building else 1.0})
@@ -1046,6 +1063,8 @@ func restore(save: Dictionary) -> Error:
 	if save.has("objective_announced") and not save.objective_announced is Dictionary: return ERR_INVALID_DATA
 	grid=WorldGrid.new(db.mission)
 	entities.clear()
+	building_ids.clear(); mobile_entity_count=0
+	movement_buckets.clear(); movement_buckets_valid=false
 	path_requests.clear()
 	effects.clear()
 	for raw in save.entities:
@@ -1063,6 +1082,8 @@ func restore(save: Dictionary) -> Error:
 			e.cell=Vector2i(e.cell[0],e.cell[1])
 			grid.reserve(e.cell,footprint(e),e.id,true)
 		entities[e.id]=e
+		if e.building: building_ids.append(e.id)
+		else: mobile_entity_count+=1
 	credits=save.credits.duplicate()
 	factions=save.factions.duplicate()
 	if save.has("player_colors"): player_colors=save.player_colors.duplicate()
@@ -1090,6 +1111,7 @@ func restore(save: Dictionary) -> Error:
 	for p in projectiles:
 		for field in ["pos","last"]: p[field]=Vector2(p[field][0],p[field][1])
 		p.owner=int(p.owner); p.target=int(p.target)
+	rebuild_movement_buckets()
 	update_fog(false)
 	if save.has("viewer_fog"):
 		fog[view_owner]=PackedByteArray(save.viewer_fog)
@@ -1110,7 +1132,9 @@ func configure_versus(config: Dictionary, owner: int = 0) -> void:
 	player_colors[1]=str(config.get("client_color","f34c32"))
 	campaign_tech_level=2
 	credits=[float(config.get("start_credits",4200)),float(config.get("start_credits",4200))]
-	entities.clear(); projectiles.clear(); path_requests.clear(); effects.clear()
+	entities.clear(); building_ids.clear(); mobile_entity_count=0
+	movement_buckets.clear(); movement_buckets_valid=false
+	projectiles.clear(); path_requests.clear(); effects.clear()
 	grid=WorldGrid.new(db.mission); next_id=1; time=0.0
 	stats={"gathered":0.0,"produced":0,"lost":0,"kills":0,"built":0,"buildings_lost":0}
 	side_stats=[stats,stats.duplicate(true)]; stats=side_stats[view_owner]

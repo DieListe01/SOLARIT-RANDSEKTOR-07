@@ -50,12 +50,28 @@ func run() -> void:
 	check(game.hover_label.text.contains("Panzer") and game.hover_panel.visible,"Entity hover contains readable name and panel")
 	check(not game.show_world_entity_hover(-999,Vector2(300,300)) and not game.hover_panel.visible and game.hover_label.text.is_empty(),"Stale or missing entity never leaves an empty black panel")
 	check(not game.show_world_entity_hover(hover_id,Vector2(-100,-100)) and not game.hover_panel.visible,"Hover panel stays inside the battlefield")
+	game.paused=true
+	await process_frame
+	game.sim.fog[0].fill(0)
+	await process_frame
+	var visible_before: int=game.renderer.visible_mobile_count
+	var hidden_pos: Vector2=game.renderer.camera+Vector2(450,300)
+	for i in 200:
+		game.sim.spawn("tank",1,hidden_pos+Vector2(i%5,i/5),false)
+	for i in 200:
+		game.sim.spawn("tank",0,game.renderer.camera+Vector2(1000+i%8, i/8),false)
+	await process_frame
+	check(game.renderer.visible_mobile_count==visible_before,"Hidden and off-screen units do not enter the render list")
+	check(game.renderer.culled_mobile_fog_count>=200,"Fog-hidden enemies are counted as render-culled")
+	check(game.renderer.culled_mobile_offscreen_count>=200,"Off-screen friendly units are counted as render-culled")
+	game.paused=false
 	for count in [1,5,10,40]:
 		for e in game.sim.entities.values():
 			if not e.building: game.sim.entities.erase(e.id)
 		var ids: Array = []
 		for i in count:
 			ids.append(game.sim.spawn(game.db.units.keys()[i%game.db.units.size()],0,Vector2(470+(i%8)*80,1310+(i/8)*82),false))
+		game.sim.rebuild_movement_buckets()
 		game.sim.fog[0].fill(1); game.sim.explored[0].fill(1)
 		game.selected=ids; game.update_hud()
 		await process_frame; await process_frame

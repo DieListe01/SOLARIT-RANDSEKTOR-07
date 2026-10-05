@@ -54,6 +54,8 @@ var interpolation_current: Dictionary = {}
 var interpolation_alpha := 1.0
 var visible_mobile_count := 0
 var visible_building_count := 0
+var culled_mobile_fog_count := 0
+var culled_mobile_offscreen_count := 0
 var active_vfx_count := 0
 var vfx_budget_tier := 0
 var vehicle_texture_cache: Dictionary = {}
@@ -335,10 +337,10 @@ func _process(dt: float) -> void:
 	track_timer-=dt
 	if not movement_vfx_enabled:
 		tracks.clear(); previous_positions.clear(); previous_speeds.clear()
-	elif sim!=null and track_timer<=0:
+	elif sim!=null and not visual_paused and track_timer<=0:
 		track_timer=0.2
-		for e in sim.entities.values():
-			if e.building or not sim.is_visible(e,sim.view_owner) or sim.factions[e.owner]=="lumen": continue
+		for e in visible_mobile_entities():
+			if sim.factions[e.owner]=="lumen": continue
 			var old: Vector2 = previous_positions.get(e.id,e.pos)
 			if float(previous_speeds.get(e.id,0))>25 and e.velocity.length()<8:
 				combat_fx.emit_effect("dust",{"pos":e.pos,"weapon":""})
@@ -392,6 +394,47 @@ func _process(dt: float) -> void:
 		else: fog_texture.update(mask)
 	marker_time=maxf(0,marker_time-dt)
 	queue_redraw()
+
+func _movement_bucket_has_visible_cell(bucket: Vector2i) -> bool:
+	var tile_size:=sim.grid.tile
+	var first:=Vector2i(floori(float(bucket.x*80)/tile_size),floori(float(bucket.y*80)/tile_size))
+	var last:=Vector2i(floori(float((bucket.x+1)*80-1)/tile_size),floori(float((bucket.y+1)*80-1)/tile_size))
+	for y in range(first.y,last.y+1):
+		for x in range(first.x,last.x+1):
+			var cell:=Vector2i(x,y)
+			if sim.grid.inside(cell) and sim.fog[sim.view_owner][y*sim.grid.width+x]>0: return true
+	return false
+
+func visible_mobile_entities(margin: float = 120.0) -> Array[Dictionary]:
+	var visible: Array[Dictionary]=[]
+	if sim==null: return visible
+	if not sim.movement_buckets_valid: sim.rebuild_movement_buckets()
+	var half:=logical_size*0.5/zoom
+	var render_min:=camera-half-Vector2.ONE*margin
+	var render_max:=camera+half+Vector2.ONE*margin
+	var bucket_min:=Vector2i(floori(render_min.x/80.0),floori(render_min.y/80.0))
+	var bucket_max:=Vector2i(floori(render_max.x/80.0),floori(render_max.y/80.0))
+	var seen: Dictionary={}
+	for bucket_y in range(bucket_min.y,bucket_max.y+1):
+		for bucket_x in range(bucket_min.x,bucket_max.x+1):
+			var bucket:=Vector2i(bucket_x,bucket_y)
+			var bucket_units: Array=sim.movement_buckets.get(bucket,[])
+			if bucket_units.is_empty(): continue
+			var active_count:=0
+			var contains_owned:=false
+			for unit in bucket_units:
+				if not sim.entities.has(int(unit.id)): continue
+				active_count+=1
+				if int(unit.owner)==sim.view_owner: contains_owned=true
+			if active_count==0 or (not contains_owned and not _movement_bucket_has_visible_cell(bucket)): continue
+			for entity in bucket_units:
+				var id:=int(entity.id)
+				if seen.has(id) or not sim.entities.has(id): continue
+				seen[id]=true
+				if entity.owner!=sim.view_owner and not sim.is_visible(entity,sim.view_owner): continue
+				if absf(entity.pos.x-camera.x)>half.x+margin or absf(entity.pos.y-camera.y)>half.y+margin: continue
+				visible.append(entity)
+	return visible
 
 func _draw() -> void:
 	if sim==null: return
@@ -483,14 +526,56 @@ func _draw() -> void:
 			if g.inside(c) and sim.fog[sim.view_owner][c.y*g.width+c.x]==0:
 				var d: Dictionary = sim.db.buildings[memory.kind]
 				draw_rect(Rect2(memory.pos-Vector2(sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[0],sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[1])*g.tile*0.5,Vector2(sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[0],sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[1])*g.tile),Color("3c3023"))
-	var sorted := sim.entities.values()
-	sorted.sort_custom(func(a,b):return a.pos.y<b.pos.y)
+	# Cull hidden and off-screen entities before sorting or rendering any per-unit
+	# effects. They still simulate normally; they simply have no drawing cost here.
+	var sorted: Array[Dictionary]=[]
+	culled_mobile_fog_count=0; culled_mobile_offscreen_count=0
+	if not sim.movement_buckets_valid: sim.rebuild_movement_buckets()
+	var render_min:=camera-half-Vector2(120,120)
+	var render_max:=camera+half+Vector2(120,120)
+	var bucket_min:=Vector2i(floori(render_min.x/80.0),floori(render_min.y/80.0))
+	var bucket_max:=Vector2i(floori(render_max.x/80.0),floori(render_max.y/80.0))
+	var indexed_mobile_ids: Dictionary={}
+	for bucket_y in range(bucket_min.y,bucket_max.y+1):
+		for bucket_x in range(bucket_min.x,bucket_max.x+1):
+			var bucket_cell:=Vector2i(bucket_x,bucket_y)
+			var bucket_units: Array=sim.movement_buckets.get(bucket_cell,[])
+			if bucket_units.is_empty(): continue
+			var has_owned_units:=false
+			var active_bucket_count:=0
+			for bucket_unit in bucket_units:
+				if not sim.entities.has(int(bucket_unit.id)): continue
+				active_bucket_count+=1
+				if int(bucket_unit.owner)==sim.view_owner: has_owned_units=true
+			if active_bucket_count==0: continue
+			if not has_owned_units and not _movement_bucket_has_visible_cell(bucket_cell):
+				culled_mobile_fog_count+=active_bucket_count
+				continue
+			for e in bucket_units:
+				var entity_id:=int(e.id)
+				if indexed_mobile_ids.has(entity_id) or not sim.entities.has(entity_id): continue
+				indexed_mobile_ids[entity_id]=true
+				if e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner):
+					culled_mobile_fog_count+=1
+					continue
+				var visual:=interpolated_entity(e)
+				if absf(visual.pos.x-camera.x)>half.x+120 or absf(visual.pos.y-camera.y)>half.y+120: continue
+				sorted.append({"entity":e,"visual":visual})
+	for entity_id in sim.building_ids:
+		if not sim.entities.has(entity_id): continue
+		var e: Dictionary=sim.entities[entity_id]
+		if e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner): continue
+		var visual:=interpolated_entity(e)
+		if absf(visual.pos.x-camera.x)>half.x+120 or absf(visual.pos.y-camera.y)>half.y+120: continue
+		sorted.append({"entity":e,"visual":visual})
+	sorted.sort_custom(func(a,b):return a.visual.pos.y<b.visual.pos.y)
 	if movement_vfx_enabled and vfx_budget_tier<3:
 		var tread_points := PackedVector2Array()
 		var tread_colors := PackedColorArray()
-		for e in sorted:
-			if e.building or (e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner)): continue
-			var visual := interpolated_entity(e)
+		for render_item in sorted:
+			var e: Dictionary=render_item.entity
+			var visual: Dictionary=render_item.visual
+			if e.building: continue
 			if visual.velocity.length()<=5 or sim.factions[visual.owner] in ["drift","lumen"]: continue
 			var length := 28.0 if visual.kind=="harvester" else (30.0 if visual.kind=="lancer" else (25.0 if visual.kind=="siege" else 22.0))
 			var width := 16.0 if visual.kind=="harvester" else (17.0 if visual.kind=="lancer" else (14.0 if visual.kind=="siege" else 13.0))
@@ -505,15 +590,13 @@ func _draw() -> void:
 		if not tread_points.is_empty(): draw_multiline_colors(tread_points,tread_colors,1.6,true)
 	var object_profile_started := 0
 	visible_mobile_count=0; visible_building_count=0
-	for e in sorted:
-		if e.building or (e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner)): continue
-		var visual := interpolated_entity(e)
-		if absf(visual.pos.x-camera.x)<=half.x+120 and absf(visual.pos.y-camera.y)<=half.y+120: visible_mobile_count+=1
-	for e in sorted:
-		if e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner): continue
-		var visual := interpolated_entity(e)
-		if absf(visual.pos.x-camera.x)>half.x+120 or absf(visual.pos.y-camera.y)>half.y+120: continue
-		if e.building: visible_building_count+=1
+	for render_item in sorted:
+		if render_item.entity.building: visible_building_count+=1
+		else: visible_mobile_count+=1
+	culled_mobile_offscreen_count=maxi(0,sim.mobile_entity_count-visible_mobile_count-culled_mobile_fog_count)
+	for render_item in sorted:
+		var e: Dictionary=render_item.entity
+		var visual: Dictionary=render_item.visual
 		if movement_vfx_enabled and not e.building and e.velocity.length()>8 and vfx_budget_tier<2:
 			var heavy: bool = e.kind in ["harvester","siege","tank"]
 			var dust_count: int=(7 if heavy else 4) if vfx_budget_tier==0 else (3 if heavy else 2)
@@ -594,10 +677,9 @@ func _draw() -> void:
 	active_vfx_count=sim.effects.size()+sim.projectiles.size()+combat_fx.particles.size()+tracks.size()
 	# World status is deliberately above explosions, smoke and fog.
 	var occupied_bars: Array[Rect2] = []
-	for e in sorted:
-		if e.owner!=sim.view_owner and not sim.is_visible(e,sim.view_owner): continue
-		if absf(e.pos.x-camera.x)>half.x+120 or absf(e.pos.y-camera.y)>half.y+120: continue
-		var visual := interpolated_entity(e)
+	for render_item in sorted:
+		var e: Dictionary=render_item.entity
+		var visual: Dictionary=render_item.visual
 		if selected.has(e.id) or health_mode=="always" or (health_mode=="damaged" and (e.hp<e.max_hp or int(e.id)==hovered_entity_id)):
 			if health_mode!="off" or selected.has(e.id):
 				var w := 42.0 if e.building else 24.0

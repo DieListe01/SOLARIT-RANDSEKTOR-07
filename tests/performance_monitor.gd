@@ -27,7 +27,7 @@ func run() -> void:
 	game.update_hud()
 	check(game.renderer.profile_enabled,"F3 enables the render profiler")
 	check(game.renderer.profile_total_ms>0.0 and game.renderer.profile_terrain_ms>=0.0,"F3 render profiler captures frame and terrain timings")
-	check(game.debug_label.text.contains("ZEICHNEN") and game.debug_label.text.contains("WRACKS"),"F3 overlay shows render categories and wreck counts")
+	check(game.debug_label.text.contains("ZEICHNEN") and game.debug_label.text.contains("WRACKS") and game.debug_label.text.contains("NEBEL") and game.debug_label.text.contains("AUSSERHALB"),"F3 overlay shows render categories, culling and wreck counts")
 	game._unhandled_input(profiler_key)
 	await process_frame
 	check(is_instance_valid(game.fps_label) and game.fps_label.text.begins_with("FPS"),"FPS readout exists in mission HUD")
@@ -42,7 +42,7 @@ func run() -> void:
 	game.record_performance_sample(55.0,0.6)
 	check(FileAccess.file_exists(game.performance_log_path),"Sustained sub-60 FPS creates a log")
 	var lines:=FileAccess.get_file_as_string(game.performance_log_path).strip_edges().split("\n")
-	check(lines.size()==2 and lines[0].contains("entities,units,buildings") and lines[0].contains("terrain_ms") and lines[0].contains("vehicle_cache_queue") and lines[1].contains("LOW_FPS_WARNING"),"Low-FPS row includes object counts and renderer/cache breakdown")
+	check(lines.size()==2 and lines[0].contains("entities,units,buildings") and lines[0].contains("fog_culled_units,offscreen_culled_units") and lines[0].contains("terrain_ms") and lines[0].contains("vehicle_cache_queue") and lines[1].contains("LOW_FPS_WARNING"),"Low-FPS row includes visibility culls, object counts and renderer/cache breakdown")
 	check(lines[0].split(",").size()==lines[1].split(",").size(),"Performance CSV header and event rows have matching columns")
 	check(lines[1].contains(",55.00,55.00,"),"Low-FPS row records average and minimum FPS")
 	game.record_performance_sample(49.0,0.4)

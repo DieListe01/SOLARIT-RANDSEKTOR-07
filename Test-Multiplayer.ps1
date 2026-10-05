@@ -39,8 +39,9 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
             Get-Content (Join-Path $logDirectory "$Prefix-$role.log")
             $errors = Get-Content (Join-Path $logDirectory "$Prefix-$role.err") -Raw
             if ($errors) { Write-Output $errors }
+            $actionableErrors = $errors -replace '(?m)^ERROR: Failed to read the root certificate store\.[\r\n]+\s*at: get_system_ca_certificates \(platform/windows/os_windows\.cpp:\d+\)[\r\n]*', ''
             $index = if ($role -eq 'host') { 0 } else { 1 }
-            if ($peers[$index].ExitCode -ne 0 -or $errors -match '(?m)^ERROR:|SCRIPT ERROR:') {
+            if ($peers[$index].ExitCode -ne 0 -or $actionableErrors -match '(?m)^ERROR:|SCRIPT ERROR:') {
                 throw "Multiplayer-Test fehlgeschlagen: $role"
             }
         }
@@ -53,11 +54,17 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
     } finally {
         foreach ($peer in $peers) {
             # Godot's console launcher owns a separate engine process.
-            $children = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($peer.Id)" | Where-Object {
-                $_.ExecutablePath -eq (Join-Path $gameRoot 'tools/Godot_v4.7.2-stable_win64.exe')
+            if (-not $peer.HasExited) {
+                try {
+                    $children = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($peer.Id)" -ErrorAction Stop | Where-Object {
+                        $_.ExecutablePath -eq (Join-Path $gameRoot 'tools/Godot_v4.7.2-stable_win64.exe')
+                    }
+                    foreach ($child in $children) { Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue }
+                } catch {
+                    # Process inspection can be denied in restricted runners; still stop the known launcher below.
+                }
+                Stop-Process -Id $peer.Id -Force -ErrorAction SilentlyContinue
             }
-            foreach ($child in $children) { Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue }
-            if (-not $peer.HasExited) { Stop-Process -Id $peer.Id -Force }
             $peer.Dispose()
         }
     }

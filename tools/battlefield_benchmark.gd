@@ -12,21 +12,39 @@ func _initialize() -> void:
 func sample(mode: String) -> void:
 	game.start_game()
 	game.set_process(false)
+	if mode=="without-minimap": game.minimap.hide()
 	game.sim.ai_timer = 99999
 	game.sim.ai_production_timer = 99999
 	for entity in game.sim.entities.values():
 		if not entity.building: game.sim.entities.erase(entity.id)
-	for i in 40:
-		var owner := 0 if mode == "idle" or i < 20 else 1
+	var unit_count:=1240 if mode=="visibility-load" else 40
+	for i in unit_count:
+		var owner := 0 if mode == "idle" or mode=="visibility-load" or i < 20 else 1
 		var column := i % 5
 		var row := i / 5 if mode == "idle" else (i % 20) / 5
 		var position := Vector2(380 + column * 62 + (280 if owner == 1 else 0), 1300 + row * 64)
+		if mode=="visibility-load":
+			if i>=40 and i<640:
+				owner=1; position=Vector2(750+(i%12)*4,1420+(i%8)*4)
+			elif i>=640:
+				owner=0; position=Vector2(1800+(i%50)*4,1420+(i%8)*4)
 		var id: int = game.sim.spawn(["tank", "scout", "siege", "harvester"][i % 4], owner, position, false)
 		game.sim.entities[id].hp = 100000.0
 		game.sim.entities[id].max_hp = 100000.0
 		game.sim.entities[id].order = "hold"
+	game.sim.rebuild_movement_buckets()
 	game.sim.fog[0].fill(1)
 	game.sim.explored[0].fill(1)
+	if mode=="visibility-load":
+		game.sim.fog[0].fill(0)
+		for id in game.sim.entities:
+			var entity: Dictionary=game.sim.entities[id]
+			if not entity.building and entity.owner==0:
+				var own_cell: Vector2i=game.sim.grid.cell(entity.pos)
+				if game.sim.grid.inside(own_cell): game.sim.fog[0][own_cell.y*game.sim.grid.width+own_cell.x]=1
+			if not entity.building and entity.owner==1:
+				var cell: Vector2i=game.sim.grid.cell(entity.pos)
+				if game.sim.grid.inside(cell): game.sim.fog[0][cell.y*game.sim.grid.width+cell.x]=0
 	game.renderer.camera = Vector2(700, 1420)
 	game.renderer.zoom = 1.0
 	game.renderer.health_mode = "damaged"
@@ -59,7 +77,7 @@ func sample(mode: String) -> void:
 	var total := 0.0
 	for duration in durations: total += duration
 	var renderer = game.renderer
-	var result := {"mode": mode, "fps": 180000.0 / total, "frame_ms": total / 180.0, "p95_ms": durations[170], "draw_calls": calls / 180.0, "sim_avg_ms": sim_total/180.0, "sim_peak_ms": sim_peak, "visible_units": renderer.visible_mobile_count, "vfx": renderer.active_vfx_count, "renderer_ms": renderer.profile_total_ms, "terrain_ms": renderer.profile_terrain_ms, "tracks_ms": renderer.profile_tracks_ms, "wrecks_ms": renderer.profile_wrecks_ms, "buildings_ms": renderer.profile_buildings_ms, "vehicles_ms": renderer.profile_vehicles_ms, "combat_fx_ms": renderer.profile_combat_fx_ms, "projectiles_ms": renderer.profile_projectiles_ms, "impacts_ms": renderer.profile_impacts_ms, "explosions_ms": renderer.profile_explosions_ms, "smoke_ms": renderer.profile_smoke_ms, "fog_ms": renderer.profile_fog_ms, "projectiles": renderer.profile_projectile_count, "impacts": renderer.profile_impact_count, "particles": renderer.profile_particle_count, "vehicle_cache_size": renderer.vehicle_texture_cache.size(), "vehicle_cache_queue": renderer.vehicle_cache_queue.size(), "resolution": root.size, "zoom": renderer.zoom}
+	var result := {"mode": mode, "fps": 180000.0 / total, "frame_ms": total / 180.0, "p95_ms": durations[170], "draw_calls": calls / 180.0, "sim_avg_ms": sim_total/180.0, "sim_peak_ms": sim_peak, "visible_units": renderer.visible_mobile_count, "fog_culled_units": renderer.culled_mobile_fog_count, "offscreen_culled_units": renderer.culled_mobile_offscreen_count, "visible_buildings": renderer.visible_building_count, "vfx": renderer.active_vfx_count, "renderer_ms": renderer.profile_total_ms, "terrain_ms": renderer.profile_terrain_ms, "ground_fx_ms": renderer.profile_ground_fx_ms, "tracks_ms": renderer.profile_tracks_ms, "wrecks_ms": renderer.profile_wrecks_ms, "buildings_ms": renderer.profile_buildings_ms, "vehicles_ms": renderer.profile_vehicles_ms, "combat_fx_ms": renderer.profile_combat_fx_ms, "projectiles_ms": renderer.profile_projectiles_ms, "impacts_ms": renderer.profile_impacts_ms, "explosions_ms": renderer.profile_explosions_ms, "smoke_ms": renderer.profile_smoke_ms, "fog_ms": renderer.profile_fog_ms, "projectiles": renderer.profile_projectile_count, "impacts": renderer.profile_impact_count, "particles": renderer.profile_particle_count, "vehicle_cache_size": renderer.vehicle_texture_cache.size(), "vehicle_cache_queue": renderer.vehicle_cache_queue.size(), "resolution": root.size, "zoom": renderer.zoom}
 	results.append(result)
 	print("BATTLEFIELD BENCHMARK ", sample_label, " ", JSON.stringify(result))
 	await process_frame
@@ -76,6 +94,8 @@ func run() -> void:
 	game.skip_intro()
 	game.set_classic(false)
 	await sample("idle")
+	await sample("without-minimap")
+	await sample("visibility-load")
 	await sample("combat-static")
 	await sample("battle")
 	var file := FileAccess.open("res://test-output/battlefield-" + sample_label + ".json", FileAccess.WRITE)

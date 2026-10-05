@@ -2,7 +2,7 @@
 
 SOLARIT: RANDSEKTOR 07 verwendet zwei GitHub-Repositories:
 
-- `DieListe01/ASHLINE` enthält den privaten Quellcode.
+- `DieListe01/SOLARIT-RANDSEKTOR-07` enthält den privaten Quellcode.
 - `DieListe01/ASHLINE-Releases` ist öffentlich und enthält nur Installer-Releases, SHA-256-Dateien und Versionsmanifeste. Es wird kein Quellarchiv hochgeladen.
 
 ## Einmalige GitHub-Einrichtung

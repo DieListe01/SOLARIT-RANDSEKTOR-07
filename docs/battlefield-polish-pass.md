@@ -10,6 +10,8 @@ This pass improves battlefield readability and full-HD performance without chang
 - Keeps damaged/selected unit and structure health bars legible, spaces group orders by unit footprint, and reduces crowd overlap.
 - Prevents stale entity IDs from leaving an empty hover panel. Catalog tooltips show both missing prerequisites and insufficient Solarit; production priority moves a chosen vehicle directly behind the current job.
 - Keeps the tactical map within the battlefield frame and accepts older saves without optional bookmark data.
+- Removes fog-hidden and off-screen units from the renderer's sort, interpolation, effects, sprite, selection and health-bar passes. They continue to simulate normally. F3 and low-FPS CSV logs report fog and off-screen cull counts separately.
+- Rasterizes the explored minimap terrain and resource overlay into a map-sized texture, refreshed at the existing 5 Hz minimap update rate.
 
 ## Verification
 

@@ -1,6 +1,6 @@
 # SOLARIT: RANDSEKTOR 07
 
-Ein eigenständiges 2D-RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36.4 / Zuverlässigere Befehle bei Netzwerklatenz**, 5. Oktober 2026.
+Ein eigenständiges 2D-RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36.5 / Sichtbare Einheiten und flüssigeres Schlachtfeld**, 5. Oktober 2026.
 
 ## Intro und Startmenü
 
@@ -113,7 +113,7 @@ Das Build-Werkzeug lädt ausschließlich das Windows-Release-Template aus dem of
 
 ## Installer, GitHub-Releases und Updates
 
-Der private Quellcode liegt in `DieListe01/ASHLINE`. Der Workflow `.github/workflows/release-windows.yml` prüft Tests und Versionsnummer und baut einen Windows-Installer. Öffentlich erscheinen ausschließlich Installer, Prüfsumme und Update-Manifest im separaten Repository `DieListe01/ASHLINE-Releases`; der Updater prüft diesen Feed einmal pro Start. Ein Installer wird erst nach SHA-256-Prüfung gestartet und nur nach ausdrücklicher Bestätigung geöffnet. Details und Einrichtung stehen in `docs/RELEASING.md`.
+Der private Quellcode liegt in `DieListe01/SOLARIT-RANDSEKTOR-07`. Der Workflow `.github/workflows/release-windows.yml` prüft Tests und Versionsnummer und baut einen Windows-Installer. Öffentlich erscheinen ausschließlich Installer, Prüfsumme und Update-Manifest im separaten Repository `DieListe01/ASHLINE-Releases`; der Updater prüft diesen Feed einmal pro Start. Ein Installer wird erst nach SHA-256-Prüfung gestartet und nur nach ausdrücklicher Bestätigung geöffnet. Details und Einrichtung stehen in `docs/RELEASING.md`.
 
 Ein lokales Kommandantenprofil mit Nickname, Statistik und Einsatzhistorie wird beim ersten Start angelegt; erreichbar im Hauptmenü und unter Optionen. Für jede nicht abgebrochene Partie gibt es außerdem einen versionierten Bericht mit Zeitreihen und Diagrammen zu Ressourcen, Fahrzeugen, Gebäuden, Produktion und Verlusten beider Seiten. Details: [Kommandantenakte](docs/KOMMANDANTENAKTE.md).
 
