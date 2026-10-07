@@ -466,9 +466,15 @@ func show_available_update(result: Dictionary) -> void:
 	clear(overlay)
 	var p:=panel(overlay,Rect2(520,255,880,570),Color("211b17"))
 	label(p,"SOLARIT: RANDSEKTOR 07 / UPDATE",Vector2(38,30),18,MINT)
-	label(p,"Version "+str(result.get("version","")),Vector2(38,70),42,GOLD)
+	label(p,"INSTALLIERTE VERSION",Vector2(40,76),15,MUTED)
+	var installed_version := label(p,"v"+str(update_history.get("current_version","unbekannt")),Vector2(40,99),34,Color("c8d8ce"))
+	installed_version.name="InstalledVersion"
+	label(p,"→",Vector2(389,99),32,MUTED)
+	label(p,"NEUE VERSION",Vector2(470,76),15,MINT)
+	var new_version := label(p,"v"+str(result.get("version","unbekannt")),Vector2(470,97),42,GOLD)
+	new_version.name="NewVersion"
 	var notes:=RichTextLabel.new()
-	notes.position=Vector2(40,135); notes.size=Vector2(800,300); notes.bbcode_enabled=false; notes.scroll_active=true
+	notes.position=Vector2(40,153); notes.size=Vector2(800,282); notes.bbcode_enabled=false; notes.scroll_active=true
 	notes.add_theme_font_size_override("normal_font_size",19)
 	notes.text=str(result.get("notes","" )).strip_edges()
 	if notes.text.is_empty(): notes.text="Verbesserungen und Fehlerbehebungen für SOLARIT: RANDSEKTOR 07."

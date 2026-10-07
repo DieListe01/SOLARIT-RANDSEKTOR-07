@@ -1,6 +1,14 @@
 {
-  "current_version": "0.36.10",
+  "current_version": "0.36.11",
   "entries": [
+    {
+      "version": "0.36.11",
+      "date": "07.10.2026",
+      "title": "Update-Versionen klar angezeigt",
+      "changes": [
+        "Das Updatefenster zeigt installierte Version und neue Version direkt nebeneinander an."
+      ]
+    },
     {
       "version": "0.36.10",
       "date": "07.10.2026",
