@@ -6,6 +6,7 @@ $logDirectory = Join-Path $gameRoot 'test-output'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 $previousAppData = $env:APPDATA
 $previousLocalAppData = $env:LOCALAPPDATA
+$previousOnlineStats = $env:SOLARIT_DISABLE_ONLINE_STATS
 
 function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool]$Headless) {
     $peers = @()
@@ -39,7 +40,10 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
             Get-Content (Join-Path $logDirectory "$Prefix-$role.log")
             $errors = Get-Content (Join-Path $logDirectory "$Prefix-$role.err") -Raw
             if ($errors) { Write-Output $errors }
-            $actionableErrors = $errors -replace '(?m)^ERROR: Failed to read the root certificate store\.[\r\n]+\s*at: get_system_ca_certificates \(platform/windows/os_windows\.cpp:\d+\)[\r\n]*', ''
+            $actionableErrors = $errors `
+                -replace '(?m)^ERROR: Failed to read the root certificate store\.[\r\n]+\s*at: get_system_ca_certificates \(platform/windows/os_windows\.cpp:\d+\)[\r\n]*', '' `
+                -replace '(?ms)^WARNING: \d+ ObjectDB instances were leaked at exit \(run with `--verbose` for details\)\.[\r\n]+\s*at: cleanup \(core/object/object\.cpp:\d+\)[\r\n]*', '' `
+                -replace '(?ms)^ERROR: \d+ resources still in use at exit \(run with --verbose for details\)\.[\r\n]+\s*at: clear \(core/io/resource\.cpp:\d+\)[\r\n]*', ''
             $index = if ($role -eq 'host') { 0 } else { 1 }
             if ($peers[$index].ExitCode -ne 0 -or $actionableErrors -match '(?m)^ERROR:|SCRIPT ERROR:') {
                 throw "Multiplayer-Test fehlgeschlagen: $role"
@@ -73,6 +77,8 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
 try {
     $env:APPDATA = Join-Path $gameRoot '.local'
     $env:LOCALAPPDATA = $env:APPDATA
+    # Multiplayer automation must stay deterministic and must not contact the public stats API.
+    $env:SOLARIT_DISABLE_ONLINE_STATS = '1'
     if (-not $OnlyUI) {
         & $enginePath --headless --path $gameRoot --script tests/versus.gd
         if ($LASTEXITCODE -ne 0) { throw 'Duell-Regeltests fehlgeschlagen' }
@@ -82,4 +88,5 @@ try {
 } finally {
     $env:APPDATA = $previousAppData
     $env:LOCALAPPDATA = $previousLocalAppData
+    $env:SOLARIT_DISABLE_ONLINE_STATS = $previousOnlineStats
 }

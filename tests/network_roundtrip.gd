@@ -5,7 +5,7 @@ const GameSimulation = preload("res://scripts/simulation.gd")
 const Session = preload("res://scripts/online_session.gd")
 const Protocol = preload("res://scripts/network_protocol.gd")
 const MISSION := "res://data/veyra.json"
-const CONFIG := {"mission":"veyra","faction":"forge","difficulty":"easy","tech_level":0}
+const CONFIG := {"mission":"veyra","faction":"forge","difficulty":"easy","tech_level":0,"game_version":"0.36.10"}
 
 var session: OnlineSession
 var probe: Node
@@ -50,6 +50,7 @@ func run() -> void:
 	make_sim()
 	session=Session.new()
 	session.name="OnlineSession"
+	session.local_game_version="0.36.10"
 	root.add_child(session)
 	# A separate node provides test-only state reports over the real ENet peer.
 	probe=Node.new()

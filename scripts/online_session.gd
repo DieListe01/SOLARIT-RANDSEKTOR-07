@@ -44,10 +44,16 @@ var last_snapshot_at := 0
 var chat_history: Array = []
 var last_chat_at := -1000
 var last_remote_chat_at := -1000
-var reconnect_address := "127.0.0.1"
+var reconnect_address := ""
 var reconnect_port := DEFAULT_PORT
+var local_game_version := ""
 var identity_session_sent := ""
 var authority_sim: Simulation
+
+static func game_versions_match(host_version: String, client_version: String) -> bool:
+	var numeric_version := RegEx.new()
+	if numeric_version.compile("^\\d+\\.\\d+\\.\\d+$") != OK: return false
+	return numeric_version.search(host_version) != null and host_version == client_version
 
 func is_host() -> bool:
 	return active and role == "host"
@@ -235,6 +241,11 @@ func receive_lobby_offer(remote_session: String, protocol_version: int, config: 
 	if not is_client() or multiplayer.get_remote_sender_id()!=1: return
 	if protocol_version!=PROTOCOL.VERSION or not PROTOCOL.valid_session_id(remote_session):
 		leave(false); status_changed.emit("Protokollversion stimmt nicht überein")
+		return
+	var host_version := str(config.get("game_version", ""))
+	if not game_versions_match(host_version, local_game_version):
+		leave(false)
+		status_changed.emit("Versionskonflikt · Host nutzt %s, installiert ist %s" % [host_version if not host_version.is_empty() else "unbekannt", local_game_version])
 		return
 	session_id=remote_session; connected=true; mission_config=config.duplicate(true)
 	status_changed.emit("Lobby verbunden · wähle Fraktion und bestätige Bereit")

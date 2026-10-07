@@ -13,6 +13,9 @@ func check(condition: bool, message: String) -> void:
 
 func _initialize() -> void:
 	var session := Session.new()
+	check(Session.game_versions_match("0.36.10", "0.36.10"), "matching host and client game versions accepted")
+	check(not Session.game_versions_match("0.36.9", "0.36.10"), "different game versions rejected")
+	check(not Session.game_versions_match("unknown", "0.36.10"), "unknown game version rejected")
 	session.host_tick=590
 	session.ping_ms=-1
 	session.last_snapshot_at=Time.get_ticks_msec()

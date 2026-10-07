@@ -1,6 +1,6 @@
 # SOLARIT: RANDSEKTOR 07
 
-Ein eigenständiges 2D-RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36.6 / Full HD als Mindestauflösung**, 5. Oktober 2026.
+Ein eigenständiges 2D-RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36.8 / Öffentliche Multiplayer-Lobbys**, 7. Oktober 2026.
 
 ## Intro und Startmenü
 
@@ -111,13 +111,15 @@ python tools/fetch_windows_template.py
 
 Das Build-Werkzeug lädt ausschließlich das Windows-Release-Template aus dem offiziellen Godot-Archiv per HTTP-Range. Alternativ das Template-Paket über Godots Exportdialog installieren und den benutzerdefinierten Templatepfad im Preset entfernen. Linux und Steam Deck wurden noch nicht getestet; die Laufzeit enthält keine Windows-spezifischen Gameplay-Abhängigkeiten.
 
+Für einen vollständigen lokalen Release-Build mit Regressionstests, Spiel-Export, Inno-Setup-Installer und SHA-256-Prüfsumme `.\Build-Release.ps1` starten. Godot 4.7.2 samt Windows-Exportvorlage und Inno Setup 6 müssen installiert sein; eine fehlende Godot-Vorlage wird vom Skript geladen. Die Dateien landen unter `build/`. Das Skript lädt nichts zu GitHub hoch und committet keine Dateien.
+
 ## Installer, GitHub-Releases und Updates
 
 Der private Quellcode liegt in `DieListe01/SOLARIT-RANDSEKTOR-07`. Der Workflow `.github/workflows/release-windows.yml` prüft Tests und Versionsnummer und baut einen Windows-Installer. Öffentlich erscheinen ausschließlich Installer, Prüfsumme und Update-Manifest im separaten Repository `DieListe01/ASHLINE-Releases`; der Updater prüft diesen Feed einmal pro Start. Ein Installer wird erst nach SHA-256-Prüfung gestartet und nur nach ausdrücklicher Bestätigung geöffnet. Details und Einrichtung stehen in `docs/RELEASING.md`.
 
-Ein lokales Kommandantenprofil mit Nickname, Statistik und Einsatzhistorie wird beim ersten Start angelegt; erreichbar im Hauptmenü und unter Optionen. Für jede nicht abgebrochene Partie gibt es außerdem einen versionierten Bericht mit Zeitreihen und Diagrammen zu Ressourcen, Fahrzeugen, Gebäuden, Produktion und Verlusten beider Seiten. Details: [Kommandantenakte](docs/KOMMANDANTENAKTE.md).
+Ein lokales Kommandantenprofil mit Nickname, Statistik und Einsatzhistorie wird beim ersten Start angelegt; erreichbar im Hauptmenü und unter Optionen. Für jede nicht abgebrochene Partie gibt es außerdem einen versionierten Bericht mit Zeitreihen und Diagrammen zu Ressourcen, Fahrzeugen, Gebäuden, Produktion und Verlusten beider Seiten. Die erste Online-Version meldet laufende Spielsitzungen und überträgt gewonnene Einzelspieler-Highscores an `https://api.dl-home.de`; die gemeinsame Top 10 kann im Spiel geladen werden. Details: [Kommandantenakte](docs/KOMMANDANTENAKTE.md) und [Online-Dienst](docs/ONLINE-DIENST.md).
 
-Im Entwicklungsstand sind **1:1-Duell und Online-Koop mit Chat** vorhanden. Start über „MULTIPLAYER“ im Hauptmenü (auch im Einsatzmenü): Modus wählen, verbinden, Fraktion/Farbe festlegen, beide „Bereit“ bestätigen. Das Duell bietet eigene Basen und Ressourcen, serverseitigen Kriegsnebel, geprüfte Befehle, Ping, Wiederbeitritt, Sieg/Niederlage und Revanche. Chat in Lobby und Spiel, im Spiel über Enter. Lokal mit zwei Spielinstanzen geprüft; Internetbetrieb bleibt unverifiziert. Anleitung und Tests: [Multiplayer](docs/MULTIPLAYER.md).
+Im Entwicklungsstand sind **1:1-Duell und Online-Koop mit Chat** vorhanden. Das Multiplayer-Menü enthält jetzt außerdem ein öffentliches Lobby-Verzeichnis für Direktverbindungen. Die Veröffentlichung ist freiwillig und zeigt die öffentliche IPv4-Adresse bis zum Ende der Lobby; für Internetbeitritt muss UDP 2456 zum Host-PC weitergeleitet sein. Start über „MULTIPLAYER“ im Hauptmenü (auch im Einsatzmenü): Modus wählen, verbinden oder Lobby auswählen, Fraktion/Farbe festlegen, beide „Bereit“ bestätigen. Das Duell bietet eigene Basen und Ressourcen, serverseitigen Kriegsnebel, geprüfte Befehle, Ping, Wiederbeitritt, Sieg/Niederlage und Revanche. Chat in Lobby und Spiel, im Spiel über Enter. Die Lobby-API ist lokal getestet; Internetbetrieb der ENet-Partie bleibt noch zu prüfen. Anleitung und Tests: [Multiplayer](docs/MULTIPLAYER.md) und [Online-Dienst](docs/ONLINE-DIENST.md).
 
 ## Rechte
 

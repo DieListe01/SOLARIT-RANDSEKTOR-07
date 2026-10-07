@@ -1,8 +1,18 @@
 $ErrorActionPreference = 'Stop'
 $gameRoot = $PSScriptRoot
 $enginePath = Join-Path $gameRoot 'tools\Godot_v4.7.2-stable_win64_console.exe'
+$pythonPath = (Get-Command python -ErrorAction Stop).Source
+$env:PYTHONDONTWRITEBYTECODE = '1'
+$previousOnlineStats = $env:SOLARIT_DISABLE_ONLINE_STATS
+try {
+$apiTestDirectory = Join-Path $gameRoot 'server'
+if (Test-Path -LiteralPath (Join-Path $apiTestDirectory 'test_solarit_api.py')) {
+    & $pythonPath -m unittest discover -s $apiTestDirectory -p 'test_*.py' -v
+    if ($LASTEXITCODE -ne 0) { throw 'Online-API-Prüfungen fehlgeschlagen' }
+}
 $env:APPDATA = Join-Path $gameRoot '.local'
 $env:LOCALAPPDATA = $env:APPDATA
+$env:SOLARIT_DISABLE_ONLINE_STATS = '1'
 & $enginePath --headless --path $gameRoot --script 'tests/player_profile.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Kommandantenakte fehlgeschlagen' }
 & $enginePath --headless --path $gameRoot --script 'tests/match_recorder.gd'
@@ -15,6 +25,8 @@ foreach ($testScript in @('regression', 'mission_system', 'playthrough', 'perfor
 if ($LASTEXITCODE -ne 0) { throw 'Kampagnenfreigaben und neue Einheiten fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/ui_integration.gd'
 if ($LASTEXITCODE -ne 0) { throw 'UI-Integration fehlgeschlagen' }
+$frontendProfile = Join-Path $gameRoot '.local\Godot\app_userdata\SOLARIT RANDSEKTOR 07\frontend_commander_profile.json'
+Remove-Item -LiteralPath $frontendProfile -Force -ErrorAction SilentlyContinue
 & $enginePath --path $gameRoot --script 'tests/frontend.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Intro/Startmenü fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/visual_showcase.gd'
@@ -40,6 +52,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Schlachtfelddarstellung und Gruppenabstände f
 if ($LASTEXITCODE -ne 0) { throw "FPS-Monitor fehlgeschlagen" }
 & $enginePath --path $gameRoot --script "tests/highscore.gd"
 if ($LASTEXITCODE -ne 0) { throw "Bestenliste fehlgeschlagen" }
+& $enginePath --headless --path $gameRoot --script "tests/online_stats.gd"
+if ($LASTEXITCODE -ne 0) { throw "Online-Spielerstatistik fehlgeschlagen" }
 & $enginePath --path $gameRoot --script "tests/update_info.gd"
 if ($LASTEXITCODE -ne 0) { throw "Updateinfo fehlgeschlagen" }
 & $enginePath --headless --path $gameRoot --script 'tests/update_manager.gd'
@@ -54,3 +68,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Reparatur und Objektinfo fehlgeschlagen' }
 if ($LASTEXITCODE -ne 0) { throw 'Rotation und Sound fehlgeschlagen' }
 
 & (Join-Path $gameRoot 'Test-Multiplayer.ps1')
+} finally {
+    if ($null -eq $previousOnlineStats) { Remove-Item Env:SOLARIT_DISABLE_ONLINE_STATS -ErrorAction SilentlyContinue }
+    else { $env:SOLARIT_DISABLE_ONLINE_STATS = $previousOnlineStats }
+}

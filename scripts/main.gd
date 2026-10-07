@@ -6,8 +6,12 @@ const HIGHSCORE_PATH = "user://highscores.json"
 const CAMPAIGN_PATH = "user://campaign_progress.json"
 const MINIMUM_WINDOW_RESOLUTION := Vector2i(1920,1080)
 const WINDOW_RESOLUTIONS := [Vector2i(1920,1080),Vector2i(2560,1440),Vector2i(3840,2160)]
+const ONLINE_DIRECTORY_REFRESH_SECONDS := 15.0
+const ONLINE_DIRECTORY_LOBBY_TTL_SECONDS := 75
 const MISSION_PATHS := ["res://data/veyra.json","res://data/dry_vein.json","res://data/khepri_pass.json"]
 const OnlineSessionScript := preload("res://scripts/online_session.gd")
+const OnlineStatsScript := preload("res://scripts/online_stats.gd")
+const OnlineDirectoryScript := preload("res://scripts/online_directory.gd")
 const PlayerProfileScript := preload("res://scripts/player_profile.gd")
 const MatchRecorderScript := preload("res://scripts/match_recorder.gd")
 const MatchChartScript := preload("res://scripts/match_chart.gd")
@@ -16,11 +20,37 @@ var update_manager: Node
 var update_check_manual := false
 var update_button: Button
 var update_checked_this_session := false
+var pending_startup_update: Dictionary = {}
 var db: Catalog
 var mission_index := 0
 var sim: Simulation
 var online: OnlineSession
 var commander_profile
+var online_stats: OnlineStats
+var online_directory: OnlineDirectory
+var online_directory_items: ItemList
+var online_directory_empty_state: Label
+var online_directory_message := "Noch nicht geladen"
+var online_directory_last_refresh := ""
+var online_directory_loading := false
+var online_directory_snapshot_ticks_msec := 0
+var online_directory_refresh_elapsed := 0.0
+var online_directory_display_elapsed := 0.0
+var online_directory_last_check_msec := 0
+var online_directory_selected: Dictionary = {}
+var public_lobby_closed_for_guest := false
+var public_lobby_requested := false
+var online_directory_status_label: Label
+var online_stats_enabled := true
+var online_stats_status := "Noch keine Serververbindung"
+var online_server_status_text := "Noch nicht geprüft"
+var online_server_status_online := false
+var online_server_status_checked_at := 0
+var online_server_status_label: Label
+var online_highscore_cache: Dictionary = {}
+var online_public_address := ""
+var online_public_address_checked := false
+var online_public_address_button: Button
 var match_recorder := MatchRecorderScript.new()
 var match_report_saved := false
 var profile_dialog_open := false
@@ -166,6 +196,7 @@ func _ready() -> void:
 	commander_profile.load_profile()
 	online=OnlineSessionScript.new()
 	online.name="OnlineSession"
+	online.local_game_version=str(update_history.get("current_version", "unbekannt"))
 	add_child(online)
 	online.status_changed.connect(_on_online_status_changed)
 	online.game_start_received.connect(_on_online_game_start)
@@ -176,6 +207,26 @@ func _ready() -> void:
 	online.chat_received.connect(_on_online_chat)
 	online.connection_lost.connect(func():if playing: paused=true)
 	online.rematch_received.connect(func():playing=false; paused=true; show_online_menu())
+	online_stats_enabled=bool(save_config.get_value("online","enabled",true))
+	if OS.get_environment("SOLARIT_DISABLE_ONLINE_STATS") == "1":
+		online_stats_enabled=false
+	else:
+		online_stats=OnlineStatsScript.new()
+		online_stats.name="OnlineStats"
+		add_child(online_stats)
+		online_stats.status_changed.connect(_on_online_stats_status)
+		online_stats.highscores_received.connect(_on_online_highscores_received)
+		online_stats.server_status_changed.connect(_on_online_server_status)
+		online_stats.public_address_received.connect(_on_online_public_address_received)
+		online_directory = OnlineDirectoryScript.new()
+		online_directory.name = "OnlineDirectory"
+		online_directory.client_id = online_stats.client_id
+		online_directory.game_version = str(update_history.get("current_version", "unbekannt"))
+		add_child(online_directory)
+		online_directory.lobbies_received.connect(_on_online_lobbies_received)
+		online_directory.publish_finished.connect(_on_public_lobby_published)
+		online_directory.status_changed.connect(_on_online_directory_status)
+	_configure_online_stats()
 	load_campaign_progress()
 	setup_update_manager()
 	if not db.errors.is_empty():
@@ -188,6 +239,9 @@ func _ready() -> void:
 		get_tree().create_timer(3.0).timeout.connect(capture_smoke)
 	elif "--frontend-smoke" in OS.get_cmdline_user_args():
 		get_tree().create_timer(1.0).timeout.connect(capture_frontend_smoke)
+	if update_manager.can_check() and not update_checked_this_session:
+		update_checked_this_session=true
+		update_manager.check_for_update()
 
 func setup_theme() -> void:
 	var t := Theme.new()
@@ -309,6 +363,7 @@ func button(parent: Node, text_value: String, rect: Rect2, callback: Callable) -
 	return b
 
 func show_main_menu() -> void:
+	if is_instance_valid(online_stats): online_stats.stop_playing()
 	if online!=null and online.active: online.leave(false)
 	var scene_time := intro_art.elapsed if is_instance_valid(intro_art) else 0.0
 	intro_active=false
@@ -352,10 +407,6 @@ func show_main_menu() -> void:
 	label(ui,"BASIS ERRICHTEN  /  RESSOURCEN SICHERN  /  GRENZE HALTEN",Vector2(96,1025),15,MUTED)
 	label(ui,"SOLARIT: RANDSEKTOR 07  /  "+str(update_history.current_version),Vector2(1710,1025),15,MUTED)
 	music.start_frontend()
-	if update_manager.can_check() and not update_checked_this_session:
-		update_checked_this_session=true
-		update_check_manual=false
-		update_manager.check_for_update()
 	# Staggered, short fades preserve immediate button response.
 	var index := 0
 	for child in ui.get_children():
@@ -364,6 +415,10 @@ func show_main_menu() -> void:
 		var tween := child.create_tween()
 		tween.tween_property(child,"modulate:a",1.0,0.4).set_delay(minf(index*0.035,0.25))
 		index+=1
+	if not pending_startup_update.is_empty():
+		var result := pending_startup_update.duplicate(true)
+		pending_startup_update.clear()
+		show_available_update(result)
 
 func setup_update_manager() -> void:
 	update_manager=load("res://scripts/update_manager.gd").new()
@@ -391,9 +446,18 @@ func check_for_game_update() -> void:
 func _on_update_check_finished(result: Dictionary) -> void:
 	if is_instance_valid(update_button):
 		update_button.disabled=not update_manager.can_check()
-		update_button.text="UPDATE VERFÜGBAR · "+str(result.get("version","")) if bool(result.get("available",false)) else "UPDATES PRÜFEN"
+		if bool(result.get("available",false)):
+			update_button.text="UPDATE VERFÜGBAR · "+str(result.get("version",""))
+			update_button.tooltip_text="Eine neue Version ist verfügbar. Anklicken, um den signaturgeprüften Installer zu laden."
+		elif not bool(result.get("ok",false)):
+			update_button.text="UPDATE-CHECK ERNEUT VERSUCHEN"
+			update_button.tooltip_text=str(result.get("message","GitHub ist nicht erreichbar."))
+		else:
+			update_button.text="UPDATES PRÜFEN"
+			update_button.tooltip_text="Das Spiel ist auf dem neuesten Stand."
 	if bool(result.get("available",false)):
-		show_available_update(result)
+		if intro_active: pending_startup_update=result.duplicate(true)
+		else: show_available_update(result)
 	elif update_check_manual:
 		notify(str(result.get("message","SOLARIT: RANDSEKTOR 07 ist auf dem neuesten Stand.")) if not bool(result.get("ok",false)) else "SOLARIT: RANDSEKTOR 07 ist auf dem neuesten Stand.")
 	update_check_manual=false
@@ -672,7 +736,7 @@ func local_owner() -> int:
 
 func online_mission_config() -> Dictionary:
 	var config:=online.mission_config.duplicate(true) if online.active else {}
-	config.merge({"mission":str(db.mission.get("id","")),"faction":faction,"difficulty":difficulty,"tech_level":int(campaign_progress.tech_level),"host_nickname":str(commander_profile.data.nickname)},true)
+	config.merge({"mission":str(db.mission.get("id","")),"faction":faction,"difficulty":difficulty,"tech_level":int(campaign_progress.tech_level),"host_nickname":str(commander_profile.data.nickname),"game_version":str(update_history.get("current_version","unbekannt"))},true)
 	if not config.has("mode"): config.mode=lobby_mode
 	return config
 
@@ -682,18 +746,24 @@ func _refresh_online_lobby() -> void:
 func show_online_menu() -> void:
 	var draft:=chat_input.text if is_instance_valid(chat_input) else ""
 	clear(overlay)
-	var lobby_size := Vector2(1300, 870) if online.active else Vector2(1100, 570)
-	var lobby_position := Vector2(310, 105) if online.active else (get_viewport_rect().size - lobby_size) * 0.5
-	var p:=panel(overlay,Rect2(lobby_position,lobby_size),Color(0.08,0.11,0.10,0.92))
+	var lobby_size := Vector2(1300, 870) if online.active else Vector2(1100, 850)
+	var viewport_size := get_viewport_rect().size
+	var lobby_scale := minf(1.0, minf(viewport_size.x / lobby_size.x, viewport_size.y / lobby_size.y))
+	var lobby_position := (viewport_size - lobby_size * lobby_scale) * 0.5
+	# Keep the title screen from bleeding through this large, text-heavy dialog.
+	var p:=panel(overlay,Rect2(lobby_position,lobby_size),Color(0.055,0.075,0.07,1.0))
+	p.scale = Vector2.ONE * lobby_scale
 	p.name="OnlineLobbyPanel"
 	label(p,"SOLARIT: RANDSEKTOR 07 / MULTIPLAYER",Vector2(38,24),18,MINT)
 	label(p,"1:1-Duell & Koop",Vector2(38,54),38,GOLD)
 	label(p,"Duell: eigene Basis und Solarit · gleicher Start · kein KI-Spieler. Koop: gemeinsam gegen die KI.",Vector2(40,113),17,Color("d5ded5"),1210)
 	if not online.active:
-		label(p, "EINSATZNETZ", Vector2(40, 139), 14, MUTED)
-		label(p, "Wähle deinen Einstieg in den Einsatz.", Vector2(40, 160), 17, Color("d5ded5"))
-		var duel := button(p, "1:1-DUELL\nZwei Kommandanten · gleicher Start", Rect2(40, 199, 495, 76), func(): lobby_mode = "versus"; show_online_menu())
-		var coop := button(p, "KOOPERATION\nGemeinsam gegen die KI", Rect2(555, 199, 505, 76), func(): lobby_mode = "coop"; show_online_menu())
+		online_server_status_label = label(p, "SERVERSTATUS  ·  " + online_server_status_text, Vector2(40, 139), 14, MINT, 760)
+		button(p, "STATUS PRÜFEN", Rect2(835, 130, 215, 36), func(): _check_online_server_status(true))
+		label(p, "EINSATZNETZ", Vector2(40, 164), 14, MUTED)
+		label(p, "Wähle deinen Einstieg in den Einsatz.", Vector2(40, 185), 17, Color("d5ded5"))
+		var duel := button(p, "1:1-DUELL\nZwei Kommandanten · gleicher Start", Rect2(40, 219, 495, 76), func(): lobby_mode = "versus"; show_online_menu())
+		var coop := button(p, "KOOPERATION\nGemeinsam gegen die KI", Rect2(555, 219, 505, 76), func(): lobby_mode = "coop"; show_online_menu())
 		for choice in [duel, coop]:
 			choice.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			choice.add_theme_font_size_override("font_size", 16)
@@ -704,26 +774,102 @@ func show_online_menu() -> void:
 			style.border_width_bottom = 1
 			style.content_margin_left = 16
 			choice.add_theme_stylebox_override("normal", style)
-		label(p,"NETZWERK / DIREKTVERBINDUNG",Vector2(40,298),13,MINT)
-		var address_x := 555.0
-		label(p,"HOST-ADRESSE",Vector2(address_x,298),13,MUTED)
+		label(p,"NETZWERK / DIREKTVERBINDUNG",Vector2(40,318),13,MINT)
+		var publish_toggle := CheckBox.new()
+		publish_toggle.name = "PublishPublicLobby"
+		publish_toggle.text = "Öffentliche Lobby veröffentlichen"
+		publish_toggle.position = Vector2(40, 344)
+		publish_toggle.size = Vector2(480, 38)
+		publish_toggle.add_theme_color_override("font_color", Color("d5ded5"))
+		p.add_child(publish_toggle)
+		var publish_hint := label(p,"Nur mit Häkchen wird deine öffentliche IP für bis zu 75 Sekunden in der Lobby angezeigt. UDP %d am Router zum Spiele-PC weiterleiten." % OnlineSession.DEFAULT_PORT,Vector2(40,389),13,MUTED,1010)
+		publish_hint.name = "PublicLobbyHint"
+		label(p,"DEINE LOKALE IP (HEIMNETZ)",Vector2(40,425),13,MUTED)
+		var local_address := _local_ipv4_address()
+		var local_copy_text := local_address + "  ·  KOPIEREN" if local_address_button_enabled(local_address) else local_address
+		var local_address_button := button(p,local_copy_text,Rect2(40,449,495,40),func(): DisplayServer.clipboard_set(local_address))
+		local_address_button.name = "LocalAddressCopy"
+		local_address_button.disabled = not local_address_button_enabled(local_address)
+		local_address_button.tooltip_text = "Lokale IPv4-Adresse in die Zwischenablage kopieren. Nur im eigenen Heimnetz erreichbar."
+		label(p,"DEINE EXTERNE IP (INTERNET)",Vector2(555,425),13,MUTED)
+		online_public_address_button = button(p,_public_address_button_text(),Rect2(555,449,435,40),func():
+			if not online_public_address.is_empty(): DisplayServer.clipboard_set(online_public_address))
+		online_public_address_button.name = "PublicAddressCopy"
+		online_public_address_button.disabled = online_public_address.is_empty()
+		online_public_address_button.tooltip_text = "Die öffentliche IPv4 wird nur für diese Abfrage an den Online-Dienst übermittelt und dort nicht gespeichert."
+		var refresh_public_address := button(p,"NEU",Rect2(995,449,55,40),_request_online_public_address)
+		refresh_public_address.name = "RefreshPublicAddress"
+		refresh_public_address.tooltip_text = "Externe IP erneut abfragen"
+		label(p,"HOST-ADRESSE / DIREKT BEITRETEN",Vector2(40,505),13,MUTED)
 		var address:=LineEdit.new()
 		address.name="OnlineAddress"; address.text=online.reconnect_address
-		address.position=Vector2(address_x,322); address.size=Vector2(505,42); p.add_child(address)
-		label(p,"Im LAN: lokale IP. Über Internet UDP %d am Router zum Host-PC weiterleiten."%OnlineSession.DEFAULT_PORT,Vector2(40,372),14,MUTED,1020)
-		button(p,"SPIEL ERSTELLEN  /  HOST",Rect2(40,414,495,58),func():
+		address.placeholder_text="Lokale IP im Heimnetz oder externe IP über das Internet"
+		address.tooltip_text="Im Heimnetz die lokale IP des Hosts, über das Internet dessen öffentliche IP. UDP %d muss zum Spiele-PC weitergeleitet sein." % OnlineSession.DEFAULT_PORT
+		address.position=Vector2(40,529); address.size=Vector2(1010,42); p.add_child(address)
+		var create_host := button(p,"SPIEL ERSTELLEN  /  HOST",Rect2(40,579,495,46),func():
 			var result:=online.host()
 			if result!=OK: online_status_text="Host konnte nicht starten (%d)."%result; show_online_menu(); return
-			online.configure_lobby(online_mission_config())
+			var config := online_mission_config()
+			online.configure_lobby(config)
+			public_lobby_closed_for_guest = false
+			public_lobby_requested = publish_toggle.button_pressed
+			if publish_toggle.button_pressed and is_instance_valid(online_directory):
+				online_directory_message = "Lobby wird veröffentlicht …"
+				online_directory.publish_lobby(str(commander_profile.data.profile_id),str(commander_profile.data.nickname),str(config.get("mode", lobby_mode)),str(config.get("mission", db.mission.get("id", ""))),str(db.mission.get("display_name", db.mission.get("name", "Einsatz"))),OnlineSession.DEFAULT_PORT)
 			show_online_menu())
-		button(p,"SPIEL BEITRETEN  /  CLIENT",Rect2(555,414,505,58),func():
+		create_host.name = "CreateOnlineHost"
+		var join_client := button(p,"SPIEL BEITRETEN  /  CLIENT",Rect2(555,579,495,46),func():
 			var result:=online.join(address.text,online.reconnect_port)
 			if result!=OK: online_status_text="Verbindung fehlgeschlagen (%d)."%result
 			show_online_menu())
+		join_client.name = "JoinOnlineClient"
+		join_client.disabled = address.text.strip_edges().is_empty()
+		address.text_changed.connect(func(value: String): join_client.disabled = value.strip_edges().is_empty())
+		join_client.tooltip_text = "Verbindet direkt mit der eingetragenen Host-Adresse über UDP %d." % OnlineSession.DEFAULT_PORT
+		label(p,"ÖFFENTLICHE LOBBYS",Vector2(40,645),14,MINT)
+		var refresh_lobbies := button(p,"LOBBYS AKTUALISIEREN",Rect2(790,634,260,38),func():
+			_check_online_lobbies()
+			show_online_menu())
+		refresh_lobbies.name = "RefreshPublicLobbies"
+		online_directory_empty_state = label(p, _online_directory_empty_text(), Vector2(58, 680), 17, MUTED, 970)
+		online_directory_empty_state.name = "OnlineDirectoryEmptyState"
+		online_directory_empty_state.size = Vector2(970, 50)
+		online_directory_empty_state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		online_directory_empty_state.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		online_directory_empty_state.visible = _last_public_lobbies.is_empty()
+		online_directory_items = ItemList.new()
+		online_directory_items.name = "OnlineDirectoryList"
+		online_directory_items.position = Vector2(40, 680)
+		online_directory_items.size = Vector2(1010, 50)
+		online_directory_items.select_mode = ItemList.SELECT_SINGLE
+		online_directory_items.visible = not _last_public_lobbies.is_empty()
+		p.add_child(online_directory_items)
+		online_directory_status_label = label(p,_online_directory_status_text(),Vector2(40,740),13,MUTED,650)
+		online_directory_status_label.name = "OnlineDirectoryStatus"
+		var join_lobby := button(p,"AUSGEWÄHLTE LOBBY BEITRETEN",Rect2(700,734,350,42),func():
+			if online_directory_selected.is_empty(): return
+			var entry := online_directory_selected
+			var result := online.join(str(entry.get("address", "")), int(entry.get("port", OnlineSession.DEFAULT_PORT)))
+			if result != OK: online_status_text = "Verbindung fehlgeschlagen (%d)." % result
+			show_online_menu())
+		join_lobby.name = "JoinPublicLobby"
+		join_lobby.disabled = online_directory_selected.is_empty()
+		online_directory_items.item_selected.connect(_on_online_directory_item_selected)
+		for entry in _last_public_lobbies:
+			_add_online_directory_entry(entry)
+		join_lobby.disabled = online_directory_selected.is_empty()
+		if online_directory_items.item_count == 0 and online_directory_message == "Noch nicht geladen":
+			_check_online_lobbies()
+		_check_online_server_status()
+		if not online_public_address_checked:
+			_request_online_public_address()
 	else:
 		if online.is_client(): online.set_nickname(str(commander_profile.data.nickname))
-		online_status_label=label(p,online_status_text,Vector2(40,157),18,MINT,1190)
 		var config:=online.mission_config
+		var host_game_version := str(config.get("game_version", "unbekannt"))
+		online_status_label=label(p,"HOSTVERSION v%s  ·  %s" % [host_game_version,online_status_text],Vector2(40,157),18,MINT,1190)
+		if online.is_host() and public_lobby_requested:
+			label(p,"ÖFFENTLICHE LOBBY  ·  " + online_directory_message,Vector2(40,184),13,MINT,1200)
 		var prefix: String="host" if online.is_host() else "client"
 		label(p,"DEINE FRAKTION / FARBE",Vector2(40,213),14,MUTED)
 		var factions:=OptionButton.new()
@@ -790,7 +936,11 @@ func show_online_menu() -> void:
 			label(p,launch_reason,Vector2(626,457),13,MUTED,610)
 		build_online_chat(p,Rect2(40,485,1210,245),true)
 		chat_input.text=draft
-	button(p,"VERBINDUNG TRENNEN",Rect2(40,lobby_size.y-82,280,42),func():online.leave(); show_main_menu())
+	button(p,"VERBINDUNG TRENNEN",Rect2(40,lobby_size.y-82,280,42),func():
+		if is_instance_valid(online_directory): online_directory.close_lobby()
+		public_lobby_requested = false
+		online.leave()
+		show_main_menu())
 	button(p,"ZURÜCK",Rect2(340,lobby_size.y-82,250,42),func():clear(overlay))
 
 func lobby_color_label(color_code: String) -> String:
@@ -848,9 +998,233 @@ func _on_online_status_changed(message: String) -> void:
 		paused=true
 		show_online_menu()
 	online_status_text=message
-	if is_instance_valid(online_status_label): online_status_label.text=message
+	if is_instance_valid(online_status_label):
+		var host_version := str(online.mission_config.get("game_version", "unbekannt")) if online.active else ""
+		online_status_label.text="HOSTVERSION v%s  ·  %s" % [host_version,message] if not host_version.is_empty() else message
 	if playing: notify(message)
 	if is_instance_valid(overlay) and overlay.get_node_or_null("OnlineLobbyPanel")!=null: show_online_menu()
+
+func _check_online_server_status(force: bool = false) -> void:
+	if not is_instance_valid(online_stats):
+		online_server_status_text = "NICHT GEPRÜFT · ONLINE-STATISTIK AUS"
+		online_server_status_online = false
+		if is_instance_valid(online_server_status_label): online_server_status_label.text = "SERVERSTATUS  ·  " + online_server_status_text
+		return
+	var now := Time.get_ticks_msec()
+	if not force and online_server_status_checked_at > 0 and now - online_server_status_checked_at < 30000: return
+	online_server_status_checked_at = now
+	online_server_status_text = "PRÜFE API …"
+	if is_instance_valid(online_server_status_label): online_server_status_label.text = "SERVERSTATUS  ·  " + online_server_status_text
+	online_stats.check_server_status()
+
+var _last_public_lobbies: Array = []
+
+func _check_online_lobbies() -> void:
+	online_directory_refresh_elapsed = 0.0
+	online_directory_last_check_msec = Time.get_ticks_msec()
+	if not is_instance_valid(online_directory):
+		online_directory_loading = false
+		online_directory_message = "Lobby-Dienst nicht verfügbar"
+		_refresh_online_directory_view()
+		return
+	online_directory_loading = true
+	online_directory_message = "Suche aktive Lobbys …"
+	_refresh_online_directory_view()
+	online_directory.list_lobbies()
+
+func _on_online_lobbies_received(entries: Array, message: String) -> void:
+	online_directory_loading = false
+	_last_public_lobbies = entries.duplicate(true)
+	online_directory_snapshot_ticks_msec = Time.get_ticks_msec()
+	online_directory_last_refresh = Time.get_time_string_from_system().substr(0, 5)
+	if not message.is_empty():
+		online_directory_message = message
+	elif entries.is_empty():
+		online_directory_message = "Keine offenen öffentlichen Lobbys"
+	else:
+		online_directory_message = "%d offene %s" % [entries.size(), "Lobby" if entries.size() == 1 else "Lobbys"]
+	online_directory_selected.clear()
+	if is_instance_valid(overlay) and overlay.get_node_or_null("OnlineLobbyPanel") != null:
+		show_online_menu()
+	else:
+		_refresh_online_directory_view()
+
+func _on_online_directory_status(message: String) -> void:
+	online_directory_message = message
+	_refresh_online_directory_view()
+	if is_instance_valid(overlay) and overlay.get_node_or_null("OnlineLobbyPanel") != null:
+		show_online_menu()
+
+func _online_directory_status_text() -> String:
+	if online_directory_loading:
+		return "Suche aktive Lobbys · Aktualisierung alle %d s …" % int(ONLINE_DIRECTORY_REFRESH_SECONDS)
+	var stale_count := 0
+	for entry in _last_public_lobbies:
+		if entry is Dictionary and _online_lobby_seconds_remaining(entry) <= 0:
+			stale_count += 1
+	if stale_count == _last_public_lobbies.size() and stale_count > 0:
+		return "%d veraltete %s · aktualisiere automatisch alle %d s" % [stale_count, "Lobby" if stale_count == 1 else "Lobbys", int(ONLINE_DIRECTORY_REFRESH_SECONDS)]
+	if not online_directory_last_refresh.is_empty():
+		return "%s  ·  letzte Suche %s Uhr  ·  automatische Suche alle %d s" % [online_directory_message, online_directory_last_refresh, int(ONLINE_DIRECTORY_REFRESH_SECONDS)]
+	return online_directory_message
+
+func _online_directory_empty_text() -> String:
+	if online_directory_loading:
+		return "Suche aktive Lobbys …"
+	if not _last_public_lobbies.is_empty():
+		return ""
+	if online_directory_message in ["Noch nicht geladen", "Keine offenen öffentlichen Lobbys"]:
+		return "Keine offene Lobby gefunden.\nAls Host kannst du oben eine Lobby veröffentlichen."
+	return online_directory_message
+
+func _refresh_online_directory_view() -> void:
+	if is_instance_valid(online_directory_status_label):
+		online_directory_status_label.text = _online_directory_status_text()
+	if is_instance_valid(online_directory_empty_state):
+		online_directory_empty_state.text = _online_directory_empty_text()
+		online_directory_empty_state.visible = _last_public_lobbies.is_empty()
+	if is_instance_valid(online_directory_items):
+		online_directory_items.visible = not _last_public_lobbies.is_empty()
+		_update_online_directory_rows()
+	var join_button := overlay.get_node_or_null("OnlineLobbyPanel/JoinPublicLobby") as Button if is_instance_valid(overlay) else null
+	if is_instance_valid(join_button):
+		join_button.disabled = online_directory_selected.is_empty() or _online_lobby_is_stale(online_directory_selected) or not _online_lobby_version_matches(online_directory_selected)
+
+func _add_online_directory_entry(entry: Dictionary) -> void:
+	if not is_instance_valid(online_directory_items): return
+	var index := online_directory_items.add_item(_online_lobby_line(entry))
+	online_directory_items.set_item_metadata(index, entry.duplicate(true))
+	online_directory_items.set_item_disabled(index, _online_lobby_is_stale(entry) or not _online_lobby_version_matches(entry))
+
+func _online_lobby_seconds_remaining(entry: Dictionary) -> int:
+	var remaining := int(entry.get("expires_in", ONLINE_DIRECTORY_LOBBY_TTL_SECONDS))
+	if not entry.has("expires_in") and entry.has("last_seen"):
+		remaining = ONLINE_DIRECTORY_LOBBY_TTL_SECONDS - maxi(0, int(Time.get_unix_time_from_system()) - int(entry.last_seen))
+	var elapsed := maxi(0, Time.get_ticks_msec() - online_directory_snapshot_ticks_msec) / 1000
+	return maxi(0, remaining - elapsed)
+
+func _online_lobby_is_stale(entry: Dictionary) -> bool:
+	return _online_lobby_seconds_remaining(entry) <= 0
+
+func _online_lobby_version_matches(entry: Dictionary) -> bool:
+	return OnlineSession.game_versions_match(str(entry.get("game_version", "")), str(update_history.get("current_version", "")))
+
+func _online_lobby_line(entry: Dictionary) -> String:
+	var mode_name := "1:1-DUELL" if str(entry.get("mode", "")) == "versus" else "KOOP"
+	var remaining := _online_lobby_seconds_remaining(entry)
+	var age_seconds := ONLINE_DIRECTORY_LOBBY_TTL_SECONDS - remaining
+	var freshness := "VERALTET · Host vor %d s zuletzt gesehen" % age_seconds
+	if remaining > 0:
+		var last_seen_text := "gerade eben" if age_seconds < 5 else "vor %d s" % age_seconds
+		freshness = "%s · läuft in %d s ab" % [last_seen_text, remaining]
+	var version_text := "HOST v%s" % str(entry.get("game_version", "unbekannt"))
+	if not _online_lobby_version_matches(entry): version_text += " · ANDERE VERSION"
+	return "%s  ·  %s  ·  %s  ·  %s  ·  %s:%s  ·  %s" % [str(entry.get("nickname", "Kommandant")), version_text, mode_name, str(entry.get("mission_name", "Einsatz")), str(entry.get("address", "")), str(entry.get("port", OnlineSession.DEFAULT_PORT)), freshness]
+
+func _update_online_directory_rows() -> void:
+	if not is_instance_valid(online_directory_items): return
+	for index in online_directory_items.item_count:
+		var entry: Variant = online_directory_items.get_item_metadata(index)
+		if not entry is Dictionary: continue
+		var stale := _online_lobby_is_stale(entry)
+		var incompatible := not _online_lobby_version_matches(entry)
+		online_directory_items.set_item_text(index, _online_lobby_line(entry))
+		online_directory_items.set_item_disabled(index, stale or incompatible)
+		if stale and not online_directory_selected.is_empty() and str(online_directory_selected.get("lobby_id", "")) == str(entry.get("lobby_id", "")):
+			online_directory_selected.clear()
+			online_directory_items.deselect(index)
+
+func _on_online_directory_item_selected(index: int) -> void:
+	if not is_instance_valid(online_directory_items): return
+	var entry: Variant = online_directory_items.get_item_metadata(index)
+	if entry is Dictionary and not _online_lobby_is_stale(entry) and _online_lobby_version_matches(entry):
+		online_directory_selected = entry.duplicate(true)
+		var join_button := overlay.get_node_or_null("OnlineLobbyPanel/JoinPublicLobby") as Button
+		if is_instance_valid(join_button): join_button.disabled = false
+	else:
+		online_directory_selected.clear()
+		var join_button := overlay.get_node_or_null("OnlineLobbyPanel/JoinPublicLobby") as Button
+		if is_instance_valid(join_button): join_button.disabled = true
+		if entry is Dictionary and not _online_lobby_version_matches(entry): notify("Versionskonflikt · Lobby nutzt v%s, installiert ist v%s" % [str(entry.get("game_version", "unbekannt")), str(update_history.get("current_version", "unbekannt"))])
+
+func _on_public_lobby_published(ok: bool, message: String, address: String) -> void:
+	if ok:
+		online_directory_message = message + " · UDP %d muss weitergeleitet sein" % OnlineSession.DEFAULT_PORT
+		_last_public_lobbies.clear()
+	else:
+		online_directory_message = "Nicht veröffentlicht · " + message
+	if is_instance_valid(overlay) and overlay.get_node_or_null("OnlineLobbyPanel") != null:
+		show_online_menu()
+
+func _on_online_server_status(message: String, is_online: bool) -> void:
+	online_server_status_text = message
+	online_server_status_online = is_online
+	if is_instance_valid(online_server_status_label):
+		online_server_status_label.text = "SERVERSTATUS  ·  " + message
+		online_server_status_label.add_theme_color_override("font_color", MINT if is_online else GOLD)
+
+func _local_ipv4_address() -> String:
+	var fallback := ""
+	for address in IP.get_local_addresses():
+		if address.contains(":") or address.begins_with("127.") or address.begins_with("169.254."):
+			continue
+		var parts := address.split(".")
+		if parts.size() != 4:
+			continue
+		var first := int(parts[0])
+		var second := int(parts[1])
+		if (first == 10) or (first == 192 and second == 168) or (first == 172 and second >= 16 and second <= 31):
+			return address
+		if fallback.is_empty():
+			fallback = address
+	return fallback if not fallback.is_empty() else "Keine lokale IPv4-Adresse gefunden"
+
+func local_address_button_enabled(address: String) -> bool:
+	return address != "Keine lokale IPv4-Adresse gefunden"
+
+func _public_address_button_text() -> String:
+	if not online_public_address.is_empty():
+		return online_public_address + "  ·  KOPIEREN"
+	if not online_stats_enabled:
+		return "Online-Abfrage deaktiviert"
+	return "Externe IP wird ermittelt …" if not online_public_address_checked else "Externe IP nicht verfügbar"
+
+func _request_online_public_address() -> void:
+	if not is_instance_valid(online_stats) or not online_stats.enabled:
+		online_public_address_checked = true
+		if is_instance_valid(online_public_address_button):
+			online_public_address_button.text = _public_address_button_text()
+			online_public_address_button.disabled = true
+		return
+	online_public_address_checked = false
+	if is_instance_valid(online_public_address_button):
+		online_public_address_button.text = _public_address_button_text()
+		online_public_address_button.disabled = true
+	online_stats.request_public_address()
+
+func _on_online_public_address_received(address: String, success: bool) -> void:
+	online_public_address_checked = true
+	online_public_address = address if success else ""
+	if is_instance_valid(online_public_address_button):
+		online_public_address_button.text = _public_address_button_text()
+		online_public_address_button.disabled = online_public_address.is_empty()
+
+func _advance_online_directory(delta: float) -> void:
+	if not is_instance_valid(overlay) or overlay.get_node_or_null("OnlineLobbyPanel") == null or online.active:
+		online_directory_refresh_elapsed = 0.0
+		online_directory_display_elapsed = 0.0
+		return
+	if not is_instance_valid(online_directory) or not online_directory.enabled:
+		return
+	online_directory_display_elapsed += delta
+	if online_directory_display_elapsed >= 1.0:
+		online_directory_display_elapsed = fmod(online_directory_display_elapsed, 1.0)
+		_refresh_online_directory_view()
+	if online_directory_loading or online_directory.active or not online_directory.queue.is_empty():
+		return
+	online_directory_refresh_elapsed += delta
+	if online_directory_refresh_elapsed >= ONLINE_DIRECTORY_REFRESH_SECONDS:
+		_check_online_lobbies()
 
 func _on_online_game_start(config: Dictionary) -> void:
 	var index:=mission_index_for_id(str(config.get("mission","")))
@@ -884,6 +1258,7 @@ func start_game() -> void:
 	if online.is_host() and not online.mission_started: online.begin_mission(online_mission_config())
 	run_id=create_run_id()
 	if online.active: run_id="online:"+online.session_id+":"+str(online.mission_sequence)
+	if is_instance_valid(online_stats): online_stats.begin_playing()
 	match_report_saved=false
 	var player_side:=local_owner()
 	var opponent_name:="Gegner-KI"
@@ -1849,6 +2224,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		if dragging: renderer.selection_rect=Rect2(drag_start,screen_world(local)-drag_start).abs()
 
 func _process(dt: float) -> void:
+	_advance_online_directory(dt)
+	if is_instance_valid(online_directory) and not online_directory.published_lobby_id.is_empty():
+		if not online.is_host() or online.connected or online.mission_started:
+			online_directory.close_lobby()
+			online_directory_message = "Öffentliche Lobby geschlossen · Mitspieler verbunden" if online.connected else "Öffentliche Lobby geschlossen"
+			public_lobby_closed_for_guest = true
+			if not online.connected: public_lobby_requested = false
 	if is_instance_valid(renderer): renderer.visual_paused=paused
 	if is_instance_valid(online_status_label) and online.active:
 		var connection_state := "● VERBUNDEN" if online.connected else ("… VERBINDET" if online.role == "client" else "○ WARTET AUF MITSPIELER")
@@ -2110,6 +2492,7 @@ func show_end() -> void:
 	if sim.online_mode=="versus" or (online.active and sim.online_mode=="coop"):
 		show_online_end(); return
 	paused=true
+	if is_instance_valid(online_stats): online_stats.stop_playing()
 	clear(overlay)
 	var p := panel(overlay,Rect2(585,205,750,670),Color("2b221b"))
 	label(p,"EINSATZ ABGESCHLOSSEN",Vector2(42,28),18,MINT)
@@ -2124,6 +2507,16 @@ func show_end() -> void:
 		highscore_mission_index=mission_index
 		if not online.active: record_campaign_victory()
 		var score_result := record_highscore() if not online.active else {"score": 0, "rank": 0, "new_best": false}
+		if not online.active and is_instance_valid(online_stats) and int(score_result.get("score", 0)) > 0:
+			online_stats.submit_highscore({
+				"run_id": run_id,
+				"mission": str(db.mission.get("id", "")),
+				"mission_name": str(db.mission.get("name", db.mission.get("id", "Einsatz"))),
+				"score": int(score_result.score),
+				"time": float(sim.time),
+				"difficulty": difficulty,
+				"faction": str(db.factions[faction].name)
+			})
 		var ranking_text := "PUNKTE  %s    ·    PLATZ %s" % [format_score(int(score_result.score)),"%d / 10" % int(score_result.rank) if int(score_result.rank)>0 else "AUSSERHALB DER TOP 10"]
 		if score_result.new_best: ranking_text+="    ·    NEUER BESTWERT"
 		label(p,ranking_text,Vector2(44,401),18,GOLD,660)
@@ -2163,6 +2556,22 @@ func _on_online_match_report(report: Dictionary) -> void:
 	if sim==null or not online.is_client() or str(report.get("match_id", ""))!=run_id: return
 	match_report_saved=match_recorder.store_host_report(report)
 
+func _configure_online_stats() -> void:
+	if not is_instance_valid(online_stats) or commander_profile == null:
+		return
+	online_stats.configure(commander_profile.data, online_stats_enabled, str(update_history.get("current_version", "unbekannt")))
+
+func _on_online_stats_status(message: String) -> void:
+	online_stats_status = message
+	if not message.is_empty(): notify(message)
+
+func _on_online_highscores_received(mission: String, entries: Array) -> void:
+	online_highscore_cache[mission] = entries.duplicate(true)
+	if is_instance_valid(overlay) and overlay.get_child_count() > 0:
+		var panel_node := overlay.find_child("OnlineHighscoresPanel", true, false)
+		if panel_node != null:
+			show_highscores(show_main_menu, highscore_mission_index)
+
 func show_menu_commander() -> void:
 	# Keep the profile block to the right of the planet's outer glow (x <= 1651).
 	label(ui, "KOMMANDANT", Vector2(1660, 64), 13, MUTED)
@@ -2196,7 +2605,7 @@ func show_profile_dialog(mandatory: bool, back: Callable = Callable(), return_to
 	profile_dialog_open = true
 	clear(overlay)
 	var screen := get_viewport_rect().size
-	var panel_size := Vector2(minf(760.0, screen.x - 48.0), minf(430.0, screen.y - 48.0))
+	var panel_size := Vector2(minf(760.0, screen.x - 48.0), minf(500.0, screen.y - 48.0))
 	var shade := ColorRect.new()
 	shade.color = Color(0.01, 0.016, 0.018, 0.70)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -2217,16 +2626,21 @@ func show_profile_dialog(mandatory: bool, back: Callable = Callable(), return_to
 	entry.size = Vector2(panel_size.x - 72, 46)
 	entry.add_theme_font_size_override("font_size", 20)
 	p.add_child(entry)
-	label(p, "Buchstaben, Zahlen, Leerzeichen, Bindestrich und Unterstrich sind möglich.\nNeue Bestenlisteneinträge verwenden den neuen Namen.", Vector2(36, 253), 14, MUTED, panel_size.x - 72)
-	var validation := label(p, "Mindestens 2 Zeichen", Vector2(36, 316), 14, Color("c78262"), panel_size.x - 72)
-	var confirm := button(p, "BESTÄTIGEN", Rect2(panel_size.x - 256, panel_size.y - 70, 220, 42), func():
+	var profile_notice := label(p, "Buchstaben, Zahlen, Leerzeichen, Bindestrich und Unterstrich sind möglich.\nNeue Bestenlisteneinträge verwenden den neuen Namen.\nMit aktivierter Online-Statistik werden Nickname und Siege an dl-home.de übertragen; abschaltbar unter Optionen → Profil.", Vector2(36, 253), 13, MUTED, panel_size.x - 72)
+	profile_notice.name = "CommanderProfileNotice"
+	var validation_y := maxf(326.0, profile_notice.position.y + profile_notice.size.y + 10.0)
+	var validation := label(p, "Mindestens 2 Zeichen", Vector2(36, validation_y), 14, Color("c78262"), panel_size.x - 72)
+	validation.name = "CommanderProfileValidation"
+	var confirm := button(p, "BESTÄTIGEN", Rect2(panel_size.x - 256, panel_size.y - 62, 220, 42), func():
 		if not commander_profile.set_nickname(entry.text):
 			validation.text = "Name konnte nicht gespeichert werden."
 			return
+		_configure_online_stats()
 		profile_dialog_open = false
 		if mandatory or return_to_menu or not back.is_valid(): show_main_menu()
 		else: show_commander_file(back)
 	)
+	confirm.name = "ConfirmCommanderProfile"
 	confirm.disabled = PlayerProfileScript.validate_nickname(entry.text).is_empty()
 	entry.text_changed.connect(func(value: String):
 		var valid := not PlayerProfileScript.validate_nickname(value).is_empty()
@@ -2235,10 +2649,11 @@ func show_profile_dialog(mandatory: bool, back: Callable = Callable(), return_to
 		validation.add_theme_color_override("font_color", MINT if valid else Color("c78262"))
 	)
 	if not mandatory:
-		button(p, "ABBRECHEN", Rect2(36, panel_size.y - 70, 190, 42), func():
+		var cancel := button(p, "ABBRECHEN", Rect2(36, panel_size.y - 62, 190, 42), func():
 			profile_dialog_open = false
 			if back.is_valid(): back.call()
 		)
+		cancel.name = "CancelCommanderProfile"
 	entry.grab_focus()
 
 func show_commander_file(back: Callable = Callable()) -> void:
@@ -2535,12 +2950,22 @@ func show_highscores(return_action: Callable = Callable(), requested_index: int 
 	var all_data:=load_highscores()
 	var entries: Array=[]
 	var own_entries: Array=[]
+	var seen_runs: Dictionary = {}
 	for entry in all_data.entries:
 		if str(entry.get("mission",""))!=mission_id: continue
 		entries.append(entry)
+		seen_runs[str(entry.get("run_id", ""))] = true
 		if str(entry.get("profile_id",""))==str(commander_profile.data.profile_id): own_entries.append(entry)
+	for entry in online_highscore_cache.get(mission_id, []):
+		if not entry is Dictionary or seen_runs.has(str(entry.get("run_id", ""))): continue
+		entries.append(entry)
+		seen_runs[str(entry.get("run_id", ""))] = true
+	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a.get("score", 0)) == int(b.get("score", 0)): return float(a.get("time", 0.0)) < float(b.get("time", 0.0))
+		return int(a.get("score", 0)) > int(b.get("score", 0)))
 	clear(overlay); suppress_world_hover()
 	var p:=panel(overlay,Rect2(400,86,1120,900),Color("202a29"))
+	p.name = "OnlineHighscoresPanel"
 	label(p,"PILOTENARCHIV / PERSÖNLICHE BESTENLISTE",Vector2(38,26),17,MINT)
 	label(p,"Einsatzrekorde",Vector2(38,57),42,GOLD)
 	var completed_missions: Array=campaign_progress.get("completed",[])
@@ -2579,7 +3004,11 @@ func show_highscores(return_action: Callable = Callable(), requested_index: int 
 			y+=48
 	var formula:=button(p,"PUNKTEBERECHNUNG  ?",Rect2(42,804,250,40),func():show_score_formula(return_action,highscore_mission_index))
 	ghost_button_style(formula)
-	label(p,"Gesamt: %d Einsätze · %d Siege · %d Niederlagen" % [int(stats.singleplayer.missions),int(stats.singleplayer.wins),int(stats.singleplayer.losses)],Vector2(330,817),14,MUTED,480)
+	var online_button := button(p, "ONLINE TOP 10 LADEN" if not online_highscore_cache.has(mission_id) else "ONLINE TOP 10 AKTUALISIEREN", Rect2(310,804,230,40), func():
+		if is_instance_valid(online_stats): online_stats.request_highscores(mission_id))
+	online_button.disabled = not online_stats_enabled or not is_instance_valid(online_stats)
+	ghost_button_style(online_button)
+	label(p,"Gesamt: %d Einsätze · %d Siege · %d Niederlagen" % [int(stats.singleplayer.missions),int(stats.singleplayer.wins),int(stats.singleplayer.losses)],Vector2(550,817),14,MUTED,260)
 	button(p,"ZURÜCK",Rect2(830,800,250,46),return_action)
 
 func show_score_formula(return_action: Callable, mission_tab: int) -> void:
@@ -2952,7 +3381,16 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 		var profile_button := button(content, "SPIELERNAME ÄNDERN", Rect2(28, 142, 300, 42), func(): show_profile_dialog(false, func(): show_options(back, "PROFIL")))
 		profile_button.add_theme_font_size_override("font_size", 14)
 		label(content, "Neue Bestenlisteneinträge werden unter dem neuen Namen gespeichert.\nBestehende Einträge behalten den Namen, unter dem sie erreicht wurden.", Vector2(30, 198), 15, Color("c8d3cc"), cw - 60)
-		var record_button := button(content, "KOMMANDANTENAKTE ÖFFNEN  →", Rect2(28, 278, 360, 46), func(): show_commander_file(func(): show_options(back, "PROFIL")))
+		label(content, "Online-Dienst: Nickname, aktive Spielsitzung und Siege werden an api.dl-home.de übertragen. Die Profil-ID ist zufällig.", Vector2(30, 242), 14, Color("c8d3cc"), cw - 60)
+		var stats_button := button(content, "ONLINE-SPIELSTATISTIK  ·  " + ("AN" if online_stats_enabled else "AUS"), Rect2(28, 300, cw - 56, 44), func():
+			online_stats_enabled = not online_stats_enabled
+			save_config.set_value("online", "enabled", online_stats_enabled)
+			persist_settings()
+			if is_instance_valid(online_stats): online_stats.set_enabled(online_stats_enabled); _configure_online_stats()
+			show_options(back, "PROFIL"))
+		stats_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		stats_button.add_theme_font_size_override("font_size", 15)
+		var record_button := button(content, "KOMMANDANTENAKTE ÖFFNEN  →", Rect2(28, 366, 360, 46), func(): show_commander_file(func(): show_options(back, "PROFIL")))
 		record_button.add_theme_font_size_override("font_size", 15)
 	elif options_tab=="GAMEPLAY":
 		heading.call("SPIELVERHALTEN",22)
@@ -2994,6 +3432,7 @@ func load_settings() -> void:
 		music.sfx_volume=save_config.get_value("audio","sfx",0.75)
 		edge_scroll=save_config.get_value("gameplay","edge",true)
 		health_mode=save_config.get_value("gameplay","health","damaged")
+		online_stats_enabled=bool(save_config.get_value("online", "enabled", true))
 		crt=save_config.get_value("video","crt",0)
 		renderer.combat_fx.shake_mode=clampi(int(save_config.get_value("video","shake",1)),0,2)
 		renderer.combat_fx.quality=clampi(int(save_config.get_value("video","effects",2)),0,2)
@@ -3019,6 +3458,7 @@ func persist_settings() -> void:
 	save_config.set_value("audio","sfx",music.sfx_volume)
 	save_config.set_value("gameplay","edge",edge_scroll)
 	save_config.set_value("gameplay","health",health_mode)
+	save_config.set_value("online", "enabled", online_stats_enabled)
 	save_config.set_value("video","classic",classic)
 	save_config.set_value("video","crt",crt)
 	save_config.set_value("video","shake",renderer.combat_fx.shake_mode)
@@ -3115,6 +3555,7 @@ func capture_frontend_smoke() -> void:
 
 
 func show_online_end() -> void:
+	if is_instance_valid(online_stats): online_stats.stop_playing()
 	paused=true
 	clear(overlay)
 	var p:=panel(overlay,Rect2(585,230,750,620),Color("2b221b"))

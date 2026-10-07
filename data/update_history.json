@@ -1,6 +1,49 @@
 {
-  "current_version": "0.36.6",
+  "current_version": "0.36.10",
   "entries": [
+    {
+      "version": "0.36.10",
+      "date": "07.10.2026",
+      "title": "Versionsicherer Multiplayer und automatische Updates",
+      "changes": [
+        "Das Spiel prüft beim Start automatisch auf eine neuere Version und bietet den signaturgeprüften Installer an.",
+        "Jede Lobby zeigt die Version des Hosts. Öffentliche Lobbys mit abweichender oder unbekannter Version können nicht betreten werden.",
+        "Direktverbindungen vergleichen die Spielversion beim Verbindungsaufbau; ältere Netzwerkprotokolle werden abgewiesen."
+      ]
+    },
+    {
+      "version": "0.36.9",
+      "date": "07.10.2026",
+      "title": "Lokale und externe Multiplayer-IP",
+      "changes": [
+        "Das Multiplayer-Menü zeigt lokale und externe IPv4-Adressen getrennt an; beide lassen sich mit einem Klick kopieren.",
+        "Die externe Adresse wird nur auf Anfrage an den Online-Dienst übermittelt und nicht gespeichert. Die Veröffentlichung für andere Spieler erfordert weiterhin eine ausdrückliche Zustimmung.",
+        "Das Direktbeitrittsfeld startet leer und verhindert einen Beitritt, bis eine Host-Adresse eingetragen ist."
+      ]
+    },
+    {
+      "version": "0.36.8",
+      "date": "07.10.2026",
+      "title": "Öffentliche Multiplayer-Lobbys",
+      "changes": [
+        "Aktive 1:1- und Koop-Lobbys lassen sich im Multiplayer-Menü aktualisieren und direkt betreten.",
+        "Hosts veröffentlichen ihre öffentliche IPv4-Adresse nur nach ausdrücklicher Zustimmung; Lobby-Einträge erneuern sich während des Wartens und laufen nach kurzer Zeit automatisch ab.",
+        "Manuelle Direktverbindung und private LAN-Partien bleiben verfügbar. Für Internetbeitritt muss UDP 2456 zum Host-PC weitergeleitet sein.",
+        "Der bestehende GitHub-Updatekanal prüft weiterhin Installer und SHA-256-Prüfsumme."
+      ]
+    },
+    {
+      "version": "0.36.7",
+      "date": "05.10.2026",
+      "title": "Online-Spieler und gemeinsame Bestenliste",
+      "changes": [
+        "Das Spiel meldet laufende Partien pseudonymisiert an api.dl-home.de; nach zwei Minuten ohne Heartbeat gilt ein Spieler als offline.",
+        "Einzelspieler-Siege werden zusätzlich zur lokalen Bestenliste pro Kommandantenprofil an den Online-Dienst übertragen und können als gemeinsame Top 10 geladen werden.",
+        "Spielerstatus und Ranglisten sind über eine eigene game_id voneinander getrennt, damit spätere Spiele denselben Dienst sicher mitverwenden können.",
+        "Offline-Ergebnisse bleiben lokal vorgemerkt. Die Online-Statistik lässt sich unter Optionen → Profil abschalten; das lokale Spiel bleibt unabhängig vom Server spielbar.",
+        "Der bestehende GitHub-Updatekanal und die SHA-256-Prüfsumme für Downloads bleiben erhalten."
+      ]
+    },
     {
       "version": "0.36.6",
       "date": "05.10.2026",

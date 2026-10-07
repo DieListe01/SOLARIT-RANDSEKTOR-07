@@ -1,9 +1,8 @@
 SOLARIT: RANDSEKTOR 07 | Version @VERSION@
 
 Installation
-Starte SOLARIT-RANDSEKTOR-07-Setup-@VERSION@.exe und folge den Schritten. Der Installer
-installiert das Spiel nur für dein Windows-Benutzerkonto; Administratorrechte
-sind nicht erforderlich. Spielstände und Einstellungen bleiben in deinem
+Entpacke das ZIP in einen eigenen Ordner und starte
+SOLARIT-RANDSEKTOR-07.exe. Spielstände und Einstellungen bleiben in deinem
 persönlichen Godot-Appdatenordner gespeichert.
 
 Erste Partie

@@ -1,7 +1,7 @@
 extends RefCounted
 class_name NetworkProtocol
 
-const VERSION := 6
+const VERSION := 7
 const TICKS_PER_SECOND := 30
 const MAX_FUTURE_TICKS := 300
 const MAX_COMMAND_BYTES := 16384

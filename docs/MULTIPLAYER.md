@@ -1,22 +1,23 @@
 # Multiplayer: 1:1-Duell und Koop
 
-Stand: 4. Oktober 2026. Implementiert im Quellprojekt, Protokollversion 5. Beide PCs benötigen diesen Projektstand.
+Stand: 7. Oktober 2026. Implementiert im Quellprojekt, Protokollversion 7. Beide PCs benötigen dieselbe Spielversion.
 
 ## Start und Bedienung
 
 Spiel über SOLARIT-RANDSEKTOR-07.cmd oder Start-Solarit.ps1 starten. Im Hauptmenü MULTIPLAYER öffnen (auch im Einsatzmenü verfügbar); die Multiplayer-Lobby bietet 1:1-DUELL und KOOP GEGEN DIE KI.
 
-1. Der Host wählt den Modus und erstellt ein Spiel.
-2. Der Mitspieler trägt die IP-Adresse des Hosts ein und tritt bei. Auf demselben PC: 127.0.0.1.
-3. Jeder wählt seine Fraktion und Farbe. Gleiche Farben werden getrennt. Der Host wählt eine der drei Karten und gemeinsame Startressourcen.
-4. Beide bestätigen BEREIT. Änderungen an der Konfiguration setzen beide Bestätigungen zurück.
-5. Der Host startet. Im Duell steuert er Spieler 0, der Mitspieler Spieler 1. Im Koop steuern beide Spieler 0 gegen die KI.
+1. Das Multiplayer-Menü zeigt die lokale Heimnetz-IP und fragt die externe IPv4 ab. Beide Adressen lassen sich per Klick kopieren. Die externe IP wird beim Online-Dienst nur abgefragt und nicht gespeichert; mit **Öffentliche Lobby veröffentlichen** wird sie bis zu 75 Sekunden für andere Spieler gelistet.
+2. Der Host wählt den Modus und erstellt ein Spiel. Für das Lobby-Verzeichnis kann er vorher **Öffentliche Lobby veröffentlichen** aktivieren. Ohne dieses Häkchen bleibt die Adresse privat.
+3. Der Mitspieler aktualisiert die öffentliche Lobby-Liste und tritt einer ausgewählten Runde direkt bei. Jede Lobby zeigt die Host-Version; bei abweichender oder unbekannter Version ist der Beitritt gesperrt. Direkte Verbindungen vergleichen die Version nach dem Verbindungsaufbau ebenfalls. Für eine manuelle Verbindung nutzt er im selben Heimnetz die lokale IP, über das Internet die externe IP. Das Adressfeld bleibt leer, bis eine Adresse eingegeben wird. Auf demselben PC kann `127.0.0.1` manuell eingetragen werden.
+4. Jeder wählt seine Fraktion und Farbe. Gleiche Farben werden getrennt. Der Host wählt eine der drei Karten und gemeinsame Startressourcen.
+5. Beide bestätigen BEREIT. Änderungen an der Konfiguration setzen beide Bestätigungen zurück.
+6. Der Host startet. Im Duell steuert er Spieler 0, der Mitspieler Spieler 1. Im Koop steuern beide Spieler 0 gegen die KI.
 
 Der Duellstart enthält pro Spieler einen Baukern und einen Späher, identische Startressourcen und sämtliche Technologie-Freigaben. Kampagnen-KI und Missionswellen sind abgeschaltet. Zerstörung des gegnerischen Baukerns entscheidet das Duell. Statistik und Sieg/Niederlage werden aus der jeweiligen Spielerperspektive angezeigt. Jede beendete Partie wird lokal in der Kommandantenakte archiviert; der Host sendet beim Spielende den vollständigen Vergleichsbericht an den Client, damit beide die gegnerischen Gebäude, Fahrzeuge und Ressourcenverläufe sehen können. REVANCHE führt beide in die Lobby zurück; beide müssen erneut BEREIT bestätigen. Duelle verändern keine Kampagnenfortschritte oder lokalen Bestenlisten.
 
 ## Spielerzahl und Server
 
-Aktuell genau zwei menschliche Spieler: Host und ein Mitspieler, im Duell gegeneinander oder im Koop gemeinsam. Es gibt keine automatische Serversuche oder öffentliche Serverliste. Der Mitspieler benötigt die IP des Hosts. Im selben lokalen Netzwerk die LAN-IP des Host-PCs verwenden; auf einem PC 127.0.0.1. Der Standardport ist UDP 2456.
+Aktuell genau zwei menschliche Spieler: Host und ein Mitspieler, im Duell gegeneinander oder im Koop gemeinsam. Die öffentliche Lobby-Liste ist ein Verzeichnis; die Spielpakete laufen direkt zwischen den PCs. Der Host ist selbst Spieler und führt die Simulation aus. Für Internetbeitritt muss UDP 2456 am Router zum Host-PC weitergeleitet und in dessen Firewall zugelassen sein. Im selben LAN kann der Mitspieler die LAN-IP verwenden; auf demselben PC 127.0.0.1. Öffentliche Einträge zeigen Nickname, Modus, Einsatz und die öffentliche IPv4-Adresse. Sie werden während des Wartens erneuert und spätestens 75 Sekunden nach dem letzten Host-Heartbeat entfernt. Beim Beitritt nimmt das Spiel die Veröffentlichung zurück.
 
 Ein eigenständiger dedizierter Server ist noch nicht implementiert. Der aktuelle Host ist selbst Spieler und führt die Simulation aus. Ein ThinClient wäre grundsätzlich als künftiger Server denkbar, abhängig von CPU, RAM und Betriebssystem. Dafür fehlen ein automatischer Serverstart ohne Menü und die Trennung von Server und beiden entfernten Spielern; nur --headless oder das Erhöhen der Clientgrenze reicht nicht. Zunächst lokal/LAN per IP testen.
 
@@ -58,4 +59,4 @@ Logs: test-output/network-*.log und .err. UI-Bilder: test-output/network-duel-ch
 
 ## Noch offen
 
-Internetbetrieb unter realem Paketverlust und mit verschiedenen PCs ist nicht verifiziert. Der Host ist selbst Teilnehmer; aktuell können ein Host und ein Mitspieler teilnehmen. UDP-Port 2456 muss bei Internetbetrieb am Router und in der Firewall zugänglich sein. Keine Hostmigration, öffentlichen Konten, Matchmaking, Zuschauer oder Replays. Der Host bleibt als Besitzer der autoritativen Simulation technisch vertrauenswürdig; die Filterung schützt den Mitspieler vor verborgenem Gegnerzustand. Die Karten bieten gleiche Startausstattung, aber noch kein geprüftes Turnier-Balancing. Visuelle Effekte bleiben lokal.
+Internetbetrieb unter realem Paketverlust und mit verschiedenen PCs ist noch nicht verifiziert. IP-Anzeige, Online-Status und öffentliches Verzeichnis benötigen die aktualisierte API-Version auf `api.dl-home.de`; bis diese installiert ist, funktioniert weiterhin die manuelle Direktverbindung per IP. Es gibt keine dedizierten Server, Hostmigration, öffentliche Konten, Zuschauer oder Replays. Der Host bleibt als Besitzer der autoritativen Simulation technisch vertrauenswürdig; die Filterung schützt den Mitspieler vor verborgenem Gegnerzustand. Die Karten bieten gleiche Startausstattung, aber noch kein geprüftes Turnier-Balancing. Visuelle Effekte bleiben lokal.
