@@ -442,6 +442,42 @@ func building(target: CanvasItem, e: Dictionary, size_value: Vector2, team: Colo
 			line(Vector2(-w*0.2,-h*0.15),Vector2(0,-h*0.2+4),Color("b9faff"),1)
 			line(Vector2(0,-h*0.2+4),Vector2(w*0.15,-h*0.08),Color("b9faff"),1)
 
+func building_damage_overlay(target: CanvasItem, e: Dictionary, size_value: Vector2, elapsed: float) -> void:
+	var hp_ratio:=float(e.hp)/maxf(1.0,float(e.max_hp))
+	var repairing:=bool(e.get("repair",false)) and hp_ratio<1.0
+	if hp_ratio>=0.7 and not repairing: return
+	canvas=target
+	origin=e.pos
+	axis=Vector2.from_angle(float(e.get("rotation",0))*PI/2)
+	lateral=Vector2.DOWN.rotated(float(e.get("rotation",0))*PI/2)
+	clock=elapsed
+	opacity=1.0
+	var size:=size_value-Vector2(5,5)
+	var w:=size.x
+	var h:=size.y
+	var stage:=3 if hp_ratio<0.15 else (2 if hp_ratio<0.4 else 1)
+	for i in stage+1:
+		var scar:=Vector2(-w*0.25+i*w*0.19,h*0.06-i*6)
+		poly([scar,scar+Vector2(12,-3),scar+Vector2(8,9),scar+Vector2(-5,5)],Color(0.15,0.09,0.05,0.72))
+		line(scar,scar+Vector2(6,7),EDGE.darkened(0.4),1)
+		var age:=fposmod(clock*(0.35+stage*0.12)+i*0.23,1.0)
+		ellipse(scar+Vector2(age*12,-15-age*(25+stage*15)),Vector2.ONE*(3+age*(7+stage*3)),Color(0.13,0.10,0.07,(1-age)*0.36))
+		if sin(clock*19+i*7)>0.9: line(scar,scar+Vector2(9,-7),Color("ffe5aa"),1.5)
+	if stage>=2:
+		for i in stage*2:
+			flame(Vector2(w*0.1+i*4,-h*0.05-8),9+sin(clock*11+i)*2,i)
+		light(Vector2(w*0.2,-h*0.1-12),Color("ffa954"),3)
+		light(Vector2(-w*0.38,h*0.30),Color("ff5b27"),1.0+maxf(0,sin(clock*9))*2)
+		if sin(clock*23)>0.65:
+			line(Vector2(-w*0.2,-h*0.15),Vector2(0,-h*0.2+4),Color("b9faff"),1)
+			line(Vector2(0,-h*0.2+4),Vector2(w*0.15,-h*0.08),Color("b9faff"),1)
+	if repairing:
+		var weld:=Vector2(-w*0.22+sin(clock*0.8)*w*0.1,h*0.12)
+		light(weld,Color("aeeaff"),1.6)
+		for i in 4:
+			var age:=fposmod(clock*2+i*0.24,1.0)
+			line(weld+Vector2(age*7,-age*6),weld+Vector2(age*7+2,-age*6+1),Color(1,0.76,0.36,1-age),0.8)
+
 func simplified_vehicle(e: Dictionary, team: Color, faction: String, length: float, width: float) -> void:
 	# Readable low-cost silhouette used only when crowds or zoom demand it.
 	ellipse(Vector2(4,6),Vector2(length+5,width+5),Color(0.10,0.055,0.03,0.34))

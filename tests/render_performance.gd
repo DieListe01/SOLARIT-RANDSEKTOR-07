@@ -141,7 +141,15 @@ func measure_building_crowd() -> bool:
 	if not cache_ok: push_error("BUILDING CACHE REGRESSION: 50 visible buildings did not resolve from cache")
 	for id in building_ids: game.sim.entities.erase(id)
 	game.renderer.camera=previous_camera
-	return cache_ok and static_cache_ok
+	var damaged_id: int=game.sim.spawn("power",0,previous_camera+Vector2(120,80),true)
+	game.sim.entities[damaged_id].hp=game.sim.entities[damaged_id].max_hp*0.3
+	game.renderer.queue_redraw()
+	await settle_frames(4)
+	var damaged_cache_ok: bool=game.renderer.building_cache_hits>0 and game.renderer.building_cache_misses==0
+	if not damaged_cache_ok: push_error("BUILDING DAMAGE CACHE REGRESSION: damaged completed structures bypassed the cached body")
+	print("RENDER DAMAGED BUILDING: cached body with live damage overlay: %s | hits/misses %d/%d" % [damaged_cache_ok,game.renderer.building_cache_hits,game.renderer.building_cache_misses])
+	game.sim.entities.erase(damaged_id)
+	return cache_ok and static_cache_ok and damaged_cache_ok
 
 func measure_destruction_debris() -> void:
 	game.renderer.combat_fx.ruins.clear()

@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.21",
+  "current_version": "0.36.22",
   "entries": [
+    {
+      "version": "0.36.22",
+      "date": "08.10.2026",
+      "title": "Beschädigte Gebäude aus dem Cache zeichnen",
+      "changes": [
+        "Fertige Gebäude werden auch während Gefechten aus einer zwischengespeicherten Darstellung gezeichnet. Rauch, Flammen, Schäden und Reparaturfunken bleiben als leichte Live-Effekte erhalten.",
+        "So entfällt das wiederholte Zeichnen der vollständigen, detailreichen Gebäudegrafik gerade dann, wenn mehrere Gebäude beschädigt sind."
+      ]
+    },
     {
       "version": "0.36.21",
       "date": "08.10.2026",

@@ -181,17 +181,17 @@ func process_vehicle_cache_queue() -> void:
 
 func building_cache_key(entity: Dictionary) -> String:
 	var rotation := posmod(int(entity.get("rotation",0)),4)
-	var damage_stage := 2 if entity.hp/entity.max_hp<0.35 else (1 if entity.hp/entity.max_hp<0.65 else 0)
 	var turret_frame := posmod(roundi(float(entity.get("turret",0.0))*16.0/TAU),16) if entity.kind=="tower" else 0
 	var faction: String=sim.factions[entity.owner]
 	var active := 1 if entity.kind=="factory" and not entity.get("queue",[]).is_empty() else 0
 	var upgrade_stage:=int(entity.get("upgrade_level",0))
-	return "%s|%d|%s|%d|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,damage_stage,turret_frame,active,upgrade_stage]
+	return "%s|%d|%s|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage]
 
 func draw_cached_building(entity: Dictionary) -> bool:
-	# Construction, repairs and damaged structures keep their live sparks/flames.
-	# Fully operational structures are rasterized once and reused as one texture draw.
-	if not entity.complete or entity.repair or entity.get("upgrading",false) or entity.hp/entity.max_hp<0.65:
+	# Construction and upgrades stay live. Completed buildings use a cached body;
+	# damage and repair effects are drawn separately so combat cannot force an
+	# expensive full-art redraw on every frame.
+	if not entity.complete or entity.get("upgrading",false):
 		building_cache_misses+=1
 		return false
 	var key := building_cache_key(entity)
@@ -205,6 +205,8 @@ func draw_cached_building(entity: Dictionary) -> bool:
 		return false
 	building_cache_hits+=1
 	draw_texture_rect(texture,Rect2(entity.pos-Vector2(128,128),Vector2(256,256)),false)
+	var footprint:=sim.building_footprint(entity.kind,int(entity.get("rotation",0)))
+	industrial_art.building_damage_overlay(self,entity,Vector2(footprint[0],footprint[1])*sim.grid.tile,elapsed)
 	return true
 
 func process_building_cache_queue() -> void:
@@ -226,6 +228,10 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 	painter.art=IndustrialArt.new()
 	painter.entity=source.duplicate(true)
 	painter.entity.pos=Vector2.ZERO
+	# Cache only the stable structure body. Live damage and repair effects are
+	# composited in draw_cached_building, without rerasterizing the machinery.
+	painter.entity.hp=painter.entity.max_hp
+	painter.entity.repair=false
 	painter.entity.erase("reload")
 	painter.team=team
 	painter.faction=faction
