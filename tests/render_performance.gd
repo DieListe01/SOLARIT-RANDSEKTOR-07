@@ -199,6 +199,25 @@ func compare_vehicle_sharpness() -> bool:
 		return false
 	return true
 
+func verify_vehicle_cache_fallback() -> bool:
+	var image := Image.create(1,1,false,Image.FORMAT_RGBA8)
+	image.fill(Color.WHITE)
+	var exact_state := ImageTexture.create_from_image(image)
+	var nearby_state := ImageTexture.create_from_image(image)
+	var requested := "cache_test_unit|forge|0|ffffff|0|2|0|0"
+	var exact_key := "cache_test_unit|forge|0|ffffff|30|2|0|0"
+	var fallback_key := "cache_test_unit|forge|0|ffffff|0|1|0|0"
+	game.renderer.vehicle_texture_cache[exact_key]=exact_state
+	game.renderer.vehicle_texture_cache[fallback_key]=nearby_state
+	var exact_preferred: bool=game.renderer.nearest_vehicle_texture(requested,0)==exact_state
+	game.renderer.vehicle_texture_cache.erase(exact_key)
+	var fallback_found: bool=game.renderer.nearest_vehicle_texture(requested,0)==nearby_state
+	game.renderer.vehicle_texture_cache.erase(fallback_key)
+	if not exact_preferred: push_error("VEHICLE CACHE REGRESSION: exact visual state was not preferred")
+	if not fallback_found: push_error("VEHICLE CACHE REGRESSION: missing visual state did not use a nearby cached variant")
+	print("VEHICLE CACHE FALLBACK: exact state preferred; nearby variant used while a new state is rasterized: %s" % (exact_preferred and fallback_found))
+	return exact_preferred and fallback_found
+
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute("res://test-output")
 	game=load("res://scenes/main.tscn").instantiate()
@@ -226,9 +245,10 @@ func run() -> void:
 	await measure_moving_combat()
 	var buildings_ok := await measure_building_crowd()
 	await measure_destruction_debris()
+	var vehicle_cache_fallback_ok := verify_vehicle_cache_fallback()
 	var file := FileAccess.open("res://test-output/render_performance.csv",FileAccess.WRITE)
 	file.store_string("\n".join(rows)+"\n")
 	file.close()
 	game.music.shutdown(); game.queue_free()
 	await process_frame
-	quit(0 if quality_ok and buildings_ok and fog_cache_ok and track_aging_ok else 1)
+	quit(0 if quality_ok and buildings_ok and fog_cache_ok and track_aging_ok and vehicle_cache_fallback_ok else 1)

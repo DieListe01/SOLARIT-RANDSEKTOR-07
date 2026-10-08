@@ -128,16 +128,21 @@ func interpolated_entity(entity: Dictionary) -> Dictionary:
 func nearest_vehicle_texture(key: String, requested_frame: int) -> Texture2D:
 	var requested: PackedStringArray=key.split("|")
 	var best: Texture2D
-	var best_distance:=64
+	var best_state_distance:=2147483647
+	var best_turret_distance:=2147483647
 	for candidate in vehicle_texture_cache:
 		var parts: PackedStringArray=str(candidate).split("|")
 		if parts.size()!=8 or requested.size()!=8: continue
 		if parts[0]!=requested[0] or parts[1]!=requested[1] or parts[2]!=requested[2] or parts[3]!=requested[3]: continue
-		if parts[5]!=requested[5] or parts[6]!=requested[6] or parts[7]!=requested[7]: continue
+		var state_distance:=absi(int(parts[5])-int(requested[5]))*16+absi(int(parts[6])-int(requested[6]))*2+absi(int(parts[7])-int(requested[7]))*12
 		var difference:=absi(int(parts[4])-requested_frame)
 		difference=mini(difference,64-difference)
-		if difference<best_distance:
-			best_distance=difference
+		# Preserve the exact damage/cargo/harvest look whenever available. If a
+		# new state is still being rasterized, use the closest cached state of the
+		# same vehicle instead of dropping into the much more expensive vector art.
+		if state_distance<best_state_distance or (state_distance==best_state_distance and difference<best_turret_distance):
+			best_state_distance=state_distance
+			best_turret_distance=difference
 			best=vehicle_texture_cache[candidate]
 	return best
 

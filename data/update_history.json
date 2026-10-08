@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.24",
+  "current_version": "0.36.25",
   "entries": [
+    {
+      "version": "0.36.25",
+      "date": "08.10.2026",
+      "title": "Fahrzeugdarstellung bei Cache-Wechseln geglättet",
+      "changes": [
+        "Wenn eine Fahrzeugvariante mit neuem Schaden oder Frachtzustand gerendert wird, erscheint bis zum fertigen Cache-Bild die nächste passende Variante desselben Fahrzeugtyps.",
+        "Dadurch entfällt der teure Wechsel auf die vollständige Vektorzeichnung während laufender Gefechte; ein exakt passendes Cache-Bild hat weiterhin Vorrang."
+      ]
+    },
     {
       "version": "0.36.24",
       "date": "08.10.2026",

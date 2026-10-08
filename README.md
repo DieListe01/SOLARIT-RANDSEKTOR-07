@@ -1,6 +1,6 @@
 # SOLARIT: RANDSEKTOR 07
 
-Ein eigenständiges 2D-RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36.24 / Gebäudepass bei Upgrades beschleunigt**, 8. Oktober 2026.
+Ein eigenständiges 2D-RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36.25 / Fahrzeugdarstellung bei Cache-Wechseln geglättet**, 8. Oktober 2026.
 
 ## Intro und Startmenü
 
