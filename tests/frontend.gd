@@ -235,6 +235,10 @@ func run() -> void:
 	check(briefing_panel.find_children("*","Button",true,false).any(func(item):return item is Button and item.text.contains("SIGNAL GESPERRT") and item.tooltip_text.contains("vorherigen Einsatz")),"Locked campaign missions explain their unlock condition")
 	check(briefing_panel.find_children("*","Label",true,false).any(func(item):return item is Label and item.text=="SCHWIERIGKEIT"),"Resistance selection is clearly labeled as difficulty")
 	check(briefing_panel.find_children("*","Label",true,false).any(func(item):return item is Label and item.text=="BEDROHUNG"),"Difficulty includes a quick threat indicator")
+	var difficulty_buttons:Array=briefing_panel.find_children("*","Button",true,false).filter(func(item):return item is Button and item.text in ["Ruhig","Ausgewogen","Entschlossen"])
+	var difficulty_note:Label=briefing_panel.get_node_or_null("DifficultyDescription")
+	var objective_heading:Label=briefing_panel.find_children("*","Label",true,false).filter(func(item):return item is Label and item.text=="AUFTRAG").front()
+	check(difficulty_note!=null and difficulty_buttons.size()==3 and difficulty_buttons.all(func(item):return item.position.y+item.size.y<=difficulty_note.position.y) and difficulty_note.position.y+difficulty_note.size.y<=objective_heading.position.y,"Difficulty description clears its buttons and the mission objectives section")
 	for child in briefing_panel.get_children():
 		if child is Label and child.autowrap_mode!=TextServer.AUTOWRAP_OFF:
 			check(child.position.x+child.size.x<=briefing_panel.size.x,"Wrapped briefing text stays inside panel")

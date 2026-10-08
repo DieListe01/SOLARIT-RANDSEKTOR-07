@@ -785,18 +785,20 @@ func show_briefing() -> void:
 	index=0
 	for id in ["easy","normal","hard"]:
 		var names := {"easy":"Ruhig","normal":"Ausgewogen","hard":"Entschlossen"}
-		var b := button(p,names[id],Rect2(48+index*406,534,386,48),func():difficulty=id; show_briefing())
+		var b := button(p,names[id],Rect2(48+index*406,530,386,40),func():difficulty=id; show_briefing())
 		var card := StyleBoxFlat.new(); card.bg_color=Color("173732") if difficulty==id else Color("263331"); card.border_color=MINT if difficulty==id else Color("485b55"); card.set_border_width_all(1); card.set_corner_radius_all(4)
 		b.add_theme_stylebox_override("normal",card); b.add_theme_color_override("font_color",Color("82e3c0") if difficulty==id else Color("d5ded5"))
 		index+=1
 	var resistance_copy: String={"easy":"Ruhig · längere Vorwarnung und kleinere feindliche Angriffe.","normal":"Ausgewogen · regulärer Druck und mittlere Angriffsgruppen.","hard":"Entschlossen · kurze Vorwarnung, größere Gruppen und häufigere Angriffe."}.get(difficulty,"Ausgewogen")
-	label(p,resistance_copy,Vector2(48,574),14,MINT,740)
+	var resistance_note:=label(p,resistance_copy,Vector2(48,578),14,MINT,740)
+	resistance_note.name="DifficultyDescription"
+	resistance_note.size.y=20
 	var threat_level:=1 if difficulty=="easy" else (2 if difficulty=="normal" else 3)
-	label(p,"BEDROHUNG",Vector2(842,574),12,MUTED,100)
+	label(p,"BEDROHUNG",Vector2(842,578),12,MUTED,100)
 	var threat_names: Array[String]=["NIEDRIG","MITTEL","HOCH"]
-	label(p,threat_names[threat_level-1],Vector2(946,572),13,Color("e8b963") if threat_level<3 else Color("e06d4e"),112)
+	label(p,threat_names[threat_level-1],Vector2(946,576),13,Color("e8b963") if threat_level<3 else Color("e06d4e"),112)
 	for threat_index in range(5):
-		var threat_mark:=ColorRect.new(); threat_mark.position=Vector2(1064+threat_index*42,578); threat_mark.size=Vector2(34,6)
+		var threat_mark:=ColorRect.new(); threat_mark.position=Vector2(1064+threat_index*42,582); threat_mark.size=Vector2(34,6)
 		threat_mark.color=Color("e8b963") if threat_index<threat_level*2-1 else Color("3b3a35")
 		threat_mark.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(threat_mark)
 	label(p,"AUFTRAG",Vector2(48,606),14,MUTED)
