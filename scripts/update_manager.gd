@@ -3,6 +3,7 @@ class_name UpdateManager
 
 signal update_check_finished(result: Dictionary)
 signal installer_download_finished(success: bool, message: String)
+signal download_progress_changed(stage: String, downloaded_bytes: int, total_bytes: int)
 
 const INSTALLER_PREFIX := "SOLARIT-RANDSEKTOR-07-Setup-"
 const MAX_INSTALLER_BYTES := 300 * 1024 * 1024
@@ -14,11 +15,24 @@ var latest_notes := ""
 var installer_path := ""
 var installer_url := ""
 var expected_sha256 := ""
+var installer_expected_size := 0
+var download_stage := ""
+var progress_elapsed := 0.0
 var release_assets: Array = []
 var busy := false
 
 var api_request: HTTPRequest
 var transfer_request: HTTPRequest
+
+func _process(delta: float) -> void:
+	if not busy or download_stage.is_empty() or transfer_request==null: return
+	progress_elapsed+=delta
+	if progress_elapsed<0.15: return
+	progress_elapsed=0.0
+	var downloaded:=transfer_request.get_downloaded_bytes()
+	var total:=transfer_request.get_body_size()
+	if total<=0 and download_stage=="installer": total=installer_expected_size
+	download_progress_changed.emit(download_stage,downloaded,total)
 
 func _ready() -> void:
 	if not can_check(): return
@@ -45,6 +59,9 @@ func can_check() -> bool:
 func check_for_update() -> bool:
 	if busy or not can_check(): return false
 	busy=true
+	download_stage="manifest"
+	progress_elapsed=0.0
+	download_progress_changed.emit(download_stage,0,0)
 	latest_version=""; latest_notes=""; release_assets=[]
 	var error:=api_request.request("https://api.github.com/repos/%s/releases/latest"%repository,["Accept: application/vnd.github+json","User-Agent: SOLARIT: RANDSEKTOR 07-Game"])
 	if error!=OK:
@@ -84,6 +101,9 @@ func begin_installer_download() -> bool:
 		installer_download_finished.emit(false,"Der Downloadlink des Manifests ist ungültig.")
 		return false
 	busy=true
+	download_stage="manifest"
+	progress_elapsed=0.0
+	download_progress_changed.emit(download_stage,0,0)
 	transfer_request.download_file=""
 	transfer_request.body_size_limit=1024*1024
 	var error:=transfer_request.request(url,["Accept: application/octet-stream","User-Agent: SOLARIT: RANDSEKTOR 07-Game"])
@@ -128,6 +148,10 @@ func _on_transfer_completed(result: int, response_code: int, _headers: PackedStr
 		var update_dir:=ProjectSettings.globalize_path("user://updates")
 		DirAccess.make_dir_recursive_absolute(update_dir)
 		installer_path=update_dir.path_join(expected_name)
+		installer_expected_size=int(asset.get("size",0))
+		download_stage="installer"
+		progress_elapsed=0.0
+		download_progress_changed.emit(download_stage,0,installer_expected_size)
 		transfer_request.download_file=installer_path
 		transfer_request.body_size_limit=MAX_INSTALLER_BYTES
 		var error:=transfer_request.request(installer_url,["Accept: application/octet-stream","User-Agent: SOLARIT: RANDSEKTOR 07-Game"])
@@ -136,9 +160,14 @@ func _on_transfer_completed(result: int, response_code: int, _headers: PackedStr
 			transfer_request.download_file=""
 			installer_download_finished.emit(false,"Der Installer-Download konnte nicht gestartet werden.")
 		return
+	download_stage="verify"
+	download_progress_changed.emit(download_stage,transfer_request.get_downloaded_bytes(),installer_expected_size)
+	await get_tree().process_frame
+	if not busy: return
 	var actual_hash:=FileAccess.get_sha256(installer_path).to_lower()
 	transfer_request.download_file=""
 	busy=false
+	download_stage=""
 	if not is_sha256(actual_hash) or actual_hash!=expected_sha256:
 		DirAccess.remove_absolute(installer_path)
 		installer_download_finished.emit(false,"Die Prüfsumme stimmt nicht. Der Installer wurde verworfen.")
@@ -147,8 +176,19 @@ func _on_transfer_completed(result: int, response_code: int, _headers: PackedStr
 
 func launch_installer() -> bool:
 	if installer_path.is_empty() or not FileAccess.file_exists(installer_path) or OS.get_name()!="Windows": return false
-	var arguments:=PackedStringArray(["/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CLOSEAPPLICATIONS","/RESTARTAPPLICATIONS"])
-	return OS.create_process(installer_path,arguments,false)>0
+	return OS.create_process(installer_path,installer_arguments(),false)>0
+
+static func installer_arguments() -> PackedStringArray:
+	# Keep Inno Setup's normal wizard visible so users can follow installation progress.
+	return PackedStringArray(["/NORESTART"])
+
+func cancel_installer_download() -> void:
+	if not busy: return
+	if transfer_request!=null: transfer_request.cancel_request()
+	busy=false
+	download_stage=""
+	transfer_request.download_file=""
+	if not installer_path.is_empty() and FileAccess.file_exists(installer_path): DirAccess.remove_absolute(installer_path)
 
 func finish_check_error(message: String) -> void:
 	busy=false

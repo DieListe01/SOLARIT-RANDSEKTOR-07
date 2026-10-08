@@ -28,15 +28,24 @@ func run() -> void:
 	root.add_child(game)
 	await process_frame
 	game.commander_profile.path = "user://highscore_profile_test.json"
+	if FileAccess.file_exists(game.commander_profile.path): DirAccess.remove_absolute(ProjectSettings.globalize_path(game.commander_profile.path))
 	game.commander_profile.load_profile()
 	game.commander_profile.set_nickname("DIRK")
 	game.skip_intro(); game.set_classic(false)
 	game.campaign_progress_path="user://highscore_campaign_test.json"
-	game.campaign_progress={"format_version":1,"unlocked_mission":0,"tech_level":0,"completed":[]}
+	if FileAccess.file_exists(game.campaign_progress_path): DirAccess.remove_absolute(ProjectSettings.globalize_path(game.campaign_progress_path))
+	game.campaign_progress={"format_version":1,"unlocked_mission":0,"tech_level":0,"completed":[],"mission_medals":{}}
 	game.highscore_path="user://highscore_test.json"
 	if FileAccess.file_exists(game.highscore_path): DirAccess.remove_absolute(ProjectSettings.globalize_path(game.highscore_path))
 	win_with_stats(game,{"gathered":1000.0,"kills":4,"produced":2,"built":3,"lost":1,"buildings_lost":1},100.0)
 	check(game.campaign_progress.unlocked_mission==1 and game.campaign_progress.tech_level==1,"Mission victory unlocks the next campaign step and armory tier")
+	var mission_id:=str(game.db.mission.id)
+	check(str(game.campaign_progress.mission_medals.get(mission_id,""))=="BRONZE","Victory saves the earned campaign medal")
+	game.record_campaign_victory("GOLD")
+	game.record_campaign_victory("BRONZE")
+	game.campaign_progress={"format_version":1,"unlocked_mission":0,"tech_level":0,"completed":[],"mission_medals":{}}
+	game.load_campaign_progress()
+	check(str(game.campaign_progress.mission_medals.get(mission_id,""))=="GOLD","Best medal persists across reload and cannot be downgraded")
 	var first: Dictionary=game.load_highscores()
 	check(first.entries.size()==1 and int(first.entries[0].score)==5740 and str(first.entries[0].nickname)=="DIRK" and str(first.entries[0].profile_id)==str(game.commander_profile.data.profile_id),"Victory stores the score, nickname and stable profile ID")
 	check(int(game.commander_profile.data.statistics.singleplayer.missions)==1 and int(game.commander_profile.data.statistics.singleplayer.wins)==1 and int(game.commander_profile.data.statistics.best_score)==5740,"The same result updates the commander file and personal record")
@@ -76,6 +85,11 @@ func run() -> void:
 	game.start_game(); game.sim.result="defeat"; game.ended=true; game.show_end()
 	check(game.load_highscores().entries.size()==count_before,"Defeat does not add a highscore")
 	check(int(game.commander_profile.data.statistics.singleplayer.losses) == 1, "A completed campaign defeat is counted in the commander file")
+	game.mission_index=0
+	game.db=Catalog.new(game.MISSION_PATHS[0])
+	game.show_briefing()
+	var mission_medal_node: Node=game.ui.find_child("MissionMedal00",true,false)
+	check(mission_medal_node is Label and mission_medal_node.text=="BESTE MEDAILLE  ·  GOLD","Mission selector shows the saved best medal")
 	game.music.shutdown(); game.queue_free()
 	await process_frame
 	if FileAccess.file_exists("user://highscore_test.json"): DirAccess.remove_absolute(ProjectSettings.globalize_path("user://highscore_test.json"))

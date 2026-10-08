@@ -22,5 +22,7 @@ func _initialize() -> void:
 	check(not Manager.is_newer_version("0.35-beta","0.34"),"non-numeric release rejected")
 	check(Manager.is_sha256("0123456789abcdef".repeat(4)),"SHA-256 format accepted")
 	check(not Manager.is_sha256("bad-hash"),"invalid SHA-256 rejected")
+	var installer_args:=Manager.installer_arguments()
+	check(installer_args.has("/NORESTART") and not installer_args.has("/VERYSILENT") and not installer_args.has("/SUPPRESSMSGBOXES"),"Installer opens its visible progress wizard")
 	print("UPDATE MANAGER: %d checks, %d failures" % [checks,failures])
 	quit(1 if failures else 0)

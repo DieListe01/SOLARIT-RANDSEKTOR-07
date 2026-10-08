@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.14",
+  "current_version": "0.36.15",
   "entries": [
+    {
+      "version": "0.36.15",
+      "date": "08.10.2026",
+      "title": "Kampagnenmedaillen und sichtbare Updates",
+      "changes": [
+        "Die Missionsauswahl zeigt pro Einsatz deine dauerhaft gespeicherte Bestwertung. Bronze, Silber und Gold bleiben auch nach einem Neustart erhalten; ein späterer schlechterer Lauf stuft die Medaille nicht zurück.",
+        "Beim Herunterladen eines Updates zeigt das Spiel jetzt den Downloadfortschritt und die SHA-256-Prüfung an.",
+        "Der Windows-Installer öffnet sein sichtbares Setup-Fenster mit Installationsfortschritt. Das Spiel bleibt bis zum Start der Installation geöffnet."
+      ]
+    },
     {
       "version": "0.36.14",
       "date": "08.10.2026",

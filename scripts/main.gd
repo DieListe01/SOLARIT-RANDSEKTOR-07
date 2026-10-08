@@ -20,6 +20,9 @@ var update_history := Catalog.read_json("res://data/update_history.json")
 var update_manager: Node
 var update_check_manual := false
 var update_button: Button
+var update_progress_label: Label
+var update_progress_bar: ProgressBar
+var update_progress_cancel: Button
 var update_checked_this_session := false
 var pending_startup_update: Dictionary = {}
 var db: Catalog
@@ -174,7 +177,7 @@ var fps_auto_profile := false
 var profiler_overlay_visible := false
 var performance_log_error_reported := false
 var highscore_path := HIGHSCORE_PATH
-var campaign_progress: Dictionary = {"format_version":1,"unlocked_mission":0,"tech_level":0,"completed":[]}
+var campaign_progress: Dictionary = {"format_version":1,"unlocked_mission":0,"tech_level":0,"completed":[],"mission_medals":{}}
 var campaign_progress_path := CAMPAIGN_PATH
 var run_id := ""
 var highscore_mission_index := -1
@@ -433,6 +436,7 @@ func setup_update_manager() -> void:
 	add_child(update_manager)
 	update_manager.update_check_finished.connect(_on_update_check_finished)
 	update_manager.installer_download_finished.connect(_on_installer_download_finished)
+	update_manager.download_progress_changed.connect(_on_update_download_progress)
 
 func check_for_game_update() -> void:
 	if update_manager==null or not update_manager.can_check():
@@ -487,23 +491,67 @@ func show_available_update(result: Dictionary) -> void:
 
 func begin_game_update() -> void:
 	clear(overlay)
-	var p:=panel(overlay,Rect2(560,400,800,260),Color("211b17"))
-	label(p,"UPDATE WIRD GELADEN",Vector2(34,28),28,GOLD)
-	label(p,"Prüfsumme und Herausgeber werden kontrolliert.",Vector2(34,86),19,MUTED,730)
-	button(p,"ABBRECHEN",Rect2(34,165,730,48),func():clear(overlay))
+	var p:=panel(overlay,Rect2(500,350,920,360),Color("211b17"))
+	p.name="UpdateProgressPanel"
+	label(p,"UPDATE WIRD VORBEREITET",Vector2(36,28),28,GOLD)
+	update_progress_label=label(p,"Das Prüfsummen-Manifest wird geladen …",Vector2(38,93),19,MUTED,840)
+	update_progress_label.name="UpdateProgressLabel"
+	update_progress_bar=ProgressBar.new()
+	update_progress_bar.name="UpdateProgressBar"
+	update_progress_bar.position=Vector2(38,152); update_progress_bar.size=Vector2(844,24); update_progress_bar.max_value=100
+	update_progress_bar.show_percentage=false
+	p.add_child(update_progress_bar)
+	update_progress_cancel=button(p,"ABBRECHEN",Rect2(38,235,844,52),cancel_game_update)
 	if not update_manager.begin_installer_download():
-		clear(overlay)
-		show_error("Das Update konnte nicht gestartet werden. Bitte prüfe deine Internetverbindung und versuche es erneut.")
+		if update_manager.busy: return
+		if is_instance_valid(overlay) and overlay.get_child_count()>0 and overlay.get_child(0)==p:
+			clear(overlay)
+			show_error("Das Update konnte nicht gestartet werden. Bitte prüfe deine Internetverbindung und versuche es erneut.")
+
+func _on_update_download_progress(stage: String, downloaded_bytes: int, total_bytes: int) -> void:
+	if not is_instance_valid(update_progress_label) or not is_instance_valid(update_progress_bar): return
+	match stage:
+		"manifest":
+			update_progress_label.text="Prüfsummen-Manifest wird geladen …"
+			update_progress_bar.value=0
+		"installer":
+			var downloaded_text:=format_download_size(downloaded_bytes)
+			var total_text:=format_download_size(total_bytes)
+			if total_bytes>0:
+				var percent:=clampi(roundi(float(downloaded_bytes)*100.0/float(total_bytes)),0,100)
+				update_progress_bar.value=percent
+				update_progress_label.text="Installer wird geladen · %s von %s (%d%%)" % [downloaded_text,total_text,percent]
+			else:
+				update_progress_label.text="Installer wird geladen · %s" % downloaded_text
+		"verify":
+			update_progress_bar.value=100
+			update_progress_label.text="Download vollständig · SHA-256-Prüfsumme wird kontrolliert …"
+
+func format_download_size(byte_count: int) -> String:
+	return "%.1f MB" % (float(byte_count)/1048576.0)
+
+func cancel_game_update() -> void:
+	if is_instance_valid(update_manager): update_manager.cancel_installer_download()
+	clear(overlay)
+	update_progress_label=null
+	update_progress_bar=null
+	update_progress_cancel=null
+	notify("Update-Download abgebrochen.")
 
 func _on_installer_download_finished(success: bool, message: String) -> void:
 	if not success:
+		update_progress_label=null; update_progress_bar=null; update_progress_cancel=null
 		clear(overlay)
 		show_error(message)
 		return
 	if update_manager.launch_installer():
-		music.shutdown()
-		get_tree().quit()
+		if is_instance_valid(update_progress_label): update_progress_label.text="Download geprüft · Windows-Setup geöffnet. Folge den Schritten im Setup-Fenster."
+		if is_instance_valid(update_progress_bar): update_progress_bar.value=100
+		if is_instance_valid(update_progress_cancel):
+			update_progress_cancel.text="SETUP-FENSTER IST GEÖFFNET"
+			update_progress_cancel.disabled=true
 	else:
+		update_progress_label=null; update_progress_bar=null; update_progress_cancel=null
 		clear(overlay)
 		show_error("Der Installer wurde geprüft, konnte aber nicht gestartet werden. Du findest ihn unter user://updates.")
 
@@ -689,11 +737,16 @@ func show_briefing() -> void:
 		progress_segment.color=GOLD if completed_missions.has(mission_id) else (MINT if i==mission_index else (Color("52746b") if unlocked else Color("3b3027")))
 		progress_segment.mouse_filter=Control.MOUSE_FILTER_IGNORE
 		p.add_child(progress_segment)
-	label(p,"KOMMANDO WÄHLEN",Vector2(48,337),14,MUTED)
+		var medals_value: Variant=campaign_progress.get("mission_medals",{})
+		var saved_medal:=str(medals_value.get(mission_id,"")) if medals_value is Dictionary else ""
+		var medal_label:=label(p,("BESTE MEDAILLE  ·  "+saved_medal) if not saved_medal.is_empty() else "NOCH KEINE MEDAILLE",Vector2(48+i*406,328),12,medal_color(saved_medal))
+		medal_label.name="MissionMedal%02d"%i
+		medal_label.tooltip_text="Deine beste dauerhaft gespeicherte Missionswertung." if not saved_medal.is_empty() else "Wird nach einem Missionssieg angezeigt."
+	label(p,"KOMMANDO WÄHLEN",Vector2(48,352),14,MUTED)
 	var index := 0
 	for id in db.factions:
 		var f: Dictionary = db.factions[id]
-		var b := button(p,f.name+"\n"+f.tag,Rect2(48+index*406,363,386,76),func():faction=id; show_briefing())
+		var b := button(p,f.name+"\n"+f.tag,Rect2(48+index*406,378,386,76),func():faction=id; show_briefing())
 		var accent:=Color(str(f.get("color","69d6c0")))
 		var card := StyleBoxFlat.new(); card.bg_color=Color("173732") if faction==id else Color("263331"); card.border_color=accent if faction==id else accent.darkened(0.45); card.set_border_width_all(1); card.set_corner_radius_all(4)
 		b.add_theme_stylebox_override("normal",card); b.add_theme_color_override("font_color",accent if faction==id else Color("d5ded5"))
@@ -702,12 +755,12 @@ func show_briefing() -> void:
 		var initial:=Label.new(); initial.text=str(f.name).substr(0,1); initial.position=Vector2(16,15); initial.size=Vector2(46,46); initial.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; initial.vertical_alignment=VERTICAL_ALIGNMENT_CENTER; initial.add_theme_color_override("font_color",accent); initial.add_theme_font_size_override("font_size",23); initial.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(initial)
 		b.tooltip_text=f.description
 		index+=1
-	label(p,db.factions[faction].description,Vector2(48,449),17,Color(str(db.factions[faction].get("color","69d6c0"))),1215)
-	label(p,"SCHWIERIGKEIT",Vector2(48,493),14,MUTED)
+	label(p,db.factions[faction].description,Vector2(48,464),17,Color(str(db.factions[faction].get("color","69d6c0"))),1215)
+	label(p,"SCHWIERIGKEIT",Vector2(48,508),14,MUTED)
 	index=0
 	for id in ["easy","normal","hard"]:
 		var names := {"easy":"Ruhig","normal":"Ausgewogen","hard":"Entschlossen"}
-		var b := button(p,names[id],Rect2(48+index*406,519,386,48),func():difficulty=id; show_briefing())
+		var b := button(p,names[id],Rect2(48+index*406,534,386,48),func():difficulty=id; show_briefing())
 		var card := StyleBoxFlat.new(); card.bg_color=Color("173732") if difficulty==id else Color("263331"); card.border_color=MINT if difficulty==id else Color("485b55"); card.set_border_width_all(1); card.set_corner_radius_all(4)
 		b.add_theme_stylebox_override("normal",card); b.add_theme_color_override("font_color",Color("82e3c0") if difficulty==id else Color("d5ded5"))
 		index+=1
@@ -2568,7 +2621,7 @@ func show_end() -> void:
 	label(p,"BEWERTUNG  ·  %s     NEBENZIELE  %d / %d     BONUS  +%s" % [medal,optional_done,optional_total,format_score(optional_done*2500)],Vector2(44,375),17,GOLD,670)
 	if sim.result=="victory":
 		highscore_mission_index=mission_index
-		if not online.active: record_campaign_victory()
+		if not online.active: record_campaign_victory(medal)
 		var score_result := record_highscore() if not online.active else {"score": 0, "rank": 0, "new_best": false}
 		if not online.active and is_instance_valid(online_stats) and int(score_result.get("score", 0)) > 0:
 			online_stats.submit_highscore({
@@ -2885,13 +2938,24 @@ func load_campaign_progress() -> void:
 	if not parsed is Dictionary or int(parsed.get("format_version",0))!=1: return
 	var completed_value=parsed.get("completed",[])
 	if not completed_value is Array: return
-	campaign_progress={"format_version":1,"unlocked_mission":clampi(int(parsed.get("unlocked_mission",0)),0,MISSION_PATHS.size()-1),"tech_level":clampi(int(parsed.get("tech_level",0)),0,2),"completed":completed_value.duplicate()}
+	var medals_value: Variant=parsed.get("mission_medals",{})
+	var valid_medals: Dictionary={}
+	if medals_value is Dictionary:
+		for mission_id in medals_value:
+			var medal_value:=str(medals_value[mission_id]).to_upper()
+			if medal_value in ["BRONZE","SILBER","GOLD"]: valid_medals[str(mission_id)]=medal_value
+	campaign_progress={"format_version":1,"unlocked_mission":clampi(int(parsed.get("unlocked_mission",0)),0,MISSION_PATHS.size()-1),"tech_level":clampi(int(parsed.get("tech_level",0)),0,2),"completed":completed_value.duplicate(),"mission_medals":valid_medals}
 
-func record_campaign_victory() -> void:
+func record_campaign_victory(medal: String = "BRONZE") -> void:
 	var completed_value: Array=campaign_progress.completed
 	var mission_id:=str(db.mission.get("id",""))
 	if not completed_value.has(mission_id): completed_value.append(mission_id)
 	campaign_progress.completed=completed_value
+	var medals_value: Variant=campaign_progress.get("mission_medals",{})
+	var medals: Dictionary=medals_value.duplicate() if medals_value is Dictionary else {}
+	var previous_medal:=str(medals.get(mission_id,""))
+	if medal_rank(medal)>medal_rank(previous_medal): medals[mission_id]=medal.to_upper()
+	campaign_progress.mission_medals=medals
 	campaign_progress.unlocked_mission=maxi(int(campaign_progress.unlocked_mission),mini(mission_index+1,MISSION_PATHS.size()-1))
 	campaign_progress.tech_level=maxi(int(campaign_progress.tech_level),mini(mission_index+1,2))
 	var temporary:=campaign_progress_path+".tmp"
@@ -2924,6 +2988,12 @@ func mission_completion_medal(optional_total: int, optional_done: int) -> String
 	if optional_total>0 and optional_done==optional_total and int(sim.stats.buildings_lost)==0: return "GOLD"
 	if optional_done>0: return "SILBER"
 	return "BRONZE"
+
+func medal_rank(medal: String) -> int:
+	return {"BRONZE":1,"SILBER":2,"GOLD":3}.get(medal.to_upper(),0)
+
+func medal_color(medal: String) -> Color:
+	return {"BRONZE":Color("cd8b58"),"SILBER":Color("c7d2d0"),"GOLD":GOLD}.get(medal.to_upper(),MUTED)
 
 func format_score(score: int) -> String:
 	var digits:=str(score)
