@@ -1,14 +1,14 @@
 # Multiplayer: 1:1-Duell und Koop
 
-Stand: 7. Oktober 2026. Implementiert im Quellprojekt, Protokollversion 7. Beide PCs benötigen dieselbe Spielversion.
+Stand: 8. Oktober 2026. Implementiert im Quellprojekt, Protokollversion 8. Beide PCs benötigen dieselbe Spielversion.
 
 ## Start und Bedienung
 
 Spiel über SOLARIT-RANDSEKTOR-07.cmd oder Start-Solarit.ps1 starten. Im Hauptmenü MULTIPLAYER öffnen (auch im Einsatzmenü verfügbar); die Multiplayer-Lobby bietet 1:1-DUELL und KOOP GEGEN DIE KI.
 
 1. Das Multiplayer-Menü zeigt die lokale Heimnetz-IP und fragt die externe IPv4 ab. Beide Adressen lassen sich per Klick kopieren. Die externe IP wird beim Online-Dienst nur abgefragt und nicht gespeichert; mit **Öffentliche Lobby veröffentlichen** wird sie bis zu 75 Sekunden für andere Spieler gelistet.
-2. Der Host wählt den Modus und erstellt ein Spiel. Für das Lobby-Verzeichnis kann er vorher **Öffentliche Lobby veröffentlichen** aktivieren. Ohne dieses Häkchen bleibt die Adresse privat.
-3. Der Mitspieler aktualisiert die öffentliche Lobby-Liste und tritt einer ausgewählten Runde direkt bei. Jede Lobby zeigt die Host-Version; bei abweichender oder unbekannter Version ist der Beitritt gesperrt. Direkte Verbindungen vergleichen die Version nach dem Verbindungsaufbau ebenfalls. Für eine manuelle Verbindung nutzt er im selben Heimnetz die lokale IP, über das Internet die externe IP. Das Adressfeld bleibt leer, bis eine Adresse eingegeben wird. Auf demselben PC kann `127.0.0.1` manuell eingetragen werden.
+2. Der Host wählt den Modus und erstellt ein Spiel. Für das Lobby-Verzeichnis kann er vorher **Öffentliche Lobby veröffentlichen** aktivieren. Ohne dieses Häkchen bleibt die Lobby privat. Nach dem Erstellen erzeugt das Spiel einen persönlichen Einladungscode mit externer Host-IP, UDP-Port und geheimem Zugangsschlüssel. **EINLADUNGSCODE · KOPIEREN** kopiert ihn in die Zwischenablage.
+3. Eingeladene Mitspieler fügen den Code in **Host-IP oder privater Einladungscode** ein und treten direkt bei. Vor dem Lobbybeitritt prüft der Host den Zugangsschlüssel über eine frische Challenge. Ein falscher oder beschädigter Code wird abgewiesen. Teile den Code nur mit den gewünschten Mitspielern. Alternativ aktualisiert der Mitspieler die öffentliche Lobby-Liste und tritt einer ausgewählten Runde bei. Jede öffentliche Lobby zeigt die Host-Version; bei abweichender oder unbekannter Version ist der Beitritt gesperrt. Direkte Verbindungen vergleichen die Version nach dem Verbindungsaufbau ebenfalls. Für eine manuelle Verbindung nutzt er im selben Heimnetz die lokale IP, über das Internet die externe IP. Das Adressfeld bleibt leer, bis eine Adresse eingegeben wird. Auf demselben PC kann `127.0.0.1` manuell eingetragen werden.
 4. Jeder wählt seine Fraktion und Farbe. Gleiche Farben werden getrennt. Der Host wählt eine der drei Karten und gemeinsame Startressourcen.
 5. Beide bestätigen BEREIT. Änderungen an der Konfiguration setzen beide Bestätigungen zurück.
 6. Der Host startet. Im Duell steuert er Spieler 0, der Mitspieler Spieler 1. Im Koop steuern beide Spieler 0 gegen die KI.
@@ -52,7 +52,8 @@ Der Aufruf prüft Duellregeln headless, Koop zwischen zwei Prozessen sowie Duell
 Mit -OnlyUI lässt sich nur der Test der vollständigen Spielinstanzen ausführen. Optional -Port 24671 verwenden; der Duell-Test nutzt dann den Folgeport.
 
 - tests/versus.gd: faire Starts auf allen Karten, deaktivierte KI/Wellen, serverseitiger Kriegsnebel, private Gegnerdaten, Sichtwechsel, gefiltertes Restore, Eigentumsprüfung, Statistik und Siegbedingungen.
-- tests/network_roundtrip.gd: große Koop-Snapshots, Host-Fingerprints, Hold/Move/Stop, verzögerte Netzwerkverarbeitung, Wiederbeitritt und Missionswechsel.
+- tests/private_lobby_code.gd: Codeformat, Prüfsumme, Adresse und Port, fehlerhafte Codes sowie Zugangsnachweis.
+- tests/network_roundtrip.gd: falscher und gültiger Einladungscode, große Koop-Snapshots, Host-Fingerprints, Hold/Move/Stop, verzögerte Netzwerkverarbeitung, Wiederbeitritt und Missionswechsel.
 - tests/network_game.gd: beide Spieloberflächen, Lobbywahl und Bereitschaft, Chat in beide Richtungen, abgewiesener Besitz-Spoof gefolgt von gültigem Befehl, Gebäudebau des Mitspielers, Wiederbeitritt mit Chatverlauf, Ping, gefilterte Snapshots, beide Ergebnisse und Revanche.
 
 Logs: test-output/network-*.log und .err. UI-Bilder: test-output/network-duel-chat.png und network-duel-victory.png. Der Aufruf ist in Test-Solarit.ps1 eingebunden.

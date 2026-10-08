@@ -60,6 +60,8 @@ if ($LASTEXITCODE -ne 0) { throw "Updateinfo fehlgeschlagen" }
 if ($LASTEXITCODE -ne 0) { throw 'Updatekanal fehlgeschlagen' }
 & $enginePath --headless --path $gameRoot --script 'tests/network_protocol.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Multiplayer-Protokoll fehlgeschlagen' }
+& $enginePath --headless --path $gameRoot --script 'tests/private_lobby_code.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Private Multiplayer-Einladungscodes fehlgeschlagen' }
 
 & $enginePath --path $gameRoot --script 'tests/repair_details.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Reparatur und Objektinfo fehlgeschlagen' }

@@ -47,8 +47,13 @@ var last_remote_chat_at := -1000
 var reconnect_address := ""
 var reconnect_port := DEFAULT_PORT
 var local_game_version := ""
+var required_invite_secret := ""
+var join_invite_secret := ""
+var pending_auth_challenges: Dictionary = {}
 var identity_session_sent := ""
 var authority_sim: Simulation
+
+const PRIVATE_INVITE_CODE := preload("res://scripts/private_lobby_code.gd")
 
 static func game_versions_match(host_version: String, client_version: String) -> bool:
 	var numeric_version := RegEx.new()
@@ -74,7 +79,7 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	status_changed.emit("Lobby offen · UDP-Port %d · warte auf Mitspieler"%port)
 	return OK
 
-func join(address: String, port: int = DEFAULT_PORT) -> Error:
+func join(address: String, port: int = DEFAULT_PORT, invite_secret: String = "") -> Error:
 	leave(false)
 	if address.strip_edges().is_empty(): return ERR_INVALID_PARAMETER
 	var peer := ENetMultiplayerPeer.new()
@@ -82,7 +87,7 @@ func join(address: String, port: int = DEFAULT_PORT) -> Error:
 	if result != OK: return result
 	multiplayer.multiplayer_peer=peer
 	reconnect_address=address.strip_edges(); reconnect_port=port
-	role="client"; active=true; connected=false; command_sequence=0
+	role="client"; active=true; connected=false; command_sequence=0; join_invite_secret=invite_secret
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -101,6 +106,7 @@ func leave(show_status: bool = true) -> void:
 	role=""; active=false; connected=false; client_peer_id=0
 	session_id=""; command_sequence=0; host_tick=0; last_remote_sequence=0
 	mission_config.clear(); authority_sim=null
+	required_invite_secret=""; join_invite_secret=""; pending_auth_challenges.clear()
 	identity_session_sent=""
 	mission_sequence=0; mission_started=false; client_ready=false
 	snapshot_sequence=0; last_snapshot_sequence=0; pending_snapshot_sequence=0
@@ -184,7 +190,17 @@ func _on_peer_connected(peer_id: int) -> void:
 	if client_peer_id!=0 and client_peer_id!=peer_id:
 		multiplayer.multiplayer_peer.disconnect_peer(peer_id)
 		return
-	client_peer_id=peer_id; connected=true; last_remote_sequence=0
+	client_peer_id=peer_id; connected=false
+	if not required_invite_secret.is_empty():
+		var challenge := Crypto.new().generate_random_bytes(16).hex_encode().to_lower()
+		pending_auth_challenges[peer_id] = challenge
+		rpc_id(peer_id,"request_private_lobby_auth",session_id,challenge)
+		return
+	_accept_peer_connection(peer_id)
+
+func _accept_peer_connection(peer_id: int) -> void:
+	if not is_host() or peer_id != client_peer_id: return
+	connected=true; last_remote_sequence=0
 	client_ready=false; pending_snapshot_sequence=0; guest_ready=false
 	rpc_id(peer_id,"receive_lobby_offer",session_id,PROTOCOL.VERSION,mission_config)
 	rpc_id(peer_id,"receive_chat_history",session_id,chat_history)
@@ -196,6 +212,7 @@ func _on_peer_connected(peer_id: int) -> void:
 	broadcast_lobby()
 
 func _on_peer_disconnected(peer_id: int) -> void:
+	pending_auth_challenges.erase(peer_id)
 	if peer_id!=client_peer_id: return
 	client_peer_id=0; connected=false; last_remote_sequence=0
 	client_ready=false; pending_snapshot_sequence=0
@@ -205,8 +222,8 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	lobby_changed.emit()
 
 func _on_connected_to_server() -> void:
-	connected=true
-	status_changed.emit("Verbunden · warte auf den Host")
+	connected=false
+	status_changed.emit("Verbindung aufgebaut · Einladung wird geprüft")
 
 func _on_connection_failed() -> void:
 	leave(false)
@@ -216,6 +233,37 @@ func _on_server_disconnected() -> void:
 	connection_lost.emit()
 	leave(false)
 	status_changed.emit("Host nicht mehr erreichbar · Online-Partie beendet")
+
+@rpc("authority","call_remote","reliable",0)
+func request_private_lobby_auth(remote_session: String, challenge: String) -> void:
+	if not is_client() or multiplayer.get_remote_sender_id()!=1 or not PROTOCOL.valid_session_id(remote_session): return
+	if challenge.length()!=32 or not _is_hex_string(challenge): return
+	var proof := PRIVATE_INVITE_CODE.make_proof(join_invite_secret,challenge) if join_invite_secret.length()==32 else ""
+	rpc_id(1,"submit_private_lobby_auth",remote_session,proof)
+
+@rpc("any_peer","call_remote","reliable",0)
+func submit_private_lobby_auth(remote_session: String, proof: String) -> void:
+	if not is_host() or remote_session!=session_id: return
+	var peer_id := multiplayer.get_remote_sender_id()
+	if peer_id!=client_peer_id or not pending_auth_challenges.has(peer_id): return
+	var challenge := str(pending_auth_challenges[peer_id])
+	pending_auth_challenges.erase(peer_id)
+	if not PRIVATE_INVITE_CODE.proof_matches(required_invite_secret,challenge,proof):
+		rpc_id(peer_id,"receive_private_lobby_auth_result",session_id,false,"Einladungscode ungültig · Zugang abgelehnt")
+		return
+	_accept_peer_connection(peer_id)
+
+@rpc("authority","call_remote","reliable",0)
+func receive_private_lobby_auth_result(remote_session: String, accepted: bool, message: String) -> void:
+	if not is_client() or multiplayer.get_remote_sender_id()!=1 or not PROTOCOL.valid_session_id(remote_session): return
+	if accepted: return
+	leave(false)
+	status_changed.emit(message if not message.is_empty() else "Einladungscode ungültig · Zugang abgelehnt")
+
+func _is_hex_string(value: String) -> bool:
+	for character in value.to_upper():
+		if "0123456789ABCDEF".find(character)<0: return false
+	return true
 
 @rpc("any_peer","call_remote","reliable")
 func receive_command_request(packet: Variant) -> void:

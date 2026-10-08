@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.11",
+  "current_version": "0.36.12",
   "entries": [
+    {
+      "version": "0.36.12",
+      "date": "08.10.2026",
+      "title": "Private Lobbys per Einladungscode",
+      "changes": [
+        "Private Partien bleiben aus der öffentlichen Lobby-Liste heraus und können per persönlichem Einladungscode betreten werden.",
+        "Der Code enthält die externe Host-Adresse, UDP-Port und einen geheimen Zugangsschlüssel; der Host prüft den Schlüssel vor dem Lobbybeitritt.",
+        "Der Einladungscode lässt sich in der Lobby mit einem Klick kopieren. Öffentliche Lobbys bleiben weiterhin freiwillig veröffentlichbar."
+      ]
+    },
     {
       "version": "0.36.11",
       "date": "07.10.2026",

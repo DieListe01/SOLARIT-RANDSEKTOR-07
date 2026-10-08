@@ -4,8 +4,10 @@ const CatalogData = preload("res://scripts/catalog.gd")
 const GameSimulation = preload("res://scripts/simulation.gd")
 const Session = preload("res://scripts/online_session.gd")
 const Protocol = preload("res://scripts/network_protocol.gd")
+const InviteCode = preload("res://scripts/private_lobby_code.gd")
 const MISSION := "res://data/veyra.json"
-const CONFIG := {"mission":"veyra","faction":"forge","difficulty":"easy","tech_level":0,"game_version":"0.36.10"}
+const CONFIG := {"mission":"veyra","faction":"forge","difficulty":"easy","tech_level":0,"game_version":"0.36.12"}
+const INVITE_SECRET := "00112233445566778899AABBCCDDEEFF"
 
 var session: OnlineSession
 var probe: Node
@@ -29,6 +31,8 @@ var restarted := false
 var finish_requested := false
 var verified_restart_command := false
 var restart_command_sent := false
+var bad_invite_rejected := false
+var valid_invite_attempted := false
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -50,7 +54,7 @@ func run() -> void:
 	make_sim()
 	session=Session.new()
 	session.name="OnlineSession"
-	session.local_game_version="0.36.10"
+	session.local_game_version="0.36.12"
 	root.add_child(session)
 	# A separate node provides test-only state reports over the real ENet peer.
 	probe=Node.new()
@@ -63,6 +67,7 @@ func run() -> void:
 	if mode=="host":
 		var result := session.host(port)
 		if result!=OK: fail("host failed: %d"%result); return
+		session.required_invite_secret=INVITE_SECRET
 		session.set_authority(sim)
 		session.configure_lobby(CONFIG)
 		session.status_changed.connect(_on_host_status)
@@ -70,7 +75,9 @@ func run() -> void:
 		session.game_start_received.connect(_on_game_start)
 		session.world_snapshot_received.connect(_on_snapshot)
 		session.command_rejected.connect(func(message):fail(message))
-		if session.join("127.0.0.1",port)!=OK: fail("join failed"); return
+		session.status_changed.connect(func(message):
+			if message.contains("Einladungscode ungültig"): bad_invite_rejected=true)
+		if session.join("127.0.0.1",port,"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")!=OK: fail("invalid invite attempt failed to start"); return
 	for frame in 1500:
 		if mode=="host":
 			sim.tick(1.0/30.0)
@@ -89,12 +96,17 @@ func run() -> void:
 				session.leave(false)
 				quit(0); return
 		else:
+			if mode=="client" and bad_invite_rejected and not valid_invite_attempted:
+				valid_invite_attempted=true
+				var invite := InviteCode.decode(InviteCode.encode("127.0.0.1",INVITE_SECRET,port))
+				if not bool(invite.get("ok",false)): fail("valid invite code did not decode"); return
+				if session.join(str(invite.address),int(invite.port),str(invite.secret))!=OK: fail("valid invite join failed to start"); return
 			if reconnecting:
 				reconnecting=false
 				session.leave(false)
 				game_started=false; previous_time=-1.0
 				await create_timer(0.4).timeout
-				if session.join("127.0.0.1",port)!=OK: fail("rejoin failed"); return
+				if session.join("127.0.0.1",port,INVITE_SECRET)!=OK: fail("rejoin failed"); return
 		await create_timer(1.0/30.0).timeout
 	fail("timed out: snapshots=%d reports=%d hold=%s move=%s stop=%s moved=%s"%[snapshots,reports,saw_hold,saw_move,saw_stop,moved])
 

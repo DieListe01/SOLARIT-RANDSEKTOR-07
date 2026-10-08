@@ -113,6 +113,7 @@ func run() -> void:
 	check(not external_ip_button.disabled and external_ip_button.text.contains("79.240.71.178"),"Successful external-IP lookup updates its copy control")
 	var join_address: LineEdit = online_panel.get_node("OnlineAddress")
 	check(join_address.text.is_empty() and (online_panel.get_node("JoinOnlineClient") as Button).disabled,"Direct join starts empty instead of suggesting localhost")
+	check(join_address.placeholder_text.contains("Einladungscode"),"Join field explains private invite-code entry")
 	var host_button: Button = online_panel.get_node("CreateOnlineHost")
 	var client_button: Button = online_panel.get_node("JoinOnlineClient")
 	var refresh_button: Button = online_panel.get_node("RefreshPublicLobbies")
@@ -144,6 +145,15 @@ func run() -> void:
 	public_list = online_panel.get_node("OnlineDirectoryList")
 	check(public_list.is_item_disabled(0) and public_list.get_item_text(0).contains("VERALTET") and (online_panel.get_node("JoinPublicLobby") as Button).disabled,"Expired lobbies are marked stale and cannot be joined")
 	game._on_online_lobbies_received([], "")
+	game.online.active=true; game.online.role="host"; game.online.mission_config=game.online_mission_config()
+	game.online.required_invite_secret="00112233445566778899AABBCCDDEEFF"
+	game.public_lobby_requested=false
+	game._on_online_public_address_received("79.240.71.178",true)
+	online_panel=game.overlay.get_node("OnlineLobbyPanel")
+	var invite_button: Button=online_panel.get_node("PrivateLobbyInviteCodeCopy")
+	check(not invite_button.disabled and invite_button.text.contains("SR07-") and not online_panel.has_node("PublishPublicLobby"),"Private host receives a shareable invite code without public listing")
+	check(invite_button.tooltip_text.contains("Zugangsschlüssel"),"Invite-code help explains that it grants access")
+	game.online.leave(false); game.public_lobby_requested=false; game.show_online_menu()
 	game.online_directory.enabled = true
 	game.online_directory.base_url = "http://127.0.0.1:1"
 	var previous_lobby_check: int = game.online_directory_last_check_msec

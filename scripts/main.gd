@@ -12,6 +12,7 @@ const MISSION_PATHS := ["res://data/veyra.json","res://data/dry_vein.json","res:
 const OnlineSessionScript := preload("res://scripts/online_session.gd")
 const OnlineStatsScript := preload("res://scripts/online_stats.gd")
 const OnlineDirectoryScript := preload("res://scripts/online_directory.gd")
+const PrivateLobbyCode := preload("res://scripts/private_lobby_code.gd")
 const PlayerProfileScript := preload("res://scripts/player_profile.gd")
 const MatchRecorderScript := preload("res://scripts/match_recorder.gd")
 const MatchChartScript := preload("res://scripts/match_chart.gd")
@@ -40,6 +41,7 @@ var online_directory_last_check_msec := 0
 var online_directory_selected: Dictionary = {}
 var public_lobby_closed_for_guest := false
 var public_lobby_requested := false
+var private_lobby_invite_code := ""
 var online_directory_status_label: Label
 var online_stats_enabled := true
 var online_stats_status := "Noch keine Serververbindung"
@@ -809,29 +811,43 @@ func show_online_menu() -> void:
 		label(p,"HOST-ADRESSE / DIREKT BEITRETEN",Vector2(40,505),13,MUTED)
 		var address:=LineEdit.new()
 		address.name="OnlineAddress"; address.text=online.reconnect_address
-		address.placeholder_text="Lokale IP im Heimnetz oder externe IP über das Internet"
-		address.tooltip_text="Im Heimnetz die lokale IP des Hosts, über das Internet dessen öffentliche IP. UDP %d muss zum Spiele-PC weitergeleitet sein." % OnlineSession.DEFAULT_PORT
+		address.placeholder_text="Host-IP oder privater Einladungscode"
+		address.tooltip_text="Host-IP oder Einladungscode SR07-… eingeben. Über das Internet muss UDP %d zum Host-PC weitergeleitet sein." % OnlineSession.DEFAULT_PORT
 		address.position=Vector2(40,529); address.size=Vector2(1010,42); p.add_child(address)
 		var create_host := button(p,"SPIEL ERSTELLEN  /  HOST",Rect2(40,579,495,46),func():
 			var result:=online.host()
 			if result!=OK: online_status_text="Host konnte nicht starten (%d)."%result; show_online_menu(); return
+			if not publish_toggle.button_pressed: online.required_invite_secret = PrivateLobbyCode.create_secret()
 			var config := online_mission_config()
 			online.configure_lobby(config)
 			public_lobby_closed_for_guest = false
 			public_lobby_requested = publish_toggle.button_pressed
+			private_lobby_invite_code = ""
+			if not public_lobby_requested: _request_online_public_address()
 			if publish_toggle.button_pressed and is_instance_valid(online_directory):
 				online_directory_message = "Lobby wird veröffentlicht …"
 				online_directory.publish_lobby(str(commander_profile.data.profile_id),str(commander_profile.data.nickname),str(config.get("mode", lobby_mode)),str(config.get("mission", db.mission.get("id", ""))),str(db.mission.get("display_name", db.mission.get("name", "Einsatz"))),OnlineSession.DEFAULT_PORT)
 			show_online_menu())
 		create_host.name = "CreateOnlineHost"
 		var join_client := button(p,"SPIEL BEITRETEN  /  CLIENT",Rect2(555,579,495,46),func():
-			var result:=online.join(address.text,online.reconnect_port)
+			var target_address := address.text.strip_edges()
+			var target_port := online.reconnect_port
+			var invite_secret := ""
+			if PrivateLobbyCode.looks_like_code(target_address):
+				var invite := PrivateLobbyCode.decode(target_address)
+				if not bool(invite.get("ok", false)):
+					notify(str(invite.get("error", "Einladungscode ungültig.")))
+					return
+				target_address = str(invite.address)
+				target_port = int(invite.port)
+				invite_secret = str(invite.secret)
+			var result:=online.join(target_address,target_port,invite_secret)
 			if result!=OK: online_status_text="Verbindung fehlgeschlagen (%d)."%result
 			show_online_menu())
 		join_client.name = "JoinOnlineClient"
 		join_client.disabled = address.text.strip_edges().is_empty()
 		address.text_changed.connect(func(value: String): join_client.disabled = value.strip_edges().is_empty())
-		join_client.tooltip_text = "Verbindet direkt mit der eingetragenen Host-Adresse über UDP %d." % OnlineSession.DEFAULT_PORT
+		join_client.tooltip_text = "Verbindet mit der eingetragenen Host-Adresse oder dem privaten Einladungscode."
 		label(p,"ÖFFENTLICHE LOBBYS",Vector2(40,645),14,MINT)
 		var refresh_lobbies := button(p,"LOBBYS AKTUALISIEREN",Rect2(790,634,260,38),func():
 			_check_online_lobbies()
@@ -876,6 +892,17 @@ func show_online_menu() -> void:
 		online_status_label=label(p,"HOSTVERSION v%s  ·  %s" % [host_game_version,online_status_text],Vector2(40,157),18,MINT,1190)
 		if online.is_host() and public_lobby_requested:
 			label(p,"ÖFFENTLICHE LOBBY  ·  " + online_directory_message,Vector2(40,184),13,MINT,1200)
+		elif online.is_host():
+			var invite_text := "EINLADUNGSCODE  ·  %s  ·  KOPIEREN" % private_lobby_invite_code if not private_lobby_invite_code.is_empty() else "EINLADUNGSCODE  ·  EXTERNE IP WIRD ERMITTELT …"
+			var invite_button := button(p,invite_text,Rect2(40,179,1210,32),func():
+				if private_lobby_invite_code.is_empty(): return
+				DisplayServer.clipboard_set(private_lobby_invite_code)
+				notify("Privater Einladungscode kopiert."))
+			invite_button.name = "PrivateLobbyInviteCodeCopy"
+			invite_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			invite_button.add_theme_font_size_override("font_size",15)
+			invite_button.disabled = private_lobby_invite_code.is_empty()
+			invite_button.tooltip_text = "Der private Code enthält deine externe IP, UDP-Port %d und einen Zugangsschlüssel. Teile ihn nur direkt mit eingeladenen Spielern." % OnlineSession.DEFAULT_PORT
 		var prefix: String="host" if online.is_host() else "client"
 		label(p,"DEINE FRAKTION / FARBE",Vector2(40,213),14,MUTED)
 		var factions:=OptionButton.new()
@@ -945,6 +972,7 @@ func show_online_menu() -> void:
 	button(p,"VERBINDUNG TRENNEN",Rect2(40,lobby_size.y-82,280,42),func():
 		if is_instance_valid(online_directory): online_directory.close_lobby()
 		public_lobby_requested = false
+		private_lobby_invite_code = ""
 		online.leave()
 		show_main_menu())
 	button(p,"ZURÜCK",Rect2(340,lobby_size.y-82,250,42),func():clear(overlay))
@@ -1214,6 +1242,10 @@ func _on_online_public_address_received(address: String, success: bool) -> void:
 	if is_instance_valid(online_public_address_button):
 		online_public_address_button.text = _public_address_button_text()
 		online_public_address_button.disabled = online_public_address.is_empty()
+	if online.is_host() and not public_lobby_requested:
+		private_lobby_invite_code = PrivateLobbyCode.encode(online_public_address, online.required_invite_secret, OnlineSession.DEFAULT_PORT) if success else ""
+		if is_instance_valid(overlay) and overlay.get_node_or_null("OnlineLobbyPanel") != null:
+			show_online_menu()
 
 func _advance_online_directory(delta: float) -> void:
 	if not is_instance_valid(overlay) or overlay.get_node_or_null("OnlineLobbyPanel") == null or online.active:
