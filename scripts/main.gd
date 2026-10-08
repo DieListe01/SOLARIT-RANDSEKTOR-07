@@ -1535,14 +1535,16 @@ func build_hud() -> void:
 			if id=="core": continue
 			catalog_count+=1
 			var d: Dictionary = table[id]
-			var b := button(catalog_content,"",Rect2(0,y,274,72),func():catalog_click(id,false))
+			var card_width: float=274.0
+			var card_height: float=82.0 if category=="units" else 72.0
+			var b := button(catalog_content,"",Rect2(0,y,card_width,card_height),func():catalog_click(id,false))
 			b.clip_contents=true
 			b.alignment=HORIZONTAL_ALIGNMENT_LEFT
 			b.add_theme_font_size_override("font_size",12)
 			for state in ["normal","hover","pressed","disabled","focus"]:
 				var style: StyleBoxFlat = b.get_theme_stylebox(state).duplicate()
 				style.content_margin_left=61
-				style.content_margin_right=76 if category=="units" else 5
+				style.content_margin_right=91 if category=="units" else 5
 				b.add_theme_stylebox_override(state,style)
 			var icon := IndustrialThumbnail.new()
 			icon.name="CatalogArtwork"
@@ -1550,12 +1552,12 @@ func build_hud() -> void:
 			icon.mouse_filter=Control.MOUSE_FILTER_IGNORE
 			b.add_child(icon)
 			var marker:=ColorRect.new()
-			marker.position=Vector2.ZERO; marker.size=Vector2(3,72); marker.color=Color("9e524c"); marker.visible=false
+			marker.position=Vector2.ZERO; marker.size=Vector2(3,card_height); marker.color=Color("9e524c"); marker.visible=false
 			marker.mouse_filter=Control.MOUSE_FILTER_IGNORE
 			b.add_child(marker); requirement_marks[id]=marker
 			var activity_bar := ProgressBar.new()
 			activity_bar.name="CatalogActivityBar"
-			activity_bar.position=Vector2(61,61)
+			activity_bar.position=Vector2(61,70 if category=="units" else 61)
 			activity_bar.size=Vector2(136,4) if category=="units" else Vector2(206,4)
 			activity_bar.show_percentage=false
 			activity_bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -1571,16 +1573,14 @@ func build_hud() -> void:
 			if category=="units":
 				var minus:=button(b,"−",Rect2(201,5,24,25),catalog_adjust_quantity.bind(id,-1))
 				minus.name="QtyMinus"
-				minus.tooltip_text="1 entfernen"
 				var qty:=label(b,"×0",Vector2(225,7),11,MUTED,26)
 				qty.name="QtyLabel"; qty.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; qty.mouse_filter=Control.MOUSE_FILTER_IGNORE
 				var plus:=button(b,"+",Rect2(250,5,24,25),catalog_adjust_quantity.bind(id,1))
 				plus.name="QtyPlus"
-				plus.tooltip_text="1 hinzufügen"
-				var up:=button(b,"↑",Rect2(214,34,28,24),catalog_adjust_priority.bind(id,-1))
-				up.name="PriorityUp"; up.tooltip_text="Nach oben"
-				var down:=button(b,"↓",Rect2(246,34,28,24),catalog_adjust_priority.bind(id,1))
-				down.name="PriorityDown"; down.tooltip_text="Nach unten"
+				var up:=button(b,"↑",Rect2(214,43,28,25),catalog_adjust_priority.bind(id,-1))
+				up.name="PriorityUp"
+				var down:=button(b,"↓",Rect2(246,43,28,25),catalog_adjust_priority.bind(id,1))
+				down.name="PriorityDown"
 				for compact in [minus,plus,up,down]:
 					compact.add_theme_font_size_override("font_size",13)
 					for compact_state in ["normal","hover","pressed","disabled","focus"]:
@@ -1592,7 +1592,7 @@ func build_hud() -> void:
 			b.gui_input.connect(func(e):
 				if e is InputEventMouseButton and e.pressed and e.button_index==MOUSE_BUTTON_RIGHT: catalog_click(id,true); b.accept_event())
 			buttons[id]=b
-			y+=78
+			y+=88 if category=="units" else 78
 	catalog_content.custom_minimum_size=Vector2(274,maxf(744,y-6))
 	queue_label=label(side,"",Vector2(18,857),16,MUTED,264)
 	production_bar=ProgressBar.new()
@@ -1978,7 +1978,7 @@ func refresh_production_list() -> void:
 		var current_def: Dictionary=db.units[current_kind]
 		var production_time:=float(current_def.time)*(0.85 if int(factory.get("upgrade_level",0))>0 else 1.0)
 		var completion:=clampi(int(factory.progress/maxf(1.0,production_time)*100.0),0,99)
-		var job_progress := production_content.get_node_or_null("JobProgress%d"%int(factory.id)) as ProgressBar
+		var job_progress := production_content.find_child("JobProgress%d"%int(factory.id),true,false) as ProgressBar
 		if job_progress: job_progress.value=completion
 		var next_text: String="—"
 		if factory.queue.size()>1:
@@ -2034,19 +2034,17 @@ func rebuild_production_list(factories: Array, signature: String) -> void:
 					if queue_index==0:
 						var progress := ProgressBar.new()
 						progress.name="JobProgress%d"%factory_id
-						progress.position=Vector2(7,y+43); progress.size=Vector2(230,5); progress.show_percentage=false
+						progress.position=Vector2(7,48); progress.size=Vector2(164,5); progress.show_percentage=false
 						var fill := StyleBoxFlat.new(); fill.bg_color=MINT
 						progress.add_theme_stylebox_override("fill",fill)
 						var background := StyleBoxFlat.new(); background.bg_color=Color("18110c")
 						progress.add_theme_stylebox_override("background",background)
 						progress.add_theme_font_size_override("font_size",1)
-						production_content.add_child(progress)
+						item_panel.add_child(progress)
 					var priority:=button(item_panel,"↑",Rect2(184,5,23,27),move_production_order.bind(factory_id,queue_index,-1))
-					priority.tooltip_text="Als Nächstes produzieren"
 					priority.disabled=queue_index<=1 or not factory.complete
 					priority.add_theme_color_override("font_color",MINT)
 					var demote:=button(item_panel,"↓",Rect2(210,5,23,27),move_production_order.bind(factory_id,queue_index,1))
-					demote.tooltip_text="Nach unten"
 					demote.disabled=queue_index==0 or queue_index>=factory.queue.size()-1 or not factory.complete
 					var cancel:=button(item_panel,"×",Rect2(236,5,23,27),cancel_production_order.bind(factory_id,queue_index))
 					for action in [priority,demote,cancel]:
@@ -2641,11 +2639,26 @@ func show_end() -> void:
 	var result_score:=calculate_run_score() if sim.result=="victory" and not online.active else 0
 	var newly_recorded:=record_commander_result("singleplayer",result_score)
 	label(p,"KOMMANDANT / "+str(commander_profile.data.nickname).to_upper(),Vector2(44,132),15,MUTED)
-	label(p,"Zeit                %02d:%02d\nSolarit geliefert   %d\nFahrzeuge gebaut     %d\nFahrzeuge verloren   %d\nFeinde zerstört      %d\nGebäude errichtet    %d\nGebäude verloren     %d" % [int(sim.time)/60,int(sim.time)%60,int(s.gathered),s.produced,s.lost,s.kills,s.built,s.buildings_lost],Vector2(44,164),23,Color("c8d8ce"))
+	var result_rows: Array[Array]=[
+		["EINSATZZEIT","%02d:%02d"%[int(sim.time)/60,int(sim.time)%60]],
+		["SOLARIT GELIEFERT",format_score(int(s.gathered))],
+		["FAHRZEUGE GEBAUT",str(int(s.produced))],
+		["FAHRZEUGE VERLOREN",str(int(s.lost))],
+		["FEINDE ZERSTÖRT",str(int(s.kills))],
+		["GEBÄUDE ERRICHTET",str(int(s.built))],
+		["GEBÄUDE VERLOREN",str(int(s.buildings_lost))]
+	]
+	for row_index in result_rows.size():
+		var row_y:=160+row_index*30
+		var metric_name:=label(p,str(result_rows[row_index][0]),Vector2(44,row_y),18,MUTED,360)
+		metric_name.size.y=27
+		var metric_value:=label(p,str(result_rows[row_index][1]),Vector2(415,row_y),19,Color("c8d8ce"),175)
+		metric_value.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+		metric_value.size.y=27
 	var optional_total:=optional_objective_count()
 	var optional_done:=completed_optional_objective_count()
 	var medal:=mission_completion_medal(optional_total,optional_done) if sim.result=="victory" else "NICHT ABGESCHLOSSEN"
-	label(p,"BEWERTUNG  ·  %s     NEBENZIELE  %d / %d     BONUS  +%s" % [medal,optional_done,optional_total,format_score(optional_done*2500)],Vector2(44,375),17,GOLD,670)
+	label(p,"BEWERTUNG  ·  %s     NEBENZIELE  %d / %d     BONUS  +%s" % [medal,optional_done,optional_total,format_score(optional_done*2500)],Vector2(44,390),17,GOLD,670)
 	if sim.result=="victory":
 		highscore_mission_index=mission_index
 		if not online.active: record_campaign_victory(medal)
@@ -2662,9 +2675,9 @@ func show_end() -> void:
 			})
 		var ranking_text := "PUNKTE  %s    ·    PLATZ %s" % [format_score(int(score_result.score)),"%d / 10" % int(score_result.rank) if int(score_result.rank)>0 else "AUSSERHALB DER TOP 10"]
 		if score_result.new_best: ranking_text+="    ·    NEUER BESTWERT"
-		label(p,ranking_text,Vector2(44,435),18,GOLD,660)
-		if bool(newly_recorded.get("new_best",false)): label(p,"NEUER PERSÖNLICHER REKORD",Vector2(44,492),16,MINT,660)
-		label(p,"BESTENLISTE   "+leaderboard_preview(),Vector2(44,467),15,MINT,660)
+		label(p,ranking_text,Vector2(44,440),18,GOLD,660)
+		if bool(newly_recorded.get("new_best",false)): label(p,"NEUER PERSÖNLICHER REKORD",Vector2(44,494),16,MINT,660)
+		label(p,"BESTENLISTE   "+leaderboard_preview(),Vector2(44,468),15,MINT,660)
 	if sim.result=="victory" and mission_index<MISSION_PATHS.size()-1:
 		button(p,"ERNEUT",Rect2(42,670,190,58),start_game)
 		button(p,"NÄCHSTER EINSATZ",Rect2(247,670,255,58),func():select_mission(mission_index+1))

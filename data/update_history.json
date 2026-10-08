@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.18",
+  "current_version": "0.36.19",
   "entries": [
+    {
+      "version": "0.36.19",
+      "date": "08.10.2026",
+      "title": "Baumenü und Einsatzbericht überarbeitet",
+      "changes": [
+        "Die Fahrzeugkarten nutzen den Platz klarer: Auftragsmenge, Warteschlangenpriorität und Produktionsfortschritt sind voneinander getrennt.",
+        "Produktionsfortschrittsbalken bleiben jetzt in ihrer jeweiligen Werftkarte; Pfeil-Tooltips verdecken keine Fahrzeugaufträge mehr.",
+        "Der Einsatzabschluss zeigt Kennzahlen in getrennten Zeilen. Bewertung und Nebenziele überlagern keine Verlustwerte mehr."
+      ]
+    },
     {
       "version": "0.36.18",
       "date": "08.10.2026",

@@ -129,6 +129,9 @@ func run() -> void:
 	game.sim.build("factory",0,Vector2i(9,49))
 	for i in 16*30: game.sim.tick(1.0/30)
 	game.category="units"; game.build_hud()
+	var vehicle_card: Button=game.buttons.tank
+	check(vehicle_card.size.x>=270 and vehicle_card.size.y>=80,"Vehicle cards give unit details and production controls separate space")
+	check(vehicle_card.get_node("PriorityUp").tooltip_text.is_empty() and vehicle_card.get_node("PriorityDown").tooltip_text.is_empty(),"Queue arrow hover text does not cover adjacent vehicle cards")
 	var button_point: Vector2 = game.get_global_transform_with_canvas().affine_inverse()*game.buttons.tank.get_global_rect().get_center()
 	await mouse(button_point,1,true)
 	await mouse(button_point,1,false)
@@ -142,6 +145,8 @@ func run() -> void:
 	check(game.production_rows.size()==1,"Production overview lists each owned vehicle yard")
 	var production_text: String=game.production_rows.values()[0].text
 	check(production_text.contains("JETZT:") and production_text.contains("NÄCHST:") and production_text.contains("Amboss"),"Production overview shows running unit and next queued vehicle")
+	var first_job_progress: ProgressBar=game.production_content.find_child("JobProgress%d"%int(game.production_rows.keys()[0]),true,false) as ProgressBar
+	check(first_job_progress!=null and first_job_progress.get_parent() is Panel and first_job_progress.position.y<first_job_progress.get_parent().size.y,"Production progress stays inside its own queue card")
 	var priority_buttons: Array=game.production_content.find_children("*","Button",true,false).filter(func(item):return item.text=="↑")
 	check(priority_buttons.size()==4 and not priority_buttons[3].disabled,"Each queued vehicle has an enabled promote-to-next action")
 	priority_buttons[3].pressed.emit()
@@ -232,6 +237,10 @@ func run() -> void:
 	game._process(0.05)
 	await capture("victory")
 	check(game.ended and game.paused,"Victory debrief freezes play")
+	var debrief_labels: Array=game.overlay.find_children("*","Label",true,false)
+	var lost_buildings_label: Label=debrief_labels.filter(func(item):return item.text=="GEBÄUDE VERLOREN")[0]
+	var rating_label: Label=debrief_labels.filter(func(item):return item.text.begins_with("BEWERTUNG"))[0]
+	check(not lost_buildings_label.get_global_rect().intersects(rating_label.get_global_rect()),"Debrief rating does not overlap the last match statistic")
 	game.start_game()
 	game.sim.destroy(game.sim.buildings(0,"core")[0].id)
 	game.sim.check_objectives()
