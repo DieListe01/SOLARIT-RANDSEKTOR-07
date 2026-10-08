@@ -148,8 +148,15 @@ func measure_building_crowd() -> bool:
 	var damaged_cache_ok: bool=game.renderer.building_cache_hits>0 and game.renderer.building_cache_misses==0
 	if not damaged_cache_ok: push_error("BUILDING DAMAGE CACHE REGRESSION: damaged completed structures bypassed the cached body")
 	print("RENDER DAMAGED BUILDING: cached body with live damage overlay: %s | hits/misses %d/%d" % [damaged_cache_ok,game.renderer.building_cache_hits,game.renderer.building_cache_misses])
+	game.sim.entities[damaged_id].upgrading=true
+	game.sim.entities[damaged_id].upgrade_progress=1.0
+	game.renderer.queue_redraw()
+	await settle_frames(4)
+	var upgrading_cache_ok: bool=game.renderer.building_cache_hits>0 and game.renderer.building_cache_misses==0
+	if not upgrading_cache_ok: push_error("BUILDING UPGRADE CACHE REGRESSION: completed structures under upgrade bypassed the cached body")
+	print("RENDER UPGRADING BUILDING: cached body with live upgrade progress: %s | hits/misses %d/%d" % [upgrading_cache_ok,game.renderer.building_cache_hits,game.renderer.building_cache_misses])
 	game.sim.entities.erase(damaged_id)
-	return cache_ok and static_cache_ok and damaged_cache_ok
+	return cache_ok and static_cache_ok and damaged_cache_ok and upgrading_cache_ok
 
 func measure_destruction_debris() -> void:
 	game.renderer.combat_fx.ruins.clear()

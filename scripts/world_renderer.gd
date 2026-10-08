@@ -188,10 +188,11 @@ func building_cache_key(entity: Dictionary) -> String:
 	return "%s|%d|%s|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage]
 
 func draw_cached_building(entity: Dictionary) -> bool:
-	# Construction and upgrades stay live. Completed buildings use a cached body;
-	# damage and repair effects are drawn separately so combat cannot force an
-	# expensive full-art redraw on every frame.
-	if not entity.complete or entity.get("upgrading",false):
+	# Construction stays live because its silhouette changes with build progress.
+	# Completed buildings, including those being upgraded, use a cached stable
+	# body; damage, repair and upgrade progress are drawn separately so combat
+	# cannot force an expensive full-art redraw on every frame.
+	if not entity.complete:
 		building_cache_misses+=1
 		return false
 	var key := building_cache_key(entity)

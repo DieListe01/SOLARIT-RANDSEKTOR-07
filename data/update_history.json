@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.23",
+  "current_version": "0.36.24",
   "entries": [
+    {
+      "version": "0.36.24",
+      "date": "08.10.2026",
+      "title": "Gebäudepass bei Upgrades beschleunigt",
+      "changes": [
+        "Fertiggestellte Gebäude bleiben während eines Ausbaus im Textur-Cache; Fortschritt und Kampfschäden werden weiterhin live angezeigt.",
+        "Damit entfällt das erneute Zeichnen der aufwendigen Gebäudegrafik in jedem Frame während laufender Upgrades."
+      ]
+    },
     {
       "version": "0.36.23",
       "date": "08.10.2026",
