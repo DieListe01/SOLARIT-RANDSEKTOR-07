@@ -533,7 +533,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(400, {"error": "invalid_time"})
                 return
             now = int(time.time())
-            with connect_db() as db:
+            with database() as db:
                 player = db.execute("SELECT 1 FROM players WHERE game_id=? AND profile_id=?", (game_id, profile)).fetchone()
                 if not player:
                     self._json(409, {"error": "heartbeat_required"})
