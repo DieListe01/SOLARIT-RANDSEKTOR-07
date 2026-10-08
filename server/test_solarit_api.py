@@ -176,14 +176,34 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(status, 503)
         self.assertEqual(body["error"], "public_address_unavailable")
 
-        with patch.object(api.Handler, "_service_public_ip", return_value="79.240.71.178"):
+        with patch.object(api.Handler, "_service_public_ip", return_value="8.8.8.8"):
             status, body = self.request("GET", path, headers={"X-Forwarded-For": "192.168.178.50, 192.168.178.148"})
         self.assertEqual(status, 200)
-        self.assertEqual(body, {"ok": True, "address": "79.240.71.178"})
+        self.assertEqual(body, {"ok": True, "address": "8.8.8.8"})
 
         status, body = self.request("GET", path, headers={"X-Forwarded-For": "8.8.8.8, 192.168.178.148"})
         self.assertEqual(status, 200)
         self.assertEqual(body, {"ok": True, "address": "8.8.8.8"})
+
+    def test_lan_public_address_fallback_uses_public_dns_when_split_dns_is_private(self):
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _limit):
+                return json.dumps({"Answer": [
+                    {"name": "api.dl-home.de", "type": 1, "data": "192.168.178.148"},
+                    {"name": "api.dl-home.de", "type": 1, "data": "8.8.8.8"},
+                ]}).encode("utf-8")
+
+        handler = object.__new__(api.Handler)
+        with patch.object(api.Handler, "_system_ipv4_results", return_value=[
+            (None, None, 0, "", ("192.168.178.148", 0)),
+        ]), patch.object(api, "urlopen", return_value=FakeResponse()):
+            self.assertEqual(handler._service_public_ip(), "8.8.8.8")
 
     def test_legacy_database_migrates_into_solarit_namespace(self):
         path = Path(self.temp.name) / "legacy.sqlite3"

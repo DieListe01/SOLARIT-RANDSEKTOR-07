@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.17",
+  "current_version": "0.36.18",
   "entries": [
+    {
+      "version": "0.36.18",
+      "date": "08.10.2026",
+      "title": "Externe IP auch bei internem DNS-Fallback",
+      "changes": [
+        "Die API ermittelt die öffentliche Router-IP bei interner DNS-Auflösung nun zusätzlich über öffentliche DNS-Dienste. Dadurch wird die externe IP auch im Heimnetz angezeigt, wenn api.dl-home.de intern auf die Proxy-Adresse zeigt.",
+        "Die IP-Adresse des Spielers wird weiterhin nicht in der API-Datenbank gespeichert."
+      ]
+    },
     {
       "version": "0.36.17",
       "date": "08.10.2026",

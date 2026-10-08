@@ -15,7 +15,8 @@ import time
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.request import Request, urlopen
 
 DB_PATH = Path(os.environ.get("SOLARIT_DB", "/var/lib/solarit-api/solarit.sqlite3"))
 ADMIN_TOKEN = os.environ.get("SOLARIT_ADMIN_TOKEN", "")
@@ -32,6 +33,10 @@ GAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{1,63}$")
 DEFAULT_GAME_ID = "solarit-randsektor-07"
 TRUSTED_PROXY_EDGE = os.environ.get("SOLARIT_PROXY_EDGE", "192.168.178.148")
 PUBLIC_ADDRESS_HOST = os.environ.get("SOLARIT_PUBLIC_ADDRESS_HOST", "api.dl-home.de")
+PUBLIC_DNS_JSON_URLS = (
+    "https://cloudflare-dns.com/dns-query",
+    "https://dns.google/resolve",
+)
 ALLOWED_GAMES = {
     item.strip() for item in os.environ.get("SOLARIT_ALLOWED_GAMES", DEFAULT_GAME_ID).split(",")
     if GAME_RE.fullmatch(item.strip())
@@ -235,15 +240,18 @@ class Handler(BaseHTTPRequestHandler):
             return ""
         return candidate if address.is_global else ""
 
+    def _system_ipv4_results(self):
+        try:
+            return socket.getaddrinfo(PUBLIC_ADDRESS_HOST, None, socket.AF_INET, socket.SOCK_STREAM)
+        except OSError:
+            return []
+
     def _service_public_ip(self) -> str:
         # A LAN client may reach this service through NAT loopback, so its
-        # forwarded address is private. DNS for the public API hostname then
-        # provides the router's current WAN address for that same home network.
-        try:
-            results = socket.getaddrinfo(PUBLIC_ADDRESS_HOST, None, socket.AF_INET, socket.SOCK_STREAM)
-        except OSError:
-            return ""
-        for result in results:
+        # forwarded address is private. Some home DNS resolvers return the
+        # reverse proxy's private address for the API hostname, so retry with
+        # public DNS-over-HTTPS before giving up.
+        for result in self._system_ipv4_results():
             candidate = result[4][0]
             try:
                 address = ipaddress.IPv4Address(candidate)
@@ -251,6 +259,33 @@ class Handler(BaseHTTPRequestHandler):
                 continue
             if address.is_global:
                 return candidate
+
+        query = urlencode({"name": PUBLIC_ADDRESS_HOST, "type": "A"})
+        for resolver in PUBLIC_DNS_JSON_URLS:
+            request = Request(
+                resolver + "?" + query,
+                headers={"Accept": "application/dns-json", "User-Agent": "SolaritAPI/1.0"},
+            )
+            try:
+                with urlopen(request, timeout=2.0) as response:
+                    payload = json.loads(response.read(8192).decode("utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if not isinstance(payload, dict):
+                continue
+            answers = payload.get("Answer", [])
+            if not isinstance(answers, list):
+                continue
+            for answer in answers:
+                if not isinstance(answer, dict) or answer.get("type") != 1:
+                    continue
+                candidate = str(answer.get("data", ""))
+                try:
+                    address = ipaddress.IPv4Address(candidate)
+                except ipaddress.AddressValueError:
+                    continue
+                if address.is_global:
+                    return candidate
         return ""
 
     def do_GET(self) -> None:
