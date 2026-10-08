@@ -19,14 +19,14 @@ func run() -> void:
 	await process_frame
 	game.skip_intro(); game.set_classic(false)
 	check(game.menu_buttons.has("start") and game.update_button.disabled and game.update_button.text=="UPDATES AB RELEASE","unpublished local build explains that the release feed is not configured")
-	check(game.update_history.current_version=="0.36.15","Central current version")
-	check(game.update_history.entries.size()==51,"Every archived version plus new release")
-	check(FileAccess.get_file_as_string("res://export_presets.cfg").contains("0.36.15.0"),"Export version matches displayed history")
-	game.show_available_update({"version":"0.36.16","notes":"Test release notes."})
+	check(game.update_history.current_version=="0.36.16","Central current version")
+	check(game.update_history.entries.size()==52,"Every archived version plus new release")
+	check(FileAccess.get_file_as_string("res://export_presets.cfg").contains("0.36.16.0"),"Export version matches displayed history")
+	game.show_available_update({"version":"0.36.17","notes":"Test release notes."})
 	await process_frame
 	var offer_panel: Control = game.overlay.get_child(0)
-	check(offer_panel.get_node("InstalledVersion").text=="v0.36.15","Update offer clearly shows installed version")
-	check(offer_panel.get_node("NewVersion").text=="v0.36.16","Update offer clearly shows the new version")
+	check(offer_panel.get_node("InstalledVersion").text=="v0.36.16","Update offer clearly shows installed version")
+	check(offer_panel.get_node("NewVersion").text=="v0.36.17","Update offer clearly shows the new version")
 	await capture("update_available_versions")
 	for child in offer_panel.get_children():
 		if child is Button and child.text=="SPÄTER": child.pressed.emit(); break
@@ -39,7 +39,7 @@ func run() -> void:
 	var panel: Control = game.overlay.get_child(0)
 	var versions: ItemList = panel.get_node("Versions")
 	var details: RichTextLabel = panel.get_node("UpdateDetails")
-	check(versions.item_count==51 and details.text.contains("0.36.15") and details.text.contains("08.10.2026") and details.text.contains("Medaille") and details.text.contains("Installer"),"Latest release opens from menu")
+	check(versions.item_count==52 and details.text.contains("0.36.16") and details.text.contains("08.10.2026") and details.text.contains("Versionsnummer") and details.text.contains("Intro"),"Latest release opens from menu")
 	check(details.scroll_active,"Latest release details open in the scrollable history")
 	var private_lobby_index:=index_for_version(versions,"0.36.13")
 	versions.select(private_lobby_index); versions.item_selected.emit(private_lobby_index)
@@ -56,7 +56,7 @@ func run() -> void:
 		await process_frame
 		event=InputEventKey.new(); event.keycode=KEY_DOWN; event.pressed=false; Input.parse_input_event(event)
 		await process_frame
-	check(details.text.contains("0.27") and not details.text.contains("0.36.15"),"Real keyboard navigation changes release details")
+	check(details.text.contains("0.28") and not details.text.contains("0.36.16"),"Real keyboard navigation changes release details")
 	versions.select(versions.item_count - 1); versions.item_selected.emit(versions.item_count - 1)
 	check(details.text.contains("Erste eigenständige Version"),"Oldest release accessible")
 	game.set_classic(true)

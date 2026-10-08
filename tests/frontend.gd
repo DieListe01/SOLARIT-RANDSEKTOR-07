@@ -78,6 +78,12 @@ func run() -> void:
 	check(reloaded.data.nickname == "COMMANDER-D" and reloaded.data.profile_id == stable_profile_id, "The renamed profile persists with the same commander file ID")
 	game.commander_profile.set_nickname("WWWWWWWWWWWWWWWWWWWW")
 	game.show_main_menu()
+	var menu_version: Label=game.ui.get_node("GameVersionLabel")
+	check(menu_version.text.contains(game.update_history.current_version) and menu_version.get_rect().end.x<=1920 and menu_version.horizontal_alignment==HORIZONTAL_ALIGNMENT_RIGHT,"Full game version fits inside the lower-right menu footer")
+	game.show_intro()
+	var intro_version: Label=game.ui.get_node("GameVersionLabel")
+	check(intro_version.text.contains(game.update_history.current_version) and intro_version.get_rect().end.x<=1920,"Intro also displays the full game version")
+	game.skip_intro()
 	await process_frame
 	var menu_name: Label = game.ui.get_node("MenuCommanderNickname")
 	check(menu_name.position.x >= 1660 and menu_name.get_rect().end.x <= 1890 and menu_name.get_rect().end.y <= game.menu_buttons.commander.position.y, "Maximum-width nickname stays beside the planet and above the system link")

@@ -360,6 +360,13 @@ func label(parent: Node, text_value: String, pos: Vector2, font_size: int = 20, 
 		l.size=Vector2(width,extent.y+font_size)
 	return l
 
+func add_version_signature(parent: Control) -> Label:
+	var version_label:=label(parent,"SOLARIT: RANDSEKTOR 07  /  "+str(update_history.get("current_version","unbekannt")),Vector2(1510,1025),15,MUTED,360)
+	version_label.name="GameVersionLabel"
+	version_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	version_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+	return version_label
+
 func button(parent: Node, text_value: String, rect: Rect2, callback: Callable) -> Button:
 	var b: Button = preload("res://scripts/system_button.gd").new()
 	b.clip_text=true
@@ -411,7 +418,7 @@ func show_main_menu() -> void:
 		update_button.tooltip_text="Dieser Build enthält noch keinen Veröffentlichungsfeed. GitHub-Releases werden automatisch eingebunden."
 	label(ui,"SOLARIT-SIGNAL\nVEYRA-FRONT / 3 EINSÄTZE",Vector2(1320,96),16,Color("a7baad"))
 	label(ui,"BASIS ERRICHTEN  /  RESSOURCEN SICHERN  /  GRENZE HALTEN",Vector2(96,1025),15,MUTED)
-	label(ui,"SOLARIT: RANDSEKTOR 07  /  "+str(update_history.current_version),Vector2(1710,1025),15,MUTED)
+	add_version_signature(ui)
 	music.start_frontend()
 	# Staggered, short fades preserve immediate button response.
 	var index := 0
@@ -621,6 +628,7 @@ func show_intro() -> void:
 	intro_art.intro=true; intro_art.size=Vector2(1920,1080)
 	intro_art.completed.connect(skip_intro)
 	ui.add_child(intro_art)
+	add_version_signature(ui)
 	var skip := button(ui,"ÜBERSPRINGEN  /  ESC",Rect2(1580,26,292,43),skip_intro)
 	skip.add_theme_font_size_override("font_size",16)
 	skip.mouse_filter=Control.MOUSE_FILTER_STOP

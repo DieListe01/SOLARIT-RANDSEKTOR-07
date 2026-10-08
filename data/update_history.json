@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.15",
+  "current_version": "0.36.16",
   "entries": [
+    {
+      "version": "0.36.16",
+      "date": "08.10.2026",
+      "title": "Versionsnummer auf Startbildschirm und Menü",
+      "changes": [
+        "Die vollständige Versionsnummer ist jetzt im Intro und im Hauptmenü unten rechts sichtbar und bleibt innerhalb des Fensters.",
+        "Der Installer und die EXE-Metadaten tragen dieselbe Versionsnummer wie die Updateinfo und der Git-Tag."
+      ]
+    },
     {
       "version": "0.36.15",
       "date": "08.10.2026",
