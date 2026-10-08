@@ -200,7 +200,7 @@ class ApiTests(unittest.TestCase):
                 ]}).encode("utf-8")
 
         handler = object.__new__(api.Handler)
-        with patch.object(api.socket, "getaddrinfo", return_value=[
+        with patch.object(api.Handler, "_system_ipv4_results", return_value=[
             (None, None, 0, "", ("192.168.178.148", 0)),
         ]), patch.object(api, "urlopen", return_value=FakeResponse()):
             self.assertEqual(handler._service_public_ip(), "8.8.8.8")

@@ -240,16 +240,18 @@ class Handler(BaseHTTPRequestHandler):
             return ""
         return candidate if address.is_global else ""
 
+    def _system_ipv4_results(self):
+        try:
+            return socket.getaddrinfo(PUBLIC_ADDRESS_HOST, None, socket.AF_INET, socket.SOCK_STREAM)
+        except OSError:
+            return []
+
     def _service_public_ip(self) -> str:
         # A LAN client may reach this service through NAT loopback, so its
         # forwarded address is private. Some home DNS resolvers return the
         # reverse proxy's private address for the API hostname, so retry with
         # public DNS-over-HTTPS before giving up.
-        try:
-            results = socket.getaddrinfo(PUBLIC_ADDRESS_HOST, None, socket.AF_INET, socket.SOCK_STREAM)
-        except OSError:
-            results = []
-        for result in results:
+        for result in self._system_ipv4_results():
             candidate = result[4][0]
             try:
                 address = ipaddress.IPv4Address(candidate)
@@ -531,7 +533,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(400, {"error": "invalid_time"})
                 return
             now = int(time.time())
-            with connect_db() as db:
+            with database() as db:
                 player = db.execute("SELECT 1 FROM players WHERE game_id=? AND profile_id=?", (game_id, profile)).fetchone()
                 if not player:
                     self._json(409, {"error": "heartbeat_required"})
