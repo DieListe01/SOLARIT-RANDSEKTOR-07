@@ -106,6 +106,13 @@ func run() -> void:
 	var publish_toggle: CheckBox = online_panel.get_node("PublishPublicLobby")
 	var publish_hint: Label = online_panel.get_node("PublicLobbyHint")
 	check(not publish_toggle.get_rect().intersects(publish_hint.get_rect()),"Public lobby explanation sits below its checkbox without overlapping")
+	var lobby_password: LineEdit=online_panel.get_node("LobbyPassword")
+	check(lobby_password.secret and lobby_password.max_length==128 and lobby_password.placeholder_text.contains("8 Zeichen") and online_panel.get_node("LobbyPassword").get_parent()==online_panel,"Private lobby accepts a user-selected, masked password")
+	check(not publish_hint.get_rect().intersects(lobby_password.get_rect()),"Password field clears the public-listing hint")
+	publish_toggle.toggled.emit(true)
+	check(not lobby_password.editable,"Public lobbies disable the private password field")
+	publish_toggle.toggled.emit(false)
+	check(lobby_password.editable,"Returning to a private lobby re-enables its password field")
 	check(online_panel.get_node_or_null("OnlineDirectoryList") is ItemList and online_panel.get_node_or_null("OnlineAddress") is LineEdit,"Lobby browser and manual direct-connect remain available")
 	check(online_panel.get_node_or_null("LocalAddressCopy") is Button and online_panel.get_node_or_null("PublicAddressCopy") is Button and online_panel.get_node_or_null("RefreshPublicAddress") is Button,"Lobby shows copy controls for local and external IP addresses")
 	game._on_online_public_address_received("79.240.71.178",true)
@@ -113,7 +120,7 @@ func run() -> void:
 	check(not external_ip_button.disabled and external_ip_button.text.contains("79.240.71.178"),"Successful external-IP lookup updates its copy control")
 	var join_address: LineEdit = online_panel.get_node("OnlineAddress")
 	check(join_address.text.is_empty() and (online_panel.get_node("JoinOnlineClient") as Button).disabled,"Direct join starts empty instead of suggesting localhost")
-	check(join_address.placeholder_text.contains("Einladungscode"),"Join field explains private invite-code entry")
+	check(join_address.placeholder_text.contains("Host-IP") and online_panel.get_node("LobbyPassword") is LineEdit,"Direct join provides a separate password field")
 	var host_button: Button = online_panel.get_node("CreateOnlineHost")
 	var client_button: Button = online_panel.get_node("JoinOnlineClient")
 	var refresh_button: Button = online_panel.get_node("RefreshPublicLobbies")
@@ -147,12 +154,14 @@ func run() -> void:
 	game._on_online_lobbies_received([], "")
 	game.online.active=true; game.online.role="host"; game.online.mission_config=game.online_mission_config()
 	game.online.required_invite_secret="00112233445566778899AABBCCDDEEFF"
+	game.private_lobby_password="Mein starkes Lobby-Passwort"
 	game.public_lobby_requested=false
 	game._on_online_public_address_received("79.240.71.178",true)
 	online_panel=game.overlay.get_node("OnlineLobbyPanel")
-	var invite_button: Button=online_panel.get_node("PrivateLobbyInviteCodeCopy")
-	check(not invite_button.disabled and invite_button.text.contains("SR07-") and not online_panel.has_node("PublishPublicLobby"),"Private host receives a shareable invite code without public listing")
-	check(invite_button.tooltip_text.contains("Zugangsschlüssel"),"Invite-code help explains that it grants access")
+	var password_button: Button=online_panel.get_node("PrivateLobbyPasswordCopy")
+	var host_ip_copy: Button=online_panel.get_node("PrivateLobbyHostAddressCopy")
+	check(not password_button.disabled and password_button.text.contains("PASSWORT") and not online_panel.has_node("PublishPublicLobby"),"Private host can copy the chosen lobby password without public listing")
+	check(not host_ip_copy.disabled and host_ip_copy.text.contains("79.240.71.178"),"Private host can copy the external address to share with guests")
 	game.online.leave(false); game.public_lobby_requested=false; game.show_online_menu()
 	game.online_directory.enabled = true
 	game.online_directory.base_url = "http://127.0.0.1:1"

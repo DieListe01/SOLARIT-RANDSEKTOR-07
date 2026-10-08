@@ -1,14 +1,25 @@
 {
-  "current_version": "0.36.12",
+  "current_version": "0.36.13",
   "entries": [
+    {
+      "version": "0.36.13",
+      "date": "08.10.2026",
+      "title": "Selbst gewähltes Passwort für private Lobbys",
+      "changes": [
+        "Der Host legt selbst ein Passwort für private Lobbys fest. Mitspieler geben Host-IP und Passwort getrennt ein; das Passwort wird vor dem Beitritt geprüft.",
+        "Host-IP und Lobby-Passwort lassen sich in der Lobby einzeln kopieren. Private Partien erscheinen weiterhin nicht in der öffentlichen Liste.",
+        "Das Passwort wird nicht übertragen: Eine frische Challenge und ein HMAC-Zugangsnachweis schützen die Anmeldung. Nach mehreren Fehlversuchen folgt eine zeitweilige IP-Sperre.",
+        "Passwörter benötigen mindestens 8 Zeichen; empfohlen werden mindestens 12. Öffentliche Lobbys bleiben freiwillig und ohne Passwortschutz."
+      ]
+    },
     {
       "version": "0.36.12",
       "date": "08.10.2026",
       "title": "Private Lobbys per Einladungscode",
       "changes": [
-        "Private Partien bleiben aus der öffentlichen Lobby-Liste heraus und können per persönlichem Einladungscode betreten werden.",
-        "Der Code enthält die externe Host-Adresse, UDP-Port und einen geheimen Zugangsschlüssel; der Host prüft den Schlüssel vor dem Lobbybeitritt.",
-        "Der Einladungscode lässt sich in der Lobby mit einem Klick kopieren. Öffentliche Lobbys bleiben weiterhin freiwillig veröffentlichbar."
+        "Private Partien blieben aus der öffentlichen Lobby-Liste heraus und konnten per persönlichem Einladungscode betreten werden.",
+        "Der Code enthielt externe Host-IP, UDP-Port und geheimen Zugangsschlüssel; der Host prüfte den Schlüssel vor dem Lobbybeitritt.",
+        "Der Einladungscode ließ sich in der Lobby mit einem Klick kopieren. Öffentliche Lobbys waren weiterhin freiwillig veröffentlichbar."
       ]
     },
     {

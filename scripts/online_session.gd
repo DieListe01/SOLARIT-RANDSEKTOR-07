@@ -50,6 +50,7 @@ var local_game_version := ""
 var required_invite_secret := ""
 var join_invite_secret := ""
 var pending_auth_challenges: Dictionary = {}
+var auth_failures_by_ip: Dictionary = {}
 var identity_session_sent := ""
 var authority_sim: Simulation
 
@@ -106,7 +107,7 @@ func leave(show_status: bool = true) -> void:
 	role=""; active=false; connected=false; client_peer_id=0
 	session_id=""; command_sequence=0; host_tick=0; last_remote_sequence=0
 	mission_config.clear(); authority_sim=null
-	required_invite_secret=""; join_invite_secret=""; pending_auth_challenges.clear()
+	required_invite_secret=""; join_invite_secret=""; pending_auth_challenges.clear(); auth_failures_by_ip.clear()
 	identity_session_sent=""
 	mission_sequence=0; mission_started=false; client_ready=false
 	snapshot_sequence=0; last_snapshot_sequence=0; pending_snapshot_sequence=0
@@ -187,6 +188,11 @@ func configure_lobby(config: Dictionary) -> void:
 
 func _on_peer_connected(peer_id: int) -> void:
 	if not is_host(): return
+	var remote_address: String = multiplayer.multiplayer_peer.get_peer(peer_id).get_remote_address()
+	var lockout: Dictionary = auth_failures_by_ip.get(remote_address,{})
+	if int(lockout.get("blocked_until",0)) > Time.get_ticks_msec():
+		multiplayer.multiplayer_peer.disconnect_peer(peer_id)
+		return
 	if client_peer_id!=0 and client_peer_id!=peer_id:
 		multiplayer.multiplayer_peer.disconnect_peer(peer_id)
 		return
@@ -223,7 +229,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 func _on_connected_to_server() -> void:
 	connected=false
-	status_changed.emit("Verbindung aufgebaut · Einladung wird geprüft")
+	status_changed.emit("Verbindung aufgebaut · Lobby-Passwort wird geprüft")
 
 func _on_connection_failed() -> void:
 	leave(false)
@@ -238,7 +244,7 @@ func _on_server_disconnected() -> void:
 func request_private_lobby_auth(remote_session: String, challenge: String) -> void:
 	if not is_client() or multiplayer.get_remote_sender_id()!=1 or not PROTOCOL.valid_session_id(remote_session): return
 	if challenge.length()!=32 or not _is_hex_string(challenge): return
-	var proof := PRIVATE_INVITE_CODE.make_proof(join_invite_secret,challenge) if join_invite_secret.length()==32 else ""
+	var proof := PRIVATE_INVITE_CODE.make_proof(join_invite_secret,challenge) if join_invite_secret.length() in [32,64] else ""
 	rpc_id(1,"submit_private_lobby_auth",remote_session,proof)
 
 @rpc("any_peer","call_remote","reliable",0)
@@ -249,7 +255,16 @@ func submit_private_lobby_auth(remote_session: String, proof: String) -> void:
 	var challenge := str(pending_auth_challenges[peer_id])
 	pending_auth_challenges.erase(peer_id)
 	if not PRIVATE_INVITE_CODE.proof_matches(required_invite_secret,challenge,proof):
-		rpc_id(peer_id,"receive_private_lobby_auth_result",session_id,false,"Einladungscode ungültig · Zugang abgelehnt")
+		var remote_address: String = multiplayer.multiplayer_peer.get_peer(peer_id).get_remote_address()
+		var now := Time.get_ticks_msec()
+		var failures: Dictionary = auth_failures_by_ip.get(remote_address,{"count":0,"window_started":now,"blocked_until":0})
+		if now - int(failures.get("window_started",now)) > 300000:
+			failures={"count":0,"window_started":now,"blocked_until":0}
+		failures.count=int(failures.get("count",0))+1
+		if int(failures.count) >= 5:
+			failures.blocked_until=now+600000
+		auth_failures_by_ip[remote_address]=failures
+		rpc_id(peer_id,"receive_private_lobby_auth_result",session_id,false,"Passwort falsch · Zugang abgelehnt")
 		return
 	_accept_peer_connection(peer_id)
 

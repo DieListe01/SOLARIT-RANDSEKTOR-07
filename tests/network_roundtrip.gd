@@ -4,10 +4,9 @@ const CatalogData = preload("res://scripts/catalog.gd")
 const GameSimulation = preload("res://scripts/simulation.gd")
 const Session = preload("res://scripts/online_session.gd")
 const Protocol = preload("res://scripts/network_protocol.gd")
-const InviteCode = preload("res://scripts/private_lobby_code.gd")
 const MISSION := "res://data/veyra.json"
-const CONFIG := {"mission":"veyra","faction":"forge","difficulty":"easy","tech_level":0,"game_version":"0.36.12"}
-const INVITE_SECRET := "00112233445566778899AABBCCDDEEFF"
+const CONFIG := {"mission":"veyra","faction":"forge","difficulty":"easy","tech_level":0,"game_version":"0.36.13"}
+const INVITE_SECRET := "00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF"
 
 var session: OnlineSession
 var probe: Node
@@ -54,7 +53,7 @@ func run() -> void:
 	make_sim()
 	session=Session.new()
 	session.name="OnlineSession"
-	session.local_game_version="0.36.12"
+	session.local_game_version="0.36.13"
 	root.add_child(session)
 	# A separate node provides test-only state reports over the real ENet peer.
 	probe=Node.new()
@@ -76,8 +75,8 @@ func run() -> void:
 		session.world_snapshot_received.connect(_on_snapshot)
 		session.command_rejected.connect(func(message):fail(message))
 		session.status_changed.connect(func(message):
-			if message.contains("Einladungscode ungültig"): bad_invite_rejected=true)
-		if session.join("127.0.0.1",port,"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")!=OK: fail("invalid invite attempt failed to start"); return
+			if message.contains("Passwort falsch"): bad_invite_rejected=true)
+		if session.join("127.0.0.1",port,"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")!=OK: fail("invalid password attempt failed to start"); return
 	for frame in 1500:
 		if mode=="host":
 			sim.tick(1.0/30.0)
@@ -98,9 +97,7 @@ func run() -> void:
 		else:
 			if mode=="client" and bad_invite_rejected and not valid_invite_attempted:
 				valid_invite_attempted=true
-				var invite := InviteCode.decode(InviteCode.encode("127.0.0.1",INVITE_SECRET,port))
-				if not bool(invite.get("ok",false)): fail("valid invite code did not decode"); return
-				if session.join(str(invite.address),int(invite.port),str(invite.secret))!=OK: fail("valid invite join failed to start"); return
+				if session.join("127.0.0.1",port,INVITE_SECRET)!=OK: fail("valid password join failed to start"); return
 			if reconnecting:
 				reconnecting=false
 				session.leave(false)

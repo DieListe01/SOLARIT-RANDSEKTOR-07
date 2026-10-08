@@ -41,7 +41,7 @@ var online_directory_last_check_msec := 0
 var online_directory_selected: Dictionary = {}
 var public_lobby_closed_for_guest := false
 var public_lobby_requested := false
-var private_lobby_invite_code := ""
+var private_lobby_password := ""
 var online_directory_status_label: Label
 var online_stats_enabled := true
 var online_stats_status := "Noch keine Serververbindung"
@@ -754,7 +754,7 @@ func _refresh_online_lobby() -> void:
 func show_online_menu() -> void:
 	var draft:=chat_input.text if is_instance_valid(chat_input) else ""
 	clear(overlay)
-	var lobby_size := Vector2(1300, 870) if online.active else Vector2(1100, 850)
+	var lobby_size := Vector2(1300, 870) if online.active else Vector2(1100, 900)
 	var viewport_size := get_viewport_rect().size
 	var lobby_scale := minf(1.0, minf(viewport_size.x / lobby_size.x, viewport_size.y / lobby_size.y))
 	var lobby_position := (viewport_size - lobby_size * lobby_scale) * 0.5
@@ -790,70 +790,81 @@ func show_online_menu() -> void:
 		publish_toggle.size = Vector2(480, 38)
 		publish_toggle.add_theme_color_override("font_color", Color("d5ded5"))
 		p.add_child(publish_toggle)
-		var publish_hint := label(p,"Nur mit Häkchen wird deine öffentliche IP für bis zu 75 Sekunden in der Lobby angezeigt. UDP %d am Router zum Spiele-PC weiterleiten." % OnlineSession.DEFAULT_PORT,Vector2(40,389),13,MUTED,1010)
+		var publish_hint := label(p,"Nur mit Häkchen erscheint deine Lobby bis zu 75 Sekunden in der öffentlichen Liste. UDP %d zum Spiele-PC weiterleiten." % OnlineSession.DEFAULT_PORT,Vector2(40,393),13,MUTED,1010)
 		publish_hint.name = "PublicLobbyHint"
-		label(p,"DEINE LOKALE IP (HEIMNETZ)",Vector2(40,425),13,MUTED)
+		label(p,"LOBBY-PASSWORT · ALS HOST FESTLEGEN, ALS GAST EINGEBEN",Vector2(40,418),13,MINT)
+		var lobby_password := LineEdit.new()
+		lobby_password.name = "LobbyPassword"
+		lobby_password.position = Vector2(40,441); lobby_password.size = Vector2(1010,40)
+		lobby_password.placeholder_text = "Passwort für private Lobby (mindestens 8 Zeichen)"
+		lobby_password.secret = true; lobby_password.max_length = 128
+		lobby_password.text = private_lobby_password
+		lobby_password.tooltip_text = "Dieses Passwort gibst du nur direkt an Mitspieler weiter. Empfehlung: mindestens 12 Zeichen."
+		p.add_child(lobby_password)
+		lobby_password.text_changed.connect(func(value: String): private_lobby_password = value)
+		publish_toggle.toggled.connect(func(is_public: bool): lobby_password.editable = not is_public)
+		lobby_password.editable = not publish_toggle.button_pressed
+		label(p,"Private Spieler benötigen Host-IP und Passwort. Öffentliche Lobbys verwenden keinen Passwortschutz.",Vector2(40,485),13,MUTED,1010)
+		label(p,"DEINE LOKALE IP (HEIMNETZ)",Vector2(40,513),13,MUTED)
 		var local_address := _local_ipv4_address()
 		var local_copy_text := local_address + "  ·  KOPIEREN" if local_address_button_enabled(local_address) else local_address
-		var local_address_button := button(p,local_copy_text,Rect2(40,449,495,40),func(): DisplayServer.clipboard_set(local_address))
+		var local_address_button := button(p,local_copy_text,Rect2(40,537,495,40),func(): DisplayServer.clipboard_set(local_address))
 		local_address_button.name = "LocalAddressCopy"
 		local_address_button.disabled = not local_address_button_enabled(local_address)
 		local_address_button.tooltip_text = "Lokale IPv4-Adresse in die Zwischenablage kopieren. Nur im eigenen Heimnetz erreichbar."
-		label(p,"DEINE EXTERNE IP (INTERNET)",Vector2(555,425),13,MUTED)
-		online_public_address_button = button(p,_public_address_button_text(),Rect2(555,449,435,40),func():
+		label(p,"DEINE EXTERNE IP (INTERNET)",Vector2(555,513),13,MUTED)
+		online_public_address_button = button(p,_public_address_button_text(),Rect2(555,537,435,40),func():
 			if not online_public_address.is_empty(): DisplayServer.clipboard_set(online_public_address))
 		online_public_address_button.name = "PublicAddressCopy"
 		online_public_address_button.disabled = online_public_address.is_empty()
 		online_public_address_button.tooltip_text = "Die öffentliche IPv4 wird nur für diese Abfrage an den Online-Dienst übermittelt und dort nicht gespeichert."
-		var refresh_public_address := button(p,"NEU",Rect2(995,449,55,40),_request_online_public_address)
+		var refresh_public_address := button(p,"NEU",Rect2(995,537,55,40),_request_online_public_address)
 		refresh_public_address.name = "RefreshPublicAddress"
 		refresh_public_address.tooltip_text = "Externe IP erneut abfragen"
-		label(p,"HOST-ADRESSE / DIREKT BEITRETEN",Vector2(40,505),13,MUTED)
+		label(p,"HOST-IP ODER EINLADUNGSCODE / DIREKT BEITRETEN",Vector2(40,589),13,MUTED)
 		var address:=LineEdit.new()
 		address.name="OnlineAddress"; address.text=online.reconnect_address
-		address.placeholder_text="Host-IP oder privater Einladungscode"
-		address.tooltip_text="Host-IP oder Einladungscode SR07-… eingeben. Über das Internet muss UDP %d zum Host-PC weitergeleitet sein." % OnlineSession.DEFAULT_PORT
-		address.position=Vector2(40,529); address.size=Vector2(1010,42); p.add_child(address)
-		var create_host := button(p,"SPIEL ERSTELLEN  /  HOST",Rect2(40,579,495,46),func():
+		address.placeholder_text="Host-IP oder Hostname"
+		address.tooltip_text="Host-IP oder Hostname eingeben. Für eine private Lobby auch das vereinbarte Passwort angeben. Über das Internet muss UDP %d zum Host-PC weitergeleitet sein." % OnlineSession.DEFAULT_PORT
+		address.position=Vector2(40,613); address.size=Vector2(1010,42); p.add_child(address)
+		var create_host := button(p,"SPIEL ERSTELLEN  /  HOST",Rect2(40,663,495,46),func():
+			var private_secret := PrivateLobbyCode.password_secret(private_lobby_password)
+			if not publish_toggle.button_pressed and private_secret.is_empty():
+				notify("Lege für eine private Lobby ein Passwort mit mindestens 8 Zeichen fest.")
+				return
 			var result:=online.host()
 			if result!=OK: online_status_text="Host konnte nicht starten (%d)."%result; show_online_menu(); return
-			if not publish_toggle.button_pressed: online.required_invite_secret = PrivateLobbyCode.create_secret()
+			if not publish_toggle.button_pressed: online.required_invite_secret = private_secret
 			var config := online_mission_config()
 			online.configure_lobby(config)
 			public_lobby_closed_for_guest = false
 			public_lobby_requested = publish_toggle.button_pressed
-			private_lobby_invite_code = ""
 			if not public_lobby_requested: _request_online_public_address()
 			if publish_toggle.button_pressed and is_instance_valid(online_directory):
 				online_directory_message = "Lobby wird veröffentlicht …"
 				online_directory.publish_lobby(str(commander_profile.data.profile_id),str(commander_profile.data.nickname),str(config.get("mode", lobby_mode)),str(config.get("mission", db.mission.get("id", ""))),str(db.mission.get("display_name", db.mission.get("name", "Einsatz"))),OnlineSession.DEFAULT_PORT)
 			show_online_menu())
 		create_host.name = "CreateOnlineHost"
-		var join_client := button(p,"SPIEL BEITRETEN  /  CLIENT",Rect2(555,579,495,46),func():
+		var join_client := button(p,"SPIEL BEITRETEN  /  CLIENT",Rect2(555,663,495,46),func():
 			var target_address := address.text.strip_edges()
 			var target_port := online.reconnect_port
-			var invite_secret := ""
-			if PrivateLobbyCode.looks_like_code(target_address):
-				var invite := PrivateLobbyCode.decode(target_address)
-				if not bool(invite.get("ok", false)):
-					notify(str(invite.get("error", "Einladungscode ungültig.")))
-					return
-				target_address = str(invite.address)
-				target_port = int(invite.port)
-				invite_secret = str(invite.secret)
+			var invite_secret := PrivateLobbyCode.password_secret(private_lobby_password) if not private_lobby_password.is_empty() else ""
+			if not private_lobby_password.is_empty() and invite_secret.is_empty():
+				notify("Das Lobby-Passwort muss mindestens 8 Zeichen haben.")
+				return
 			var result:=online.join(target_address,target_port,invite_secret)
 			if result!=OK: online_status_text="Verbindung fehlgeschlagen (%d)."%result
 			show_online_menu())
 		join_client.name = "JoinOnlineClient"
 		join_client.disabled = address.text.strip_edges().is_empty()
 		address.text_changed.connect(func(value: String): join_client.disabled = value.strip_edges().is_empty())
-		join_client.tooltip_text = "Verbindet mit der eingetragenen Host-Adresse oder dem privaten Einladungscode."
-		label(p,"ÖFFENTLICHE LOBBYS",Vector2(40,645),14,MINT)
-		var refresh_lobbies := button(p,"LOBBYS AKTUALISIEREN",Rect2(790,634,260,38),func():
+		join_client.tooltip_text = "Verbindet mit der Host-IP. Für private Lobbys zusätzlich das Passwort im Passwortfeld eingeben."
+		label(p,"ÖFFENTLICHE LOBBYS",Vector2(40,727),14,MINT)
+		var refresh_lobbies := button(p,"LOBBYS AKTUALISIEREN",Rect2(790,716,260,38),func():
 			_check_online_lobbies()
 			show_online_menu())
 		refresh_lobbies.name = "RefreshPublicLobbies"
-		online_directory_empty_state = label(p, _online_directory_empty_text(), Vector2(58, 680), 17, MUTED, 970)
+		online_directory_empty_state = label(p, _online_directory_empty_text(), Vector2(58, 762), 17, MUTED, 970)
 		online_directory_empty_state.name = "OnlineDirectoryEmptyState"
 		online_directory_empty_state.size = Vector2(970, 50)
 		online_directory_empty_state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -861,14 +872,14 @@ func show_online_menu() -> void:
 		online_directory_empty_state.visible = _last_public_lobbies.is_empty()
 		online_directory_items = ItemList.new()
 		online_directory_items.name = "OnlineDirectoryList"
-		online_directory_items.position = Vector2(40, 680)
+		online_directory_items.position = Vector2(40, 762)
 		online_directory_items.size = Vector2(1010, 50)
 		online_directory_items.select_mode = ItemList.SELECT_SINGLE
 		online_directory_items.visible = not _last_public_lobbies.is_empty()
 		p.add_child(online_directory_items)
-		online_directory_status_label = label(p,_online_directory_status_text(),Vector2(40,740),13,MUTED,650)
+		online_directory_status_label = label(p,_online_directory_status_text(),Vector2(40,822),13,MUTED,650)
 		online_directory_status_label.name = "OnlineDirectoryStatus"
-		var join_lobby := button(p,"AUSGEWÄHLTE LOBBY BEITRETEN",Rect2(700,734,350,42),func():
+		var join_lobby := button(p,"AUSGEWÄHLTE LOBBY BEITRETEN",Rect2(700,816,350,42),func():
 			if online_directory_selected.is_empty(): return
 			var entry := online_directory_selected
 			var result := online.join(str(entry.get("address", "")), int(entry.get("port", OnlineSession.DEFAULT_PORT)))
@@ -893,16 +904,24 @@ func show_online_menu() -> void:
 		if online.is_host() and public_lobby_requested:
 			label(p,"ÖFFENTLICHE LOBBY  ·  " + online_directory_message,Vector2(40,184),13,MINT,1200)
 		elif online.is_host():
-			var invite_text := "EINLADUNGSCODE  ·  %s  ·  KOPIEREN" % private_lobby_invite_code if not private_lobby_invite_code.is_empty() else "EINLADUNGSCODE  ·  EXTERNE IP WIRD ERMITTELT …"
-			var invite_button := button(p,invite_text,Rect2(40,179,1210,32),func():
-				if private_lobby_invite_code.is_empty(): return
-				DisplayServer.clipboard_set(private_lobby_invite_code)
-				notify("Privater Einladungscode kopiert."))
-			invite_button.name = "PrivateLobbyInviteCodeCopy"
-			invite_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			invite_button.add_theme_font_size_override("font_size",15)
-			invite_button.disabled = private_lobby_invite_code.is_empty()
-			invite_button.tooltip_text = "Der private Code enthält deine externe IP, UDP-Port %d und einen Zugangsschlüssel. Teile ihn nur direkt mit eingeladenen Spielern." % OnlineSession.DEFAULT_PORT
+			var external_copy_text := "HOST-IP  ·  %s  ·  KOPIEREN" % online_public_address if not online_public_address.is_empty() else "HOST-IP  ·  EXTERNE IP WIRD ERMITTELT …"
+			var external_copy := button(p,external_copy_text,Rect2(40,179,590,34),func():
+				if online_public_address.is_empty(): return
+				DisplayServer.clipboard_set(online_public_address)
+				notify("Host-IP kopiert."))
+			external_copy.name = "PrivateLobbyHostAddressCopy"
+			external_copy.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			external_copy.add_theme_font_size_override("font_size",15)
+			external_copy.disabled = online_public_address.is_empty()
+			external_copy.tooltip_text = "Diese externe IP zusammen mit UDP-Port %d und dem Lobby-Passwort an Mitspieler weitergeben." % OnlineSession.DEFAULT_PORT
+			var password_copy := button(p,"LOBBY-PASSWORT  ·  KOPIEREN",Rect2(650,179,600,34),func():
+				DisplayServer.clipboard_set(private_lobby_password)
+				notify("Lobby-Passwort kopiert."))
+			password_copy.name = "PrivateLobbyPasswordCopy"
+			password_copy.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			password_copy.add_theme_font_size_override("font_size",15)
+			password_copy.disabled = private_lobby_password.is_empty()
+			password_copy.tooltip_text = "Teile das Passwort nur mit den eingeladenen Spielern."
 		var prefix: String="host" if online.is_host() else "client"
 		label(p,"DEINE FRAKTION / FARBE",Vector2(40,213),14,MUTED)
 		var factions:=OptionButton.new()
@@ -972,7 +991,7 @@ func show_online_menu() -> void:
 	button(p,"VERBINDUNG TRENNEN",Rect2(40,lobby_size.y-82,280,42),func():
 		if is_instance_valid(online_directory): online_directory.close_lobby()
 		public_lobby_requested = false
-		private_lobby_invite_code = ""
+		private_lobby_password = ""
 		online.leave()
 		show_main_menu())
 	button(p,"ZURÜCK",Rect2(340,lobby_size.y-82,250,42),func():clear(overlay))
@@ -1243,7 +1262,6 @@ func _on_online_public_address_received(address: String, success: bool) -> void:
 		online_public_address_button.text = _public_address_button_text()
 		online_public_address_button.disabled = online_public_address.is_empty()
 	if online.is_host() and not public_lobby_requested:
-		private_lobby_invite_code = PrivateLobbyCode.encode(online_public_address, online.required_invite_secret, OnlineSession.DEFAULT_PORT) if success else ""
 		if is_instance_valid(overlay) and overlay.get_node_or_null("OnlineLobbyPanel") != null:
 			show_online_menu()
 

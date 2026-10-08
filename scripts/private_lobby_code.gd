@@ -8,10 +8,21 @@ static func create_secret() -> String:
 	return Crypto.new().generate_random_bytes(16).hex_encode().to_upper()
 
 static func make_proof(secret: String, challenge: String) -> String:
-	return (secret + challenge).sha256_text()
+	if not _is_hex(secret.to_upper()) or not _is_hex(challenge.to_upper()): return ""
+	var crypto := Crypto.new()
+	return crypto.hmac_digest(HashingContext.HASH_SHA256,secret.hex_decode(),challenge.to_utf8_buffer()).hex_encode().to_upper()
 
 static func proof_matches(secret: String, challenge: String, proof: String) -> bool:
-	return secret.length() == 32 and challenge.length() == 32 and proof == make_proof(secret, challenge)
+	if secret.length() != 32 and secret.length() != 64: return false
+	if challenge.length() != 32 or proof.length() != 64: return false
+	if not _is_hex(secret.to_upper()) or not _is_hex(challenge.to_upper()) or not _is_hex(proof.to_upper()): return false
+	var expected := make_proof(secret,challenge).hex_decode()
+	return Crypto.new().constant_time_compare(expected,proof.hex_decode())
+
+static func password_secret(password: String) -> String:
+	var normalized := password.strip_edges()
+	if normalized.length() < 8 or normalized.length() > 128: return ""
+	return ("SOLARIT/private-lobby/password/v1:" + normalized).sha256_text().to_upper()
 
 static func encode(address: String, secret: String, port: int = 2456) -> String:
 	var parts := address.strip_edges().split(".")
