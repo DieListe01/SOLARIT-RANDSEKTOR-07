@@ -79,51 +79,100 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 
 static func building(root: Node3D, entity: Dictionary, team: Color, faction: String, footprint: Vector2) -> void:
 	var kind := str(entity.get("kind","core"))
-	var sx := maxf(1.0,footprint.x/32.0)*1.1
-	var sz := maxf(1.0,footprint.y/32.0)*1.1
+	# Keep buildings inside their map footprint so vehicles remain visible nearby.
+	var sx := maxf(1.0,footprint.x/32.0)*0.94
+	var sz := maxf(1.0,footprint.y/32.0)*0.94
 	var hull := _faction_hull(faction)
 	var hull_mat := _material(hull,0.82,0.14)
 	var dark_mat := _material(DARK,0.9,0.12)
 	var armor_mat := _material(CREAM.lerp(hull,0.24),0.76,0.08)
 	var trim_mat := _material(team.lerp(CYAN,0.18),0.42,0.25)
-	var height: float = float({"core":1.9,"power":1.15,"refinery":1.5,"factory":1.85,"tower":1.45,"radar":1.65,"repair":1.35,"armory":1.45}.get(kind,1.25))
-	_box(root,"Foundation",Vector3(sx,0.2,sz),Vector3(0,0.1,0),dark_mat)
-	_box(root,"Main structure",Vector3(sx*0.82,height,sz*0.78),Vector3(0,0.18+height*0.5,0),hull_mat)
-	_box(root,"Front armor",Vector3(sx*0.66,0.25,0.14),Vector3(0,0.36,-sz*0.43),armor_mat)
-	_box(root,"Faction stripe",Vector3(0.14,0.07,sz*0.6),Vector3(0,height*0.56,0),trim_mat)
-	_box(root,"Roof plate",Vector3(sx*0.65,0.13,sz*0.58),Vector3(0,height+0.25,0),armor_mat)
-	for side in [-1.0,1.0]:
-		_box(root,"Side armor",Vector3(0.12,height*0.52,sz*0.52),Vector3(side*sx*0.46,height*0.46,0),armor_mat)
+	var amber_mat := _material(AMBER,0.62,0.08)
+	var height: float = float({"core":1.8,"power":1.2,"refinery":1.45,"factory":1.7,"tower":1.25,"radar":1.35,"repair":1.2,"armory":1.35}.get(kind,1.25))
+	_box(root,"Reinforced foundation",Vector3(sx,0.18,sz),Vector3(0,0.09,0),dark_mat)
+	_box(root,"Foundation rim",Vector3(sx*0.92,0.12,sz*0.9),Vector3(0,0.22,0),_material(Color("554638"),0.92))
+	# Give each structure a distinct silhouette before applying shared team trim.
 	match kind:
 		"core":
-			_box(root,"Core tower",Vector3(sx*0.45,height*0.58,sz*0.42),Vector3(0,height+0.54,0),dark_mat)
-			_box(root,"Core beacon",Vector3(sx*0.3,0.14,0.12),Vector3(0,height+0.88,-0.1),trim_mat)
-			for i in range(3): _cylinder(root,"Reactor cap",0.18,0.18,Vector3(-0.42+i*0.42,height+0.38,sz*0.28),trim_mat,10)
+			_box(root,"Command hull",Vector3(sx*0.8,height*0.66,sz*0.72),Vector3(0,0.55,0.08),hull_mat)
+			_box(root,"Command roof",Vector3(sx*0.72,0.16,sz*0.61),Vector3(-0.04,1.12,0.02),armor_mat)
+			_box(root,"Raised command deck",Vector3(sx*0.4,0.62,sz*0.38),Vector3(0,1.5,-0.02),dark_mat)
+			_box(root,"Command canopy",Vector3(sx*0.44,0.16,sz*0.42),Vector3(0,1.87,-0.02),armor_mat)
+			_box(root,"Command beacon",Vector3(sx*0.25,0.08,0.12),Vector3(0,2.02,-0.08),trim_mat)
+			_box(root,"Blast door",Vector3(sx*0.52,0.34,0.12),Vector3(0,0.45,sz*0.44),dark_mat)
+			_box(root,"Access ramp",Vector3(sx*0.44,0.11,0.35),Vector3(0,0.28,sz*0.54),armor_mat)
+			for i in 4: _box(root,"Door light",Vector3(0.09,0.07,0.035),Vector3((-0.3+i*0.2)*sx,0.49,sz*0.5),trim_mat)
+			for side in [-1.0,1.0]: _box(root,"Command brace",Vector3(0.12,0.78,0.14),Vector3(side*sx*0.42,0.55,sz*0.34),armor_mat)
 		"power":
+			_box(root,"Reactor hall",Vector3(sx*0.68,height*0.72,sz*0.64),Vector3(0,0.52,0),hull_mat)
+			_box(root,"Reactor roof",Vector3(sx*0.74,0.15,sz*0.68),Vector3(0,0.98,0),armor_mat)
 			for side in [-1.0,1.0]:
-				_cylinder(root,"Generator",0.22,0.6,Vector3(side*sx*0.25,height+0.24,0),armor_mat,12)
-			_box(root,"Power conduit",Vector3(0.1,0.13,sz*0.64),Vector3(0,height+0.38,0),trim_mat)
+				_box(root,"Generator housing",Vector3(sx*0.2,0.62,sz*0.55),Vector3(side*sx*0.28,0.47,0.03),dark_mat)
+				_cylinder(root,"Generator cap",0.2,0.13,Vector3(side*sx*0.28,0.81,0.03),armor_mat,10)
+			for i in 5: _box(root,"Cooling grille",Vector3(sx*0.22,0.045,0.045),Vector3(0,0.35+i*0.095,-sz*0.35),trim_mat if i==2 else dark_mat)
+			_box(root,"Power conduit",Vector3(0.11,0.12,sz*0.66),Vector3(0,1.09,0),trim_mat)
 		"refinery":
-			for i in range(3): _cylinder(root,"Refinery stack",0.14,0.75,Vector3(-sx*0.26+i*sx*0.26,height+0.35,-sz*0.27),armor_mat,10)
-			_box(root,"Loading bay",Vector3(sx*0.64,0.42,0.26),Vector3(0,0.48,sz*0.42),dark_mat)
+			_box(root,"Processing hall",Vector3(sx*0.64,height*0.62,sz*0.6),Vector3(-sx*0.08,0.47,-sz*0.04),hull_mat)
+			_box(root,"Refinery roof",Vector3(sx*0.68,0.14,sz*0.62),Vector3(-sx*0.08,0.88,-sz*0.04),armor_mat)
+			_box(root,"Loading platform",Vector3(sx*0.74,0.26,0.34),Vector3(0,0.36,sz*0.4),dark_mat)
+			for i in 3:
+				var x := -sx*0.3+i*sx*0.3
+				_cylinder(root,"Fractionation tank",0.2,0.98,Vector3(x,1.48,sz*0.19),armor_mat,10)
+				_cylinder(root,"Tank collar",0.23,0.1,Vector3(x,1.0,sz*0.19),trim_mat,10)
+				_cylinder(root,"Tank cap",0.12,0.12,Vector3(x,1.99,sz*0.19),dark_mat,10)
+			_box(root,"Feed pipe",Vector3(0.1,0.11,sz*0.52),Vector3(-sx*0.4,0.92,0.1),trim_mat)
+			_box(root,"Service pipe",Vector3(sx*0.58,0.1,0.1),Vector3(0,1.11,sz*0.36),dark_mat)
+			_box(root,"Conveyor",Vector3(sx*0.48,0.12,0.22),Vector3(sx*0.33,0.72,sz*0.46),trim_mat)
 		"factory":
-			_box(root,"Hangar roof",Vector3(sx*0.66,0.28,sz*0.44),Vector3(0,height+0.18,-sz*0.08),armor_mat)
-			_box(root,"Hangar door",Vector3(sx*0.58,0.62,0.12),Vector3(0,0.55,sz*0.405),dark_mat)
-			for i in range(3): _box(root,"Door light",Vector3(0.13,0.07,0.04),Vector3(-0.28+i*0.28,0.85,sz*0.48),trim_mat)
+			_box(root,"Hangar shell",Vector3(sx*0.78,height*0.72,sz*0.7),Vector3(0,0.56,0.04),hull_mat)
+			_box(root,"Hangar roof",Vector3(sx*0.9,0.2,sz*0.76),Vector3(0,1.24,0.02),armor_mat)
+			_box(root,"Vehicle bay",Vector3(sx*0.68,0.66,0.12),Vector3(0,0.56,sz*0.42),dark_mat)
+			_box(root,"Bay door",Vector3(sx*0.56,0.52,0.06),Vector3(0,0.52,sz*0.49),_material(Color("69756b"),0.9))
+			_box(root,"Loading ramp",Vector3(sx*0.58,0.1,0.34),Vector3(0,0.3,sz*0.58),dark_mat)
+			for side in [-1.0,1.0]:
+				_box(root,"Hangar pillar",Vector3(0.15,1.45,0.15),Vector3(side*sx*0.4,0.8,sz*0.36),trim_mat)
+				_box(root,"Roof girder",Vector3(0.1,0.1,sz*0.72),Vector3(side*sx*0.4,1.39,0.02),dark_mat)
+			for i in 4: _box(root,"Bay hazard stripe",Vector3(0.12,0.055,0.04),Vector3(-0.24+i*0.16,0.32,sz*0.5),amber_mat)
 		"tower":
-			_box(root,"Gun turret",Vector3(0.66,0.42,0.66),Vector3(0,height+0.35,0),dark_mat)
-			_box(root,"Gun barrel",Vector3(0.16,0.17,0.9),Vector3(0,height+0.4,-0.68),armor_mat)
+			_box(root,"Gun tower",Vector3(sx*0.52,height*0.9,sz*0.52),Vector3(0,0.63,0),hull_mat)
+			_box(root,"Turret ring",Vector3(sx*0.58,0.14,sz*0.58),Vector3(0,1.18,0),dark_mat)
+			var turret := Node3D.new()
+			turret.name="Rotating gun mount"
+			turret.position=Vector3(0,1.27,0)
+			turret.rotation.y=-float(entity.get("turret",0.0))
+			root.add_child(turret)
+			_box(turret,"Turret armor",Vector3(sx*0.43,0.32,sz*0.4),Vector3(0,0.14,0),armor_mat)
+			_box(turret,"Gun barrel",Vector3(0.16,0.16,0.78),Vector3(0,0.18,-0.51),trim_mat)
+			_box(root,"Armored door",Vector3(sx*0.34,0.3,0.1),Vector3(0,0.39,sz*0.43),dark_mat)
 		"radar":
-			_cylinder(root,"Radar mast",0.07,1.0,Vector3(0,height+0.52,0),armor_mat,8)
-			_box(root,"Radar dish",Vector3(0.68,0.1,0.28),Vector3(0,height+1.03,-0.18),trim_mat)
+			_box(root,"Radar control block",Vector3(sx*0.62,0.72,sz*0.6),Vector3(0,0.55,0),hull_mat)
+			_box(root,"Radar deck",Vector3(sx*0.7,0.12,sz*0.68),Vector3(0,0.98,0),armor_mat)
+			_box(root,"Radar mast",Vector3(0.12,0.94,0.12),Vector3(0,1.5,0),dark_mat)
+			_box(root,"Radar dish",Vector3(0.72,0.12,0.24),Vector3(0,1.98,-0.1),trim_mat)
+			_box(root,"Dish receiver",Vector3(0.1,0.24,0.1),Vector3(0,2.04,-0.08),armor_mat)
+			for side in [-1.0,1.0]: _box(root,"Signal antenna",Vector3(0.06,0.62,0.06),Vector3(side*sx*0.34,1.22,sz*0.27),trim_mat)
 		"repair":
-			_box(root,"Repair gantry",Vector3(sx*0.8,0.18,0.16),Vector3(0,height+0.38,0),trim_mat)
-			for side in [-1.0,1.0]: _box(root,"Gantry leg",Vector3(0.14,0.66,0.14),Vector3(side*sx*0.34,height+0.08,0),armor_mat)
+			_box(root,"Service bay",Vector3(sx*0.72,0.68,sz*0.64),Vector3(0,0.49,0),hull_mat)
+			_box(root,"Repair deck",Vector3(sx*0.82,0.12,sz*0.76),Vector3(0,0.91,0),armor_mat)
+			for side in [-1.0,1.0]:
+				_box(root,"Gantry leg",Vector3(0.16,1.16,0.16),Vector3(side*sx*0.38,0.76,-sz*0.26),trim_mat)
+				_box(root,"Gantry lamp",Vector3(0.18,0.12,0.16),Vector3(side*sx*0.38,1.37,-sz*0.26),amber_mat)
+			_box(root,"Repair crossbeam",Vector3(sx*0.82,0.15,0.16),Vector3(0,1.34,-sz*0.26),dark_mat)
+			_box(root,"Workshop door",Vector3(sx*0.5,0.4,0.08),Vector3(0,0.44,sz*0.38),dark_mat)
 		"armory":
-			for side in [-1.0,1.0]: _box(root,"Armor rack",Vector3(0.18,0.58,sz*0.48),Vector3(side*sx*0.35,height+0.12,0),trim_mat)
+			_box(root,"Armory block",Vector3(sx*0.72,height*0.8,sz*0.68),Vector3(0,0.56,0),hull_mat)
+			_box(root,"Armory roof",Vector3(sx*0.8,0.14,sz*0.76),Vector3(0,1.16,0),armor_mat)
+			_box(root,"Armory entrance",Vector3(sx*0.38,0.38,0.09),Vector3(0,0.42,sz*0.42),dark_mat)
+			for side in [-1.0,1.0]:
+				_box(root,"Armor rack",Vector3(0.15,0.86,sz*0.46),Vector3(side*sx*0.38,0.66,0.02),trim_mat)
+				for i in 3: _box(root,"Stored armor plate",Vector3(0.12,0.12,0.38),Vector3(side*sx*0.38,0.42+i*0.22,0.02),armor_mat)
+	# Shared panels, corner guards and glowing team marks finish the silhouettes.
+	_box(root,"Team stripe",Vector3(0.13,0.08,sz*0.46),Vector3(-sx*0.29,0.54,0.04),trim_mat)
+	for side in [-1.0,1.0]: _box(root,"Corner armor",Vector3(0.1,height*0.46,0.12),Vector3(side*sx*0.43,0.49,sz*0.32),armor_mat)
+	for i in 3: _box(root,"Front vent",Vector3(sx*0.18,0.04,0.04),Vector3(-sx*0.21+i*sx*0.21,0.52,sz*0.42),dark_mat)
 	var rotation := posmod(int(entity.get("rotation",0)),4)*PI*0.5
 	for child in root.get_children():
-		if child is MeshInstance3D and child.name!="Soft ground shadow":
+		if child is Node3D and child.name!="Soft ground shadow":
 			child.position=child.position.rotated(Vector3.UP,rotation)
 			child.rotation.y+=rotation
 

@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.26",
+  "current_version": "0.36.27",
   "entries": [
+    {
+      "version": "0.36.27",
+      "date": "08.10.2026",
+      "title": "3D-Gebäude mit eigenen Silhouetten",
+      "changes": [
+        "Baukern, Impulswerk, Raffinerie, Fahrzeugwerft, Geschütz, Radar, Servicehangar und Rüstungswerk besitzen jetzt deutlich unterscheidbare 3D-Formen und sichtbare Fassadendetails.",
+        "Raffinerietanks, Fahrzeugrampen, Hangartore und Zugänge zeigen zur Spielkamera; Gebäude halten mehr Abstand zu benachbarten Fahrzeugen.",
+        "Forward+ mit Vulkan, RTS-Steuerung, Kampfsimulation und Classic-Darstellung bleiben erhalten."
+      ]
+    },
     {
       "version": "0.36.26",
       "date": "08.10.2026",
