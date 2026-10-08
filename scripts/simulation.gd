@@ -845,6 +845,22 @@ func hud_objective_text() -> String:
 		return text_value+("  ·  "+progress if not progress.is_empty() else "")
 	return "MISSIONSZIELE ERFÜLLT" if result=="victory" else "EINSATZZIELE AKTIV"
 
+func optional_objective_progress_text() -> String:
+	if online_mode!="": return ""
+	var optional_total:=0
+	var optional_complete:=0
+	var parts: Array[String]=[]
+	for objective in db.mission.get("objectives",[]):
+		if not bool(objective.get("optional",false)): continue
+		optional_total+=1
+		var done:=objective_latched(objective)
+		if done: optional_complete+=1
+		var title:=str(objective.get("hud",objective.get("text","NEBENZIEL"))).to_upper()
+		var progress:=objective_progress_text(objective)
+		parts.append(("✓ " if done else "")+title+(" · "+progress if not done and not progress.is_empty() else ""))
+	if optional_total==0: return ""
+	return "NEBENZIELE %d/%d  ·  %s" % [optional_complete,optional_total,"  /  ".join(parts)]
+
 func process_mission_waves() -> void:
 	var waves: Array=db.mission.get("waves",[])
 	for index in range(waves.size()):

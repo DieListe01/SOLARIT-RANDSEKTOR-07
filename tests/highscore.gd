@@ -45,6 +45,10 @@ func run() -> void:
 	for child in end_panel.get_children():
 		if child is Label and child.text.contains("PLATZ 1 / 10"): score_text=child.text
 	check(not score_text.is_empty() and score_text.contains("NEUER BESTWERT"),"Victory screen shows score, rank and personal record")
+	var debrief_text: String=""
+	for child in end_panel.get_children():
+		if child is Label: debrief_text+=child.text
+	check(debrief_text.contains("BEWERTUNG  ·  BRONZE") and debrief_text.contains("NEBENZIELE  0 / 2") and debrief_text.contains("BONUS  +0"),"Debrief shows the medal, optional objective tally and bonus")
 	game.commander_profile.set_nickname("COMMANDER-D")
 	var completed_id: String=game.run_id
 	game.show_end()

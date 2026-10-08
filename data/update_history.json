@@ -1,6 +1,17 @@
 {
-  "current_version": "0.36.13",
+  "current_version": "0.36.14",
   "entries": [
+    {
+      "version": "0.36.14",
+      "date": "08.10.2026",
+      "title": "Nebenziele und Einsatzwertung im Einzelspieler",
+      "changes": [
+        "Alle drei Kampagneneinsätze bieten jetzt optionale Nebenziele mit laufendem Fortschritt während der Partie.",
+        "Nebenziele geben jeweils 2.500 Bonuspunkte und zählen nicht als Voraussetzung für den Missionssieg.",
+        "Der Abschlussbericht vergibt Bronze, Silber oder Gold. Gold verlangt alle Nebenziele und den Erhalt sämtlicher eigener Gebäude.",
+        "Die Missionsbriefings nennen die optionalen Aufgaben bereits vor dem Einsatz."
+      ]
+    },
     {
       "version": "0.36.13",
       "date": "08.10.2026",

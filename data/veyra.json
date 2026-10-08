@@ -237,6 +237,24 @@
       "owner": 0,
       "kind": "core",
       "text": "Erhalte deinen Baukern."
+    },
+    {
+      "id": "three_towers",
+      "type": "build_structure",
+      "owner": 0,
+      "kind": "tower",
+      "count": 3,
+      "optional": true,
+      "text": "Errichte drei Geschütztürme.",
+      "hud": "3 GESCHÜTZE BAUEN"
+    },
+    {
+      "id": "harvest_3000_bonus",
+      "type": "harvest_amount",
+      "amount": 3000,
+      "optional": true,
+      "text": "Liefere zusätzlich 3.000 Solarit.",
+      "hud": "3.000 SOLARIT EXTRA"
     }
   ],
   "display_name": "Das Veyra-Becken",

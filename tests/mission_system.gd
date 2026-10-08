@@ -20,6 +20,9 @@ func run() -> void:
 	check(dry.errors.is_empty(),"Mission 02 validates")
 	check(khepri.errors.is_empty(),"Mission 03 validates")
 	check(dry.mission.id=="dry_vein" and khepri.mission.id=="khepri_pass","Mission files load independently")
+	for mission_data in [basin.mission,dry.mission,khepri.mission]:
+		var optional_count: int=mission_data.get("objectives",[]).filter(func(item):return bool(item.get("optional",false))).size()
+		check(optional_count==2,"Each campaign mission has two optional side objectives")
 	var tutorial:=Simulation.new(Catalog.new("res://data/veyra.json"),"forge","normal")
 	check(tutorial.credits[0]==4200 and tutorial.credits[1]==900,"Mission 01 gives the player a forgiving economy and slows the enemy opening")
 	check(int(tutorial.db.rules.attack_grace.normal)==210 and int(tutorial.db.rules.ai_production_interval.normal)==24,"Mission 01 delays the first coordinated assault and enemy production")
@@ -52,6 +55,14 @@ func run() -> void:
 	defense.check_objectives()
 	check(defense.result=="victory","Survival objective wins with protected core")
 	check(defense.stats.gathered<5000.0,"Optional Solarit target does not gate victory")
+	check(defense.optional_objective_progress_text().contains("NEBENZIELE 0/2"),"HUD lists incomplete optional objectives after the mission ends")
+	var bonus_run:=Simulation.new(khepri,"forge","normal")
+	bonus_run.stats.gathered=5000.0
+	bonus_run.check_objectives()
+	check(bonus_run.objective_announced.has("harvest_bonus") and bonus_run.optional_objective_progress_text().contains("NEBENZIELE 1/2"),"Optional objective progress updates and records completion")
+	bonus_run.time=900.0
+	bonus_run.check_objectives()
+	check(bonus_run.result=="victory","Completed optional goals coexist with the primary victory condition")
 
 	var lost:=Simulation.new(khepri,"forge","easy")
 	lost.destroy(lost.buildings(0,"core",false)[0].id)

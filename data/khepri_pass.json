@@ -58,7 +58,8 @@
   "objectives": [
     {"id":"hold_15","type":"survive","seconds":900,"primary":true,"text":"Halte den Engpass 15 Minuten lang.","hud":"ENGPASS HALTEN"},
     {"id":"home_core","type":"protect","owner":0,"kind":"core","text":"Der Baukern muss überleben."},
-    {"id":"harvest_bonus","type":"harvest_amount","amount":5000,"text":"Optional: Liefere 5.000 Solarit während der Verteidigung.","hud":"BONUS: 5.000 SOLARIT"}
+    {"id":"harvest_bonus","type":"harvest_amount","amount":5000,"optional":true,"text":"Liefere 5.000 Solarit während der Verteidigung.","hud":"5.000 SOLARIT LIEFERN"},
+    {"id":"three_towers","type":"build_structure","owner":0,"kind":"tower","count":3,"optional":true,"text":"Baue drei zusätzliche Geschütztürme.","hud":"3 GESCHÜTZE BAUEN"}
   ],
   "waves": [
     {"time":55,"spawn_cell":[29,15],"units":{"easy":["scout","scout"],"normal":["scout","scout","tank"],"hard":["scout","scout","tank","tank"]},"message":"WELLE 1 · Späher im Nordpass."},

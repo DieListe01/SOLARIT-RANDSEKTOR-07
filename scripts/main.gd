@@ -110,6 +110,7 @@ var queue_label: Label
 var production_bar: ProgressBar
 var notification: Label
 var objective: Label
+var optional_objective: Label
 var minimap: TacticalMap
 var radar_caption: Label
 var side_panel: Panel
@@ -1362,7 +1363,7 @@ func connect_sim() -> void:
 func build_hud() -> void:
 	clear(ui)
 	buttons.clear()
-	var top := panel(ui,Rect2(20,16,1880,56))
+	var top := panel(ui,Rect2(20,16,1880,64))
 	label(top,"SOLARIT",Vector2(18,4),11,MUTED)
 	status=label(top,"",Vector2(18,21),21,Color("d8d1c4"),165)
 	label(top,"ENERGIE / FREI",Vector2(203,4),11,MUTED)
@@ -1373,6 +1374,7 @@ func build_hud() -> void:
 	status.tooltip_text="Solarit ist die Bau- und Produktionswährung. Energie zeigt Verbrauch / Erzeugung; Gebäudeüberlastung verlangsamt Bau und Fahrzeugmontage, pausiert Geschütze und Reparaturen. Schwere Fahrzeuge benötigen zusätzlich freie Energie zum Start der Montage."
 	label(top,"AUFTRAG",Vector2(610,4),11,MUTED)
 	objective=label(top,sim.hud_objective_text(),Vector2(610,23),15,Color("d8d1c4"),530)
+	optional_objective=label(top,sim.optional_objective_progress_text() if not online.active else "",Vector2(610,44),11,MINT,560)
 	fps_label=label(top,"FPS --",Vector2(1197,18),16,MINT,112)
 	fps_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
 	fps_label.tooltip_text="Bildrate live. Einbruchprotokoll ab 60 FPS: performance_events_v2.csv (unter Windows im Godot-Appdatenordner)."
@@ -1732,6 +1734,7 @@ func update_hud() -> void:
 	energy_label.tooltip_text="Verbrauch %d / Erzeugung %d · freie Energie %+d"%[int(p.x),int(p.y),int(p.y-p.x)]
 	mission_clock.text="%02d:%02d"%[int(sim.time)/60,int(sim.time)%60]
 	if is_instance_valid(objective): objective.text=sim.hud_objective_text()
+	if is_instance_valid(optional_objective): optional_objective.text=sim.optional_objective_progress_text() if not online.active else ""
 	if p.x>p.y and not low_power_alerted:
 		notify("ENERGIE KNAPP / IMPULSWERK BAUEN"); music.cue("alarm")
 		minimap.ping(renderer.camera,GOLD)
@@ -2550,7 +2553,7 @@ func show_end() -> void:
 	paused=true
 	if is_instance_valid(online_stats): online_stats.stop_playing()
 	clear(overlay)
-	var p := panel(overlay,Rect2(585,205,750,670),Color("2b221b"))
+	var p := panel(overlay,Rect2(585,155,750,770),Color("2b221b"))
 	label(p,"EINSATZ ABGESCHLOSSEN",Vector2(42,28),18,MINT)
 	var end_title:=str(db.mission.get("victory_title","Sektor gesichert")) if sim.result=="victory" else str(db.mission.get("defeat_title","Signal verloren"))
 	label(p,end_title,Vector2(42,72),43,GOLD)
@@ -2559,6 +2562,10 @@ func show_end() -> void:
 	var newly_recorded:=record_commander_result("singleplayer",result_score)
 	label(p,"KOMMANDANT / "+str(commander_profile.data.nickname).to_upper(),Vector2(44,132),15,MUTED)
 	label(p,"Zeit                %02d:%02d\nSolarit geliefert   %d\nFahrzeuge gebaut     %d\nFahrzeuge verloren   %d\nFeinde zerstört      %d\nGebäude errichtet    %d\nGebäude verloren     %d" % [int(sim.time)/60,int(sim.time)%60,int(s.gathered),s.produced,s.lost,s.kills,s.built,s.buildings_lost],Vector2(44,164),23,Color("c8d8ce"))
+	var optional_total:=optional_objective_count()
+	var optional_done:=completed_optional_objective_count()
+	var medal:=mission_completion_medal(optional_total,optional_done) if sim.result=="victory" else "NICHT ABGESCHLOSSEN"
+	label(p,"BEWERTUNG  ·  %s     NEBENZIELE  %d / %d     BONUS  +%s" % [medal,optional_done,optional_total,format_score(optional_done*2500)],Vector2(44,375),17,GOLD,670)
 	if sim.result=="victory":
 		highscore_mission_index=mission_index
 		if not online.active: record_campaign_victory()
@@ -2575,16 +2582,16 @@ func show_end() -> void:
 			})
 		var ranking_text := "PUNKTE  %s    ·    PLATZ %s" % [format_score(int(score_result.score)),"%d / 10" % int(score_result.rank) if int(score_result.rank)>0 else "AUSSERHALB DER TOP 10"]
 		if score_result.new_best: ranking_text+="    ·    NEUER BESTWERT"
-		label(p,ranking_text,Vector2(44,401),18,GOLD,660)
-		if bool(newly_recorded.get("new_best",false)): label(p,"NEUER PERSÖNLICHER REKORD",Vector2(44,458),16,MINT,660)
-		label(p,"BESTENLISTE   "+leaderboard_preview(),Vector2(44,433),15,MINT,660)
+		label(p,ranking_text,Vector2(44,435),18,GOLD,660)
+		if bool(newly_recorded.get("new_best",false)): label(p,"NEUER PERSÖNLICHER REKORD",Vector2(44,492),16,MINT,660)
+		label(p,"BESTENLISTE   "+leaderboard_preview(),Vector2(44,467),15,MINT,660)
 	if sim.result=="victory" and mission_index<MISSION_PATHS.size()-1:
-		button(p,"ERNEUT",Rect2(42,540,190,58),start_game)
-		button(p,"NÄCHSTER EINSATZ",Rect2(247,540,255,58),func():select_mission(mission_index+1))
-		button(p,"HAUPTMENÜ",Rect2(517,540,185,58),show_main_menu)
+		button(p,"ERNEUT",Rect2(42,670,190,58),start_game)
+		button(p,"NÄCHSTER EINSATZ",Rect2(247,670,255,58),func():select_mission(mission_index+1))
+		button(p,"HAUPTMENÜ",Rect2(517,670,185,58),show_main_menu)
 	else:
-		button(p,"ERNEUT SPIELEN",Rect2(42,540,310,58),start_game)
-		button(p,"HAUPTMENÜ",Rect2(392,540,310,58),show_main_menu)
+		button(p,"ERNEUT SPIELEN",Rect2(42,670,310,58),start_game)
+		button(p,"HAUPTMENÜ",Rect2(392,670,310,58),show_main_menu)
 
 func record_commander_result(mode: String, score: int) -> Dictionary:
 	if sim == null or sim.result not in ["victory", "defeat"] or run_id.is_empty(): return {"new_best": false}
@@ -2898,7 +2905,25 @@ func calculate_run_score() -> int:
 	var s: Dictionary=sim.stats
 	var time_bonus:=maxf(0.0,1800.0-sim.time)*2.0
 	var total:=1000.0+float(s.kills)*250.0+float(s.gathered)*0.5+float(s.produced)*120.0+float(s.built)*100.0+time_bonus-float(s.lost)*200.0-float(s.buildings_lost)*500.0
-	return maxi(0,roundi(total))
+	return maxi(0,roundi(total))+completed_optional_objective_count()*2500
+
+func optional_objective_count() -> int:
+	var count:=0
+	for objective_data in db.mission.get("objectives",[]):
+		if bool(objective_data.get("optional",false)): count+=1
+	return count
+
+func completed_optional_objective_count() -> int:
+	if sim==null or online.active: return 0
+	var count:=0
+	for objective_data in db.mission.get("objectives",[]):
+		if bool(objective_data.get("optional",false)) and sim.objective_latched(objective_data): count+=1
+	return count
+
+func mission_completion_medal(optional_total: int, optional_done: int) -> String:
+	if optional_total>0 and optional_done==optional_total and int(sim.stats.buildings_lost)==0: return "GOLD"
+	if optional_done>0: return "SILBER"
+	return "BRONZE"
 
 func format_score(score: int) -> String:
 	var digits:=str(score)
