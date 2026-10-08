@@ -16,6 +16,12 @@ func _ready() -> void:
 	environment.ambient_light_color=Color("c3d3cd")
 	environment.ambient_light_energy=0.8
 	environment.tonemap_mode=Environment.TONE_MAPPER_FILMIC
+	# Contact shadows deepen the low-poly seams and keep the 3D cache art from
+	# reading like a flat icon after it is scaled down into the RTS view.
+	environment.ssao_enabled=true
+	environment.ssao_radius=1.15
+	environment.ssao_intensity=1.05
+	environment.ssao_power=1.2
 	environment_node.environment=environment
 	add_child(environment_node)
 	var sun := DirectionalLight3D.new()

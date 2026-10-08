@@ -1,6 +1,18 @@
 {
-  "current_version": "0.36.28",
+  "current_version": "0.36.29",
   "entries": [
+    {
+      "version": "0.36.29",
+      "date": "08.10.2026",
+      "title": "Höhere Grafiktreue und mehr 3D-Details",
+      "changes": [
+		"Fahrzeuge und Gebäude werden mit 4-facher Kantenglättung und deutlich höherer Cache-Auflösung gerendert; hochauflösende Umgebungsverdeckung (SSAO) hebt Fugen und Kontaktflächen hervor.",
+        "Panzerungen, Laufrollen und Fassaden erhalten zusätzliche Wartungsklappen, Befestigungen, Kühlrippen und Materialtexturen.",
+		"Gelände zeigt feinere Dünenrippel, Gesteinskörnung und zusätzliche Geröll-Details. Forward+ mit Vulkan bleibt Standard.",
+		"Fahrzeuge unterscheiden Freund und Feind jetzt durch große farbige Kennflächen; 32 Karosserie-Blickwinkel stellen diagonale Fahrten präziser dar.",
+		"Die Fahrzeugansichten sind korrekt um ihren Mittelpunkt skaliert. Die Ausrichtung folgt der tatsächlichen Bewegung einschließlich Kurven und Fahrzeugabständen."
+      ]
+    },
     {
       "version": "0.36.28",
       "date": "08.10.2026",

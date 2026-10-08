@@ -7,6 +7,7 @@ const SAND := Color("a67a4e")
 const CREAM := Color("d8c39a")
 const CYAN := Color("35d6c8")
 const AMBER := Color("edaa52")
+static var _surface_texture: ImageTexture
 
 static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: String, turret_angle: float) -> void:
 	var model := Node3D.new()
@@ -18,7 +19,8 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 	var kind := str(entity.get("kind", "tank"))
 	var scale: float = float({"scout":0.86,"tank":1.0,"siege":1.18,"harvester":1.08,"raider":0.84,"lancer":0.98,"scorcher":0.9,"bulwark":1.32}.get(kind,1.0))
 	var hull := _faction_hull(faction)
-	var accent := team.lerp(CYAN, 0.22)
+	# Keep faction armor recognizable while making ownership readable at RTS zoom.
+	var accent := team
 	var hull_mat := _material(hull, 0.78, 0.16)
 	var dark_mat := _material(DARK, 0.9, 0.12)
 	var trim_mat := _material(accent, 0.46, 0.28)
@@ -34,6 +36,10 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 				var wheel_pos:=Vector3(side*width*0.58,0.3*scale,-length*0.38+i*length*0.152)
 				_cylinder(model,"Road wheel",0.17*scale,0.13*scale,wheel_pos,dark_mat,12,Vector3(0,0,PI*0.5))
 				_cylinder(model,"Wheel hub",0.085*scale,0.145*scale,wheel_pos,armor_mat,8,Vector3(0,0,PI*0.5))
+				for bolt in 4:
+					var bolt_angle:=TAU*float(bolt)/4.0+PI*0.25
+					var bolt_pos:=wheel_pos+Vector3(side*0.078*scale,sin(bolt_angle)*0.105*scale,cos(bolt_angle)*0.105*scale)
+					_cylinder(model,"Road wheel fastener",0.018*scale,0.018*scale,bolt_pos,dark_mat,6,Vector3(0,0,PI*0.5))
 			var tread_step:=length*0.078
 			for i in 12:
 				var tread_z:float=-length*0.43+i*tread_step+tread_step*float(drive_frame)*0.25
@@ -55,13 +61,20 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 	_box(model,"Lower hull",Vector3(width*0.82,0.48*scale,length*0.82),Vector3(0,0.47*scale,0),hull_mat)
 	_box(model,"Forward glacis",Vector3(width*0.76,0.18*scale,length*0.22),Vector3(0,0.75*scale,-length*0.3),armor_mat)
 	_box(model,"Rear deck",Vector3(width*0.68,0.16*scale,length*0.2),Vector3(0,0.75*scale,length*0.29),_material(SAND.lerp(hull,0.28),0.86,0.05))
-	_box(model,"Hull stripe",Vector3(0.12*scale,0.07*scale,length*0.54),Vector3(0,0.84*scale,0.01),trim_mat)
+	_box(model,"Hull stripe",Vector3(0.2*scale,0.07*scale,length*0.54),Vector3(0,0.84*scale,0.01),trim_mat)
 	for side in [-1.0,1.0]:
 		_box(model,"Side armor skirt",Vector3(0.1*scale,0.22*scale,length*0.42),Vector3(side*width*0.43,0.58*scale,0.02*scale),armor_mat)
 		_box(model,"Front lamp",Vector3(0.2*scale,0.1*scale,0.08*scale),Vector3(side*width*0.27,0.78*scale,-length*0.42),_material(Color("fff0bd"),0.3,0.0,true))
 		_box(model,"Rear marker",Vector3(0.15*scale,0.09*scale,0.07*scale),Vector3(side*width*0.26,0.74*scale,length*0.42),_material(Color("f27e52"),0.4,0.0,true))
 	for i in 3:
 		_box(model,"Hull access panel",Vector3(width*0.13,0.06*scale,length*0.1),Vector3(-width*0.28+i*width*0.28,0.86*scale,length*0.22),dark_mat)
+	# Small service hardware breaks up the broad armor planes at gameplay scale.
+	for i in 5:
+		_box(model,"Engine cooling louver",Vector3(width*0.13,0.035*scale,0.06*scale),Vector3(-width*0.27+i*width*0.135,0.87*scale,length*0.35),dark_mat)
+	for side in [-1.0,1.0]:
+		_box(model,"Hull side panel",Vector3(0.045*scale,0.12*scale,length*0.18),Vector3(side*width*0.445,0.72*scale,-length*0.12),_material(hull.lightened(0.08),0.78,0.16))
+		for i in 3:
+			_box(model,"Hull panel fastener",Vector3(0.028*scale,0.035*scale,0.035*scale),Vector3(side*width*0.47,0.76*scale,-length*0.18+i*length*0.06),armor_mat)
 	var turret := Node3D.new()
 	turret.name="Turret"
 	turret.position=Vector3(0,0.82*scale,0)
@@ -76,8 +89,15 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 	_box(turret,"Turret body",turret_size,Vector3(0,0.32*scale,0),hull_mat)
 	_box(turret,"Turret armor",Vector3(turret_size.x*0.78,0.12*scale,turret_size.z*0.66),Vector3(0,0.61*scale,0.01),armor_mat)
 	_box(turret,"Turret stripe",Vector3(turret_size.x*0.58,0.045*scale,0.1*scale),Vector3(0,0.69*scale,0),trim_mat)
+	# A broad top ID plate stays visible from the elevated RTS camera, including
+	# when the vehicle is angled or partly hidden in a formation.
+	_box(turret,"Team ID plate",Vector3(turret_size.x*0.78,0.045*scale,turret_size.z*0.34),Vector3(0,0.704*scale,turret_size.z*0.1),trim_mat)
 	_box(turret,"Commander hatch",Vector3(turret_size.x*0.28,0.09*scale,turret_size.z*0.24),Vector3(-turret_size.x*0.2,0.69*scale,turret_size.z*0.23),dark_mat)
 	_cylinder(turret,"Targeting optic",0.075*scale,0.12*scale,Vector3(turret_size.x*0.28,0.67*scale,-turret_size.z*0.24),_material(Color("8de8e0"),0.25,0.1,true),8)
+	for side in [-1.0,1.0]:
+		_box(turret,"Turret side cheek",Vector3(0.07*scale,turret_size.y*0.38,turret_size.z*0.56),Vector3(side*turret_size.x*0.48,0.34*scale,0.02),armor_mat)
+		for i in 2:
+			_cylinder(turret,"Turret hinge",0.045*scale,0.025*scale,Vector3(side*turret_size.x*0.53,0.31*scale,-turret_size.z*0.16+i*turret_size.z*0.32),dark_mat,8,Vector3(0,0,PI*0.5))
 	var weapon := Node3D.new()
 	weapon.position=Vector3(0,0.35*scale,-turret_size.z*0.34)
 	turret.add_child(weapon)
@@ -215,7 +235,21 @@ static func building(root: Node3D, entity: Dictionary, team: Color, faction: Str
 	# Shared panels, corner guards and glowing team marks finish the silhouettes.
 	_box(root,"Team stripe",Vector3(0.13,0.08,sz*0.46),Vector3(-sx*0.29,0.54,0.04),trim_mat)
 	for side in [-1.0,1.0]: _box(root,"Corner armor",Vector3(0.1,height*0.46,0.12),Vector3(side*sx*0.43,0.49,sz*0.32),armor_mat)
-	for i in 3: _box(root,"Front vent",Vector3(sx*0.18,0.04,0.04),Vector3(-sx*0.21+i*sx*0.21,0.52,sz*0.42),dark_mat)
+	var front_detail_z:float=float({"core":0.45,"power":0.36,"refinery":0.31,"factory":0.42,"tower":0.30,"radar":0.34,"repair":0.34,"armory":0.38}.get(kind,0.38))*sz
+	for i in 3: _box(root,"Front vent",Vector3(sx*0.18,0.04,0.04),Vector3(-sx*0.21+i*sx*0.21,0.52,front_detail_z),dark_mat)
+	# Layered access panels, handles and status lamps give each broad wall a
+	# readable industrial scale without changing the structure footprint.
+	for i in 2:
+		var panel_x:float=(-0.29+float(i)*0.58)*sx
+		_box(root,"Front service panel",Vector3(sx*0.14,0.2,0.035),Vector3(panel_x,0.77,front_detail_z),_material(hull.darkened(0.12),0.82,0.14))
+		_box(root,"Panel seam",Vector3(sx*0.105,0.014,0.012),Vector3(panel_x,0.77,front_detail_z+0.022),_material(CREAM.lerp(hull,0.24).darkened(0.2),0.76,0.08))
+		for fastener in [-1.0,1.0]:
+			_cylinder(root,"Front panel bolt",0.022,0.018,Vector3(panel_x+fastener*sx*0.052,0.84,front_detail_z+0.027),amber_mat,6,Vector3(PI*0.5,0,0))
+	for i in 4:
+		_box(root,"Front armor rib",Vector3(0.035,height*0.36,0.035),Vector3(-sx*0.43+i*sx*0.285,0.62,front_detail_z+0.028),_material(CREAM.lerp(hull,0.24).darkened(0.12),0.76,0.08))
+	_box(root,"Service handle",Vector3(0.035,0.13,0.025),Vector3(sx*0.38,0.52,front_detail_z+0.035),trim_mat)
+	for i in 3:
+		_box(root,"Status indicator",Vector3(0.055,0.045,0.025),Vector3(-sx*0.1+i*sx*0.1,0.34,front_detail_z+0.032),trim_mat if i==1 else amber_mat)
 	var rotation := posmod(int(entity.get("rotation",0)),4)*PI*0.5
 	for child in root.get_children():
 		if child is Node3D and child.name!="Soft ground shadow":
@@ -233,10 +267,33 @@ static func _material(color: Color, roughness: float=0.8, metallic: float=0.0, g
 	material.albedo_color=color
 	material.roughness=roughness
 	material.metallic=metallic
+	if not glow:
+		material.albedo_texture=_surface_detail_texture()
+		material.uv1_triplanar=true
+		material.uv1_scale=Vector3(3.5,3.5,3.5)
 	if glow:
 		material.emission_enabled=true
 		material.emission=color.darkened(0.35)
 	return material
+
+static func _surface_detail_texture() -> ImageTexture:
+	if _surface_texture!=null: return _surface_texture
+	var noise := FastNoiseLite.new()
+	noise.seed=218607
+	noise.frequency=0.17
+	noise.fractal_octaves=3
+	var image := Image.create(64,64,false,Image.FORMAT_RGBA8)
+	for y in 64:
+		for x in 64:
+			var grain:=noise.get_noise_2d(float(x),float(y))
+			var brushed:=noise.get_noise_2d(float(x)*0.22,float(y)*2.6)
+			var value:=clampf(0.95+grain*0.045+brushed*0.018,0.84,1.0)
+			if y%19==0 and x%5!=0: value*=0.94
+			if posmod(x*37+y*71,127)==0: value*=0.88
+			image.set_pixel(x,y,Color(value,value,value,1.0))
+	image.generate_mipmaps()
+	_surface_texture=ImageTexture.create_from_image(image)
+	return _surface_texture
 
 static func _box(parent: Node3D, label: String, size: Vector3, pos: Vector3, material: Material) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()

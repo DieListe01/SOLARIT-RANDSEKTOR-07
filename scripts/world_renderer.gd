@@ -1,6 +1,9 @@
 extends Node2D
 class_name WorldRenderer
 const CachePainterScript = preload("res://scripts/vehicle_cache_painter.gd")
+const VEHICLE_HEADING_FRAMES := 32
+const VEHICLE_TURRET_FRAMES := 16
+const VEHICLE_CACHE_SIZE := 512
 const BuildingCachePainterScript = preload("res://scripts/building_cache_painter.gd")
 
 var sim: Simulation
@@ -67,6 +70,12 @@ var vehicle_cache_queue: Array[Dictionary] = []
 var vehicle_cache_worker_active := false
 var vehicle_cache_hits := 0
 var vehicle_cache_misses := 0
+
+static func vehicle_heading_frame(angle: float) -> int:
+	return posmod(roundi(angle*VEHICLE_HEADING_FRAMES/TAU),VEHICLE_HEADING_FRAMES)
+
+static func vehicle_turret_frame(relative: float) -> int:
+	return posmod(roundi((relative+PI)*VEHICLE_TURRET_FRAMES/TAU),VEHICLE_TURRET_FRAMES)
 var building_texture_cache: Dictionary = {}
 var building_texture_times: Dictionary = {}
 var building_cache_pending: Dictionary = {}
@@ -135,9 +144,9 @@ func nearest_vehicle_texture(key: String) -> Texture2D:
 		if parts[0]!=requested[0] or parts[1]!=requested[1] or parts[2]!=requested[2] or parts[3]!=requested[3]: continue
 		if parts[6]!=requested[6] or parts[7]!=requested[7] or parts[8]!=requested[8]: continue
 		var heading_delta:=absi(int(parts[4])-int(requested[4]))
-		heading_delta=mini(heading_delta,16-heading_delta)
+		heading_delta=mini(heading_delta,VEHICLE_HEADING_FRAMES-heading_delta)
 		var turret_delta:=absi(int(parts[5])-int(requested[5]))
-		turret_delta=mini(turret_delta,16-turret_delta)
+		turret_delta=mini(turret_delta,VEHICLE_TURRET_FRAMES-turret_delta)
 		var drive_delta:=absi(int(parts[9])-int(requested[9]))
 		drive_delta=mini(drive_delta,4-drive_delta)
 		# Keep damage, cargo and work state exact while choosing the nearest 3D
@@ -151,12 +160,12 @@ func nearest_vehicle_texture(key: String) -> Texture2D:
 func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float, ratio: float) -> bool:
 	if classic: return false
 	var relative := wrapf(entity.turret-entity.angle,-PI,PI)
-	# Render the hull from sixteen actual yaw angles and the turret from sixteen
-	# relative angles. Translation remains smoothly interpolated in world space.
-	var heading_frame:=posmod(roundi(entity.angle*16.0/TAU),16)
-	var heading_angle:=float(heading_frame)*TAU/16.0
-	var turret_frame:=posmod(roundi((relative+PI)*16.0/TAU),16)
-	var turret_angle:=float(turret_frame)*TAU/16.0-PI
+	# Use 32 real body headings so diagonal motion does not snap to coarse views;
+	# the independently rotating turret keeps 16 relative aim angles.
+	var heading_frame:=vehicle_heading_frame(entity.angle)
+	var heading_angle:=float(heading_frame)*TAU/VEHICLE_HEADING_FRAMES
+	var turret_frame:=vehicle_turret_frame(relative)
+	var turret_angle:=float(turret_frame)*TAU/VEHICLE_TURRET_FRAMES-PI
 	var vehicle_velocity:Vector2=entity.get("velocity",Vector2.ZERO)
 	var moving:bool=vehicle_velocity.length()>5.0
 	var drive_frame:=posmod(floori(elapsed*4.0),4) if moving and entity.kind in ["tank","siege","harvester","scorcher","bulwark"] else 0
@@ -182,8 +191,10 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 		vehicle_cache_hits+=1
 	var base := output*0.5-camera*scale_value+visual_offset*ratio
 	var screen_pos: Vector2=base+(entity.pos+combat_fx.hit_offset(entity.id))*scale_value
-	draw_set_transform(screen_pos,0.0,Vector2.ONE*(scale_value*0.32))
-	draw_texture(texture,Vector2(-128,-128))
+	# Cache textures are 512 px but authored for the previous 256 px draw size.
+	# Center the larger image and halve its scale to preserve world size and anchor.
+	draw_set_transform(screen_pos,0.0,Vector2.ONE*(scale_value*0.16))
+	draw_texture(texture,Vector2(-VEHICLE_CACHE_SIZE*0.5,-VEHICLE_CACHE_SIZE*0.5))
 	draw_set_transform(base,0,Vector2.ONE*scale_value)
 	return true
 
@@ -237,7 +248,10 @@ func process_building_cache_queue() -> void:
 
 func _build_building_texture(key: String, source: Dictionary, team: Color, faction: String) -> void:
 	var viewport := SubViewport.new()
-	viewport.size=Vector2i(512,512)
+	# Cache art at a higher sample rate than its 256 px world draw size. This
+	# keeps roof seams, warning stripes and small machinery crisp at 1080p.
+	viewport.size=Vector2i(640,640)
+	viewport.msaa_3d=Viewport.MSAA_4X
 	viewport.transparent_bg=true
 	viewport.own_world_3d=true
 	viewport.gui_disable_input=true
@@ -261,7 +275,7 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 	if not is_instance_valid(viewport): return
 	var image := viewport.get_texture().get_image()
 	if image!=null:
-		if building_texture_cache.size()>=128: building_texture_cache.erase(building_texture_cache.keys()[0])
+		if building_texture_cache.size()>=48: building_texture_cache.erase(building_texture_cache.keys()[0])
 		building_texture_cache[key]=ImageTexture.create_from_image(image)
 		building_texture_times[key]=elapsed
 	building_cache_pending.erase(key)
@@ -269,7 +283,10 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 
 func _build_vehicle_texture(key: String, source: Dictionary, team: Color, faction: String, turret_angle: float) -> void:
 	var viewport := SubViewport.new()
-	viewport.size=Vector2i(256,256)
+	# Vehicles occupy a small part of the battlefield, so supersampling and
+	# multisampling make their wheels, armor seams and weapons readable in play.
+	viewport.size=Vector2i(VEHICLE_CACHE_SIZE,VEHICLE_CACHE_SIZE)
+	viewport.msaa_3d=Viewport.MSAA_4X
 	viewport.transparent_bg=true
 	viewport.own_world_3d=true
 	viewport.gui_disable_input=true
@@ -293,7 +310,7 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	if not is_instance_valid(viewport): return
 	var image := viewport.get_texture().get_image()
 	if image!=null:
-		if vehicle_texture_cache.size()>=256: vehicle_texture_cache.erase(vehicle_texture_cache.keys()[0])
+		if vehicle_texture_cache.size()>=192: vehicle_texture_cache.erase(vehicle_texture_cache.keys()[0])
 		vehicle_texture_cache[key]=ImageTexture.create_from_image(image)
 	vehicle_cache_pending.erase(key)
 	viewport.queue_free()
@@ -889,7 +906,17 @@ func _build_terrain_detail_mesh() -> void:
 						if seed_value%5==0:
 							var grass_start := Vector2(cell*grid.tile)+Vector2(seed_value%28,(seed_value*17)%30)
 							_append_detail_line(vertices,colors,indices,grass_start,grass_start+Vector2(8,1.4),0.7,Color(0.9,0.75,0.5,0.13))
+						if seed_value%9==0:
+							var dune_clast := Vector2(cell*grid.tile)+Vector2((seed_value*3)%24,7+(seed_value*11)%19)
+							_append_detail_triangle(vertices,colors,indices,dune_clast+Vector2(4,0),dune_clast+Vector2(-3,2),dune_clast+Vector2(1,-4),Color("b38352"))
+							_append_detail_triangle(vertices,colors,indices,dune_clast+Vector2(4,0),dune_clast+Vector2(1,-4),dune_clast+Vector2(7,-2),Color("d3a36a"))
 						continue
+					if terrain in [0,3,4,5] and posmod(seed_value*13+x*y,11)==0:
+						var grit_pos:=Vector2(cell*grid.tile)+Vector2((seed_value*5)%25,4+(seed_value*17)%23)
+						var grit_color:=Color("91704d") if terrain==0 else Color("65513b")
+						_append_detail_triangle(vertices,colors,indices,grit_pos+Vector2(4,0),grit_pos+Vector2(-3,2),grit_pos+Vector2(0,-4),grit_color)
+						_append_detail_triangle(vertices,colors,indices,grit_pos+Vector2(4,0),grit_pos+Vector2(0,-4),grit_pos+Vector2(7,-1),grit_color.lightened(0.16))
+						_append_detail_line(vertices,colors,indices,grit_pos+Vector2(-1,-2),grit_pos+Vector2(2,-4),0.65,Color("c7a071",0.7))
 					if terrain!=1 and terrain!=6: continue
 					if terrain==1 and seed_value%5!=0: continue
 					for i in (2 if terrain==6 else 1):

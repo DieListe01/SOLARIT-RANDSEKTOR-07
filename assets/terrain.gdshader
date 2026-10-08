@@ -42,10 +42,13 @@ void fragment() {
 	float large=noise(world*0.015);
 	float medium=noise(world*0.13);
 	float fine=noise(world*0.7);
+	float micro=noise(world*1.8+noise(world*0.11)*1.6);
 	float grain=hash(floor(world*1.4));
-	float variation=(large-0.5)*0.17+(medium-0.5)*0.065+(fine-0.5)*0.055+(grain-0.5)*0.045;
+	float grit=hash(floor(world*3.2+vec2(noise(world*0.08)*2.0)));
+	float variation=(large-0.5)*0.17+(medium-0.5)*0.065+(fine-0.5)*0.055+(grain-0.5)*0.045+(micro-0.5)*0.035+(grit-0.5)*0.026;
 	float ripple=sin(world.y*0.32+noise(world*0.018)*21.0);
-	variation+=ripple*0.016;
+	float wind_ripple=sin(world.y*0.86+noise(world*0.04)*8.0+sin(world.x*0.065)*1.8);
+	variation+=ripple*0.016+wind_ripple*0.009;
 	if (kind==1.0 || kind==3.0 || kind==6.0) {
 		vec2 rock=stone(world*0.047+noise(world*0.035)*0.9);
 		variation+=(rock.y-0.5)*0.075;
@@ -59,11 +62,15 @@ void fragment() {
 		base=mix(base,vec3(0.66,0.46,0.26),dust*0.28);
 		float ash=smoothstep(0.57,0.76,noise(world*0.008+92.0));
 		base=mix(base,vec3(0.35,0.27,0.20),ash*0.38);
+		float hairline=1.0-smoothstep(0.015,0.04,abs(micro-0.5));
+		variation-=hairline*0.012;
 	} else {
 		float crest=sin(world.y*0.046+noise(world*0.007)*9.0);
 		variation+=crest*(kind==2.0?0.065:0.023);
 		float mineral=smoothstep(0.64,0.83,noise(world*0.026+63.0));
 		base=mix(base,vec3(0.44,0.35,0.26),mineral*0.45);
+		float wind_ridge=smoothstep(0.78,0.95,wind_ripple*0.5+0.5);
+		base=mix(base,vec3(0.9,0.64,0.36),wind_ridge*0.07);
 	}
 	if(kind==3.0) {
 		float veins=1.0-smoothstep(0.02,0.095,abs(noise(world*0.035)-0.5));

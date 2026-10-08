@@ -594,7 +594,6 @@ func move_unit(e: Dictionary, dt: float) -> void:
 		e.path.pop_front()
 		return
 	var d: Dictionary = definition(e)
-	e.angle=rotate_toward(e.angle,direction.angle(),float(d.turn_speed)*dt)
 	var speed := float(d.speed)*float(db.factions[factions[e.owner]].speed)
 	if grid.type_at(grid.cell(e.pos))==2: speed*=0.6
 	var desired: Vector2 = direction.normalized()*speed
@@ -602,6 +601,10 @@ func move_unit(e: Dictionary, dt: float) -> void:
 	e.velocity=e.velocity.move_toward(desired,dt*speed*4)
 	var delta_pos: Vector2 = (e.velocity+separation.limit_length(speed*0.6))*dt
 	if delta_pos.length()>direction.length(): delta_pos=direction
+	# Face the actual blended movement vector. During diagonal turns, inertia and
+	# unit separation can differ from the next path segment for several frames.
+	if delta_pos.length_squared()>0.01:
+		e.angle=rotate_toward(e.angle,delta_pos.angle(),float(d.turn_speed)*dt)
 	var proposed: Vector2 = e.pos+delta_pos
 	if grid.is_free(grid.cell(proposed)):
 		e.pos=proposed

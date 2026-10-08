@@ -37,6 +37,15 @@ func run() -> void:
 			for j in range(i+1,ids.size()): minimum=minf(minimum,model.entities[ids[i]].pos.distance_to(model.entities[ids[j]].pos))
 		if count>1: check(minimum>18,"Coincident crowd resolves without paths: %d / %.1f"%[count,minimum])
 		check(model.unit_radius("harvester")>model.unit_radius("scout"),"Collector uses larger spacing")
+	var steering_model:=Simulation.new(db)
+	var steering_id:int=steering_model.spawn("tank",0,Vector2(640,1400),false)
+	var steering_unit:Dictionary=steering_model.entities[steering_id]
+	steering_unit.path=[steering_unit.pos+Vector2(160,0)]
+	steering_unit.velocity=Vector2(0,100)
+	steering_unit.angle=0.0
+	steering_model.rebuild_movement_buckets()
+	steering_model.move_unit(steering_unit,1.0/30.0)
+	check(steering_unit.angle>0.02,"Vehicle body turns toward its actual diagonal drift while steering onto a new path")
 	var game: Control = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	await process_frame

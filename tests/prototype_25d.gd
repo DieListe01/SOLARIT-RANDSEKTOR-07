@@ -14,6 +14,16 @@ func run() -> void:
 	assert(prototype.get_child_count() >= 35, "prototype geometry should be generated")
 	var samples := Node3D.new()
 	prototype.add_child(samples)
+	var heading_frames:Dictionary={}
+	for i in 32:
+		var heading:int=WorldRenderer.vehicle_heading_frame(float(i)*TAU/32.0)
+		heading_frames[heading]=true
+	assert(heading_frames.size()==32,"vehicle cache should expose 32 evenly spaced body headings")
+	var turret_frames:Dictionary={}
+	for i in 16:
+		var turret:int=WorldRenderer.vehicle_turret_frame(float(i)*TAU/16.0-PI)
+		turret_frames[turret]=true
+	assert(turret_frames.size()==16,"vehicle turret should retain 16 independent aim angles")
 	var vehicle_features := {"harvester":"Collector arm","scout":"Scout front bumper","tank":"Wheel hub","siege":"Muzzle ring","raider":"Raider side blade","lancer":"Lance emitter","scorcher":"Flame nozzle","bulwark":"Bulwark prow"}
 	for kind in ["harvester","scout","tank","siege","raider","lancer","scorcher","bulwark"]:
 		var vehicle := Node3D.new()
@@ -22,6 +32,8 @@ func run() -> void:
 		var model:Node3D=vehicle.get_child(0)
 		assert(model.get_child_count() >= 6, "%s should have detailed low-poly model geometry" % kind)
 		assert(model.find_child(vehicle_features[kind],true,false)!=null,"%s should have its own readable 3D detail" % kind)
+		var id_plate:MeshInstance3D=model.find_child("Team ID plate",true,false)
+		assert(id_plate!=null and id_plate.material_override is StandardMaterial3D and (id_plate.material_override as StandardMaterial3D).albedo_color.is_equal_approx(Color("69d6c0")),"%s should carry a visible owner-color plate" % kind)
 		if kind=="scout":
 			var scout_cylinders:=0
 			for child in model.get_children():
@@ -48,5 +60,5 @@ func run() -> void:
 		var foundation: MeshInstance3D=building.get_node("Reinforced foundation")
 		var foundation_mesh := foundation.mesh as BoxMesh
 		assert(foundation_mesh.size.x<=2.0 and foundation_mesh.size.z<=2.0,"%s should fit inside the map footprint" % kind)
-	print("2.5D models: prototype plus 8 detailed, independently turning 3D vehicle archetypes, moving treads and 8 footprint-sized buildings loaded")
+	print("2.5D models: 32 body headings, 16 turret angles, owner-color vehicle plates, 8 detailed 3D archetypes and 8 footprint-sized buildings loaded")
 	quit()

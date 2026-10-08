@@ -16,6 +16,10 @@ func _ready() -> void:
 	environment.ambient_light_color=Color("c3d3cd")
 	environment.ambient_light_energy=0.8
 	environment.tonemap_mode=Environment.TONE_MAPPER_FILMIC
+	environment.ssao_enabled=true
+	environment.ssao_radius=1.3
+	environment.ssao_intensity=1.1
+	environment.ssao_power=1.2
 	environment_node.environment=environment
 	add_child(environment_node)
 	var sun := DirectionalLight3D.new()
