@@ -1,6 +1,6 @@
 # Externe IP-Abfrage auf CT 111 aktivieren
 
-Dieses Update ergänzt `GET /api/v1/network/address`. Die API gibt die öffentliche IPv4 des anfragenden Spielers zurück, ohne sie in die API-Datenbank zu schreiben. Bei einem Aufruf aus dem Heimnetz über NAT-Loopback wird die A-Adresse von `api.dl-home.de` verwendet. Diese muss durch FRITZ!Box-DynDNS aktuell gehalten werden. Andere Nginx-, Apache- und FRITZ!Box-Einstellungen bleiben unverändert. Das Spiel benötigt Version 0.36.10 oder neuer.
+Dieses Update ergänzt `GET /api/v1/network/address`. Die API gibt die öffentliche IPv4 des anfragenden Spielers zurück, ohne sie in die API-Datenbank zu schreiben. Bei einem Aufruf aus dem Heimnetz über NAT-Loopback wird die A-Adresse von `api.dl-home.de` verwendet. Falls der lokale DNS-Resolver dafür eine interne Proxy-IP liefert, fragt die API Cloudflare und Google DNS-over-HTTPS ab und nimmt nur eine global erreichbare IPv4 an. `api.dl-home.de` muss durch FRITZ!Box-DynDNS aktuell gehalten werden. Andere Nginx-, Apache- und FRITZ!Box-Einstellungen bleiben unverändert. Das Spiel benötigt Version 0.36.10 oder neuer.
 
 Lade `SOLARIT-Network-Address-API-Update-<VERSION>.zip` aus dem zugehörigen GitHub-Release herunter und lege es auf dem PVE-Knoten unter `/root/SOLARIT-Network-Address-API-Update.zip` ab. Dann in der Proxmox-Shell als root ausführen:
 
@@ -15,7 +15,7 @@ pct exec 111 -- chmod 0644 /opt/solarit-api/solarit_api.py
 pct exec 111 -- python3 -m py_compile /opt/solarit-api/solarit_api.py
 pct exec 111 -- systemctl restart solarit-api
 pct exec 111 -- curl -fsS http://127.0.0.1:8765/health
-pct exec 111 -- curl -fsS http://127.0.0.1:8765/api/v1/network/address
+pct exec 111 -- curl -fsS https://api.dl-home.de/api/v1/network/address
 ```
 
 Das Update speichert die Spielversion jeder öffentlichen Lobby und gibt sie in der Lobby-Liste zurück. Die Datenbank wird beim Dienststart automatisch um die neue Spalte erweitert. Die `health`-Antwort bestätigt den Neustart. Auf dem Spiele-PC anschließend in PowerShell testen:
@@ -24,7 +24,7 @@ Das Update speichert die Spielversion jeder öffentlichen Lobby und gibt sie in 
 curl.exe -fsS https://api.dl-home.de/api/v1/network/address
 ```
 
-Erwartet werden die Health-JSON-Antwort und – über HTTPS von einem Spiele-PC aus – eine IP-Antwort wie `{"ok":true,"address":"79.240.71.178"}`. Danach zeigt das Multiplayer-Menü die lokale und externe IPv4 mit Kopier-Schaltflächen. Lobbys melden ihre Spielversion; Clients können Lobbys mit abweichender Version nicht betreten.
+Erwartet werden die Health-JSON-Antwort und – über HTTPS – eine IP-Antwort wie `{"ok":true,"address":"203.0.113.8"}`. Ein Aufruf direkt an `127.0.0.1` enthält keine Client-IP und kann deshalb `public_address_unavailable` zurückgeben. Danach zeigt das Multiplayer-Menü die lokale und externe IPv4 mit Kopier-Schaltflächen. Lobbys melden ihre Spielversion; Clients können Lobbys mit abweichender Version nicht betreten.
 
 Rollback bei Bedarf in der Proxmox-Shell:
 
