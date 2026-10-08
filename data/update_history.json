@@ -1,6 +1,17 @@
 {
-  "current_version": "0.36.16",
+  "current_version": "0.36.17",
   "entries": [
+    {
+      "version": "0.36.17",
+      "date": "08.10.2026",
+      "title": "Multiplayeranzeige und Updateprüfung verbessert",
+      "changes": [
+        "Die externe-IP-Abfrage hat eine besser lesbare Schaltfläche zum erneuten Abfragen. Falls der IP-Dienst nicht antwortet, bleibt die erneute Abfrage verfügbar.",
+        "Der Lobby-Suchstatus hat jetzt eine eigene Zeile und wird nicht mehr von den unteren Schaltflächen überlagert.",
+        "Nach einer manuellen Updateprüfung zeigt ein Dialog die installierte Version an, wenn das Spiel bereits aktuell ist.",
+        "Das passende API-Updatepaket wird zusammen mit Installer, Prüfsumme und Manifest im GitHub-Release bereitgestellt."
+      ]
+    },
     {
       "version": "0.36.16",
       "date": "08.10.2026",

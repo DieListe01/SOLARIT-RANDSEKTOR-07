@@ -81,6 +81,15 @@ jobs:
       - name: Build portable archives
         run: python tools/package_release.py $env:SOLARIT_VERSION
 
+      - name: Package external-address API update
+        shell: pwsh
+        run: |
+          $stage = Join-Path $PWD 'build\network-address-api-update'
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item server/solarit_api.py (Join-Path $stage 'solarit_api.py')
+          Copy-Item server/UPDATE-NETWORK-ADDRESS-API.md (Join-Path $stage 'UPDATE-NETWORK-ADDRESS-API.md')
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath "build/SOLARIT-Network-Address-API-Update-$env:SOLARIT_VERSION.zip" -Force
+
       - name: Build per-user installer
         shell: pwsh
         run: |
@@ -118,4 +127,5 @@ jobs:
             "build/SOLARIT-RANDSEKTOR-07-Setup-$env:SOLARIT_VERSION.exe" `
             "build/SOLARIT-RANDSEKTOR-07-Setup-$env:SOLARIT_VERSION.exe.sha256" `
             "build/SOLARIT-RANDSEKTOR-07-$env:SOLARIT_VERSION-release.json" `
+            "build/SOLARIT-Network-Address-API-Update-$env:SOLARIT_VERSION.zip" `
             --title "SOLARIT: RANDSEKTOR 07 $env:SOLARIT_VERSION" --notes-file 'build/release-notes.md'

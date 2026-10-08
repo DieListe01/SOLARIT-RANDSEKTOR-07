@@ -473,8 +473,25 @@ func _on_update_check_finished(result: Dictionary) -> void:
 		if intro_active: pending_startup_update=result.duplicate(true)
 		else: show_available_update(result)
 	elif update_check_manual:
-		notify(str(result.get("message","SOLARIT: RANDSEKTOR 07 ist auf dem neuesten Stand.")) if not bool(result.get("ok",false)) else "SOLARIT: RANDSEKTOR 07 ist auf dem neuesten Stand.")
+		if bool(result.get("ok",false)):
+			show_update_current_dialog()
+		else:
+			notify(str(result.get("message","Die Update-Prüfung ist fehlgeschlagen.")))
 	update_check_manual=false
+
+func show_update_current_dialog() -> void:
+	clear(overlay)
+	var viewport_size := get_viewport_rect().size
+	var dialog_size := Vector2(680, 300)
+	var dialog_position := (viewport_size - dialog_size) * 0.5
+	var p := panel(overlay, Rect2(dialog_position, dialog_size), Color("211b17"))
+	p.name = "UpdateCurrentDialog"
+	label(p, "SOLARIT: RANDSEKTOR 07 / UPDATE", Vector2(34, 28), 17, MINT)
+	label(p, "Spiel ist aktuell", Vector2(34, 64), 36, GOLD)
+	var version_label := label(p, "Installierte Version: v%s" % str(update_history.get("current_version", "unbekannt")), Vector2(36, 126), 20, Color("d5ded5"), 600)
+	version_label.name = "CurrentVersion"
+	label(p, "Es ist derzeit keine neuere Version verfügbar.", Vector2(36, 164), 17, MUTED, 600)
+	button(p, "OK", Rect2(36, 218, 608, 48), func(): clear(overlay))
 
 func show_available_update(result: Dictionary) -> void:
 	clear(overlay)
@@ -816,7 +833,7 @@ func _refresh_online_lobby() -> void:
 func show_online_menu() -> void:
 	var draft:=chat_input.text if is_instance_valid(chat_input) else ""
 	clear(overlay)
-	var lobby_size := Vector2(1300, 870) if online.active else Vector2(1100, 900)
+	var lobby_size := Vector2(1300, 870) if online.active else Vector2(1100, 940)
 	var viewport_size := get_viewport_rect().size
 	var lobby_scale := minf(1.0, minf(viewport_size.x / lobby_size.x, viewport_size.y / lobby_size.y))
 	var lobby_position := (viewport_size - lobby_size * lobby_scale) * 0.5
@@ -875,12 +892,12 @@ func show_online_menu() -> void:
 		local_address_button.disabled = not local_address_button_enabled(local_address)
 		local_address_button.tooltip_text = "Lokale IPv4-Adresse in die Zwischenablage kopieren. Nur im eigenen Heimnetz erreichbar."
 		label(p,"DEINE EXTERNE IP (INTERNET)",Vector2(555,513),13,MUTED)
-		online_public_address_button = button(p,_public_address_button_text(),Rect2(555,537,435,40),func():
+		online_public_address_button = button(p,_public_address_button_text(),Rect2(555,537,416,40),func():
 			if not online_public_address.is_empty(): DisplayServer.clipboard_set(online_public_address))
 		online_public_address_button.name = "PublicAddressCopy"
 		online_public_address_button.disabled = online_public_address.is_empty()
 		online_public_address_button.tooltip_text = "Die öffentliche IPv4 wird nur für diese Abfrage an den Online-Dienst übermittelt und dort nicht gespeichert."
-		var refresh_public_address := button(p,"NEU",Rect2(995,537,55,40),_request_online_public_address)
+		var refresh_public_address := button(p,"NEU",Rect2(979,537,71,40),_request_online_public_address)
 		refresh_public_address.name = "RefreshPublicAddress"
 		refresh_public_address.tooltip_text = "Externe IP erneut abfragen"
 		label(p,"HOST-IP ODER EINLADUNGSCODE / DIREKT BEITRETEN",Vector2(40,589),13,MUTED)
@@ -939,7 +956,7 @@ func show_online_menu() -> void:
 		online_directory_items.select_mode = ItemList.SELECT_SINGLE
 		online_directory_items.visible = not _last_public_lobbies.is_empty()
 		p.add_child(online_directory_items)
-		online_directory_status_label = label(p,_online_directory_status_text(),Vector2(40,822),13,MUTED,650)
+		online_directory_status_label = label(p,_online_directory_status_text(),Vector2(40,822),13,MUTED,1010)
 		online_directory_status_label.name = "OnlineDirectoryStatus"
 		var join_lobby := button(p,"AUSGEWÄHLTE LOBBY BEITRETEN",Rect2(700,816,350,42),func():
 			if online_directory_selected.is_empty(): return
@@ -1050,13 +1067,15 @@ func show_online_menu() -> void:
 			label(p,launch_reason,Vector2(626,457),13,MUTED,610)
 		build_online_chat(p,Rect2(40,485,1210,245),true)
 		chat_input.text=draft
-	button(p,"VERBINDUNG TRENNEN",Rect2(40,lobby_size.y-82,280,42),func():
+	var disconnect_button := button(p,"VERBINDUNG TRENNEN",Rect2(40,lobby_size.y-82,280,42),func():
 		if is_instance_valid(online_directory): online_directory.close_lobby()
 		public_lobby_requested = false
 		private_lobby_password = ""
 		online.leave()
 		show_main_menu())
-	button(p,"ZURÜCK",Rect2(340,lobby_size.y-82,250,42),func():clear(overlay))
+	disconnect_button.name = "DisconnectOnline"
+	var back_button := button(p,"ZURÜCK",Rect2(340,lobby_size.y-82,250,42),func():clear(overlay))
+	back_button.name = "BackOnline"
 
 func lobby_color_label(color_code: String) -> String:
 	var color_names := {"19ddd4": "CYAN", "f34c32": "ROT", "b967ef": "VIOLETT", "408bf4": "BLAU", "f1c744": "GELB", "74ce47": "GRÜN", "f478bf": "ROSA", "eee0bc": "ELFENBEIN"}

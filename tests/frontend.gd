@@ -124,6 +124,12 @@ func run() -> void:
 	game._on_online_public_address_received("79.240.71.178",true)
 	var external_ip_button: Button = online_panel.get_node("PublicAddressCopy")
 	check(not external_ip_button.disabled and external_ip_button.text.contains("79.240.71.178"),"Successful external-IP lookup updates its copy control")
+	var retry_external_ip_button: Button = online_panel.get_node("RefreshPublicAddress")
+	check(retry_external_ip_button.text == "NEU" and retry_external_ip_button.get_rect().size.x >= 70 and not retry_external_ip_button.get_rect().intersects(external_ip_button.get_rect()), "External-IP retry control is readable and separate from the address")
+	game.online_stats_enabled = true
+	if is_instance_valid(game.online_stats): game.online_stats.enabled = true
+	game._on_online_public_address_received("",false)
+	check((online_panel.get_node("PublicAddressCopy") as Button).text == "Externe IP nicht verfügbar" and not (online_panel.get_node("RefreshPublicAddress") as Button).disabled, "Unavailable external-IP lookup leaves a usable retry control")
 	var join_address: LineEdit = online_panel.get_node("OnlineAddress")
 	check(join_address.text.is_empty() and (online_panel.get_node("JoinOnlineClient") as Button).disabled,"Direct join starts empty instead of suggesting localhost")
 	check(join_address.placeholder_text.contains("Host-IP") and online_panel.get_node("LobbyPassword") is LineEdit,"Direct join provides a separate password field")
@@ -138,6 +144,9 @@ func run() -> void:
 	check(not public_list.get_rect().intersects(public_join_button.get_rect()), "Public lobby list clears the selected-lobby action")
 	check(not online_panel.get_node("LocalAddressCopy").get_rect().intersects(join_address.get_rect()) and not online_panel.get_node("PublicAddressCopy").get_rect().intersects(join_address.get_rect()),"IP copy controls have their own row above the direct-join address")
 	check(online_panel.get_global_rect().end.y <= game.get_viewport_rect().size.y + 1,"Expanded multiplayer panel scales to fit the active screen (%s / %s)" % [online_panel.get_global_rect(), game.get_viewport_rect().size])
+	var directory_status: Label = online_panel.get_node("OnlineDirectoryStatus")
+	var lobby_back: Button = online_panel.get_node("BackOnline")
+	check(not directory_status.get_rect().intersects(lobby_back.get_rect()) and directory_status.get_rect().end.y < lobby_back.position.y, "Lobby refresh status has its own row above the footer buttons")
 	var empty_state: Label = online_panel.get_node("OnlineDirectoryEmptyState")
 	check(empty_state.visible and empty_state.text.contains("Keine offene Lobby gefunden") and public_list.item_count == 0,"Empty lobby directory explains how to create a public lobby")
 	game._on_online_lobbies_received([{"lobby_id":"test-lobby", "nickname":"TESTHOST", "mode":"versus", "mission_name":"Das Veyra-Becken", "game_version":str(game.update_history.current_version), "address":"203.0.113.8", "port":2456, "expires_in":75}], "")

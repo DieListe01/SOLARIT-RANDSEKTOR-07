@@ -1,0 +1,21 @@
+# HTTP bootstrap only: ACME challenge plus health check; no game/profile APIs over plain HTTP.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.dl-home.de;
+
+    client_max_body_size 64k;
+    access_log off;
+    error_log /var/log/nginx/solarit-api-error.log crit;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+    location = /health {
+        proxy_pass http://127.0.0.1:8765/health;
+        proxy_set_header Host $host;
+    }
+    location / { return 503; }
+}
