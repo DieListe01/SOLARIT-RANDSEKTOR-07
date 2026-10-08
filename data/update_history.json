@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.25",
+  "current_version": "0.36.26",
   "entries": [
+    {
+      "version": "0.36.26",
+      "date": "08.10.2026",
+      "title": "Beleuchtete 2.5D-Einheiten und Gebäude",
+      "changes": [
+        "Fahrzeuge und Gebäude werden im Einsatz als beleuchtete Low-Poly-3D-Modelle mit Teamfarben dargestellt.",
+        "Alle acht Fahrzeug- und Gebäudetypen besitzen eigene Silhouetten; Schäden, Fracht, Ausrichtung und Gebäudedrehung fließen in die Darstellung ein.",
+        "Der Windows-Build verwendet ausdrücklich Forward+ mit Vulkan. Gelände, Steuerung, Kampfregeln und HUD bleiben in der bestehenden Ansicht integriert."
+      ]
+    },
     {
       "version": "0.36.25",
       "date": "08.10.2026",

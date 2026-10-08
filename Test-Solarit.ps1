@@ -21,6 +21,8 @@ foreach ($testScript in @('regression', 'mission_system', 'playthrough', 'perfor
     & $enginePath --headless --path $gameRoot --script "tests/$testScript.gd"
     if ($LASTEXITCODE -ne 0) { throw "Test fehlgeschlagen: $testScript" }
 }
+& $enginePath --headless --path $gameRoot --script 'tests/prototype_25d.gd'
+if ($LASTEXITCODE -ne 0) { throw '2.5D-Fahrzeug- und Gebäudemodelle fehlgeschlagen' }
 & $enginePath --headless --path $gameRoot --script 'tests/campaign_units.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Kampagnenfreigaben und neue Einheiten fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/ui_integration.gd'

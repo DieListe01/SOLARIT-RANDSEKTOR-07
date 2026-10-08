@@ -147,6 +147,7 @@ func nearest_vehicle_texture(key: String, requested_frame: int) -> Texture2D:
 	return best
 
 func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float, ratio: float) -> bool:
+	if classic: return false
 	var relative := wrapf(entity.turret-entity.angle,-PI,PI)
 	# Half as many turret snapshots keep continuously turning units from rebuilding
 	# an unbounded set of nearly identical 256px textures during large fights.
@@ -193,6 +194,7 @@ func building_cache_key(entity: Dictionary) -> String:
 	return "%s|%d|%s|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage]
 
 func draw_cached_building(entity: Dictionary) -> bool:
+	if classic: return false
 	# Construction stays live because its silhouette changes with build progress.
 	# Completed buildings, including those being upgraded, use a cached stable
 	# body; damage, repair and upgrade progress are drawn separately so combat
@@ -227,6 +229,7 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 	var viewport := SubViewport.new()
 	viewport.size=Vector2i(512,512)
 	viewport.transparent_bg=true
+	viewport.own_world_3d=true
 	viewport.gui_disable_input=true
 	viewport.render_target_clear_mode=SubViewport.CLEAR_MODE_ALWAYS
 	viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
@@ -258,6 +261,7 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	var viewport := SubViewport.new()
 	viewport.size=Vector2i(256,256)
 	viewport.transparent_bg=true
+	viewport.own_world_3d=true
 	viewport.gui_disable_input=true
 	viewport.render_target_clear_mode=SubViewport.CLEAR_MODE_ALWAYS
 	viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
