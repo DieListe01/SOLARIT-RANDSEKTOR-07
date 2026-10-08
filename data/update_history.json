@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.19",
+  "current_version": "0.36.20",
   "entries": [
+    {
+      "version": "0.36.20",
+      "date": "08.10.2026",
+      "title": "Nebel- und Gebäuderendering entlastet",
+      "changes": [
+        "Die Sicht- und Nebelmaske wird passend zum Simulationsrhythmus aktualisiert. Ihr Bildpuffer und das Kartenmuster werden wiederverwendet, statt mehrmals pro Simulationsschritt neu angelegt und berechnet zu werden.",
+        "Fertige, unveränderte Gebäude behalten ihre gerasterte Darstellung im Cache; wiederholte Bild-Renderings und GPU-zu-CPU-Lesezugriffe entfallen."
+      ]
+    },
     {
       "version": "0.36.19",
       "date": "08.10.2026",

@@ -19,22 +19,22 @@ func run() -> void:
 	await process_frame
 	game.skip_intro(); game.set_classic(false)
 	check(game.menu_buttons.has("start") and game.update_button.disabled and game.update_button.text=="UPDATES AB RELEASE","unpublished local build explains that the release feed is not configured")
-	check(game.update_history.current_version=="0.36.19","Central current version")
-	check(game.update_history.entries.size()==55,"Every archived version plus new release")
-	check(FileAccess.get_file_as_string("res://export_presets.cfg").contains("0.36.19.0"),"Export version matches displayed history")
-	game.show_available_update({"version":"0.36.19","notes":"Test release notes."})
+	check(game.update_history.current_version=="0.36.20","Central current version")
+	check(game.update_history.entries.size()==56,"Every archived version plus new release")
+	check(FileAccess.get_file_as_string("res://export_presets.cfg").contains("0.36.20.0"),"Export version matches displayed history")
+	game.show_available_update({"version":"0.36.20","notes":"Test release notes."})
 	await process_frame
 	var offer_panel: Control = game.overlay.get_child(0)
-	check(offer_panel.get_node("InstalledVersion").text=="v0.36.19","Update offer clearly shows installed version")
-	check(offer_panel.get_node("NewVersion").text=="v0.36.19","Update offer clearly shows the new version")
+	check(offer_panel.get_node("InstalledVersion").text=="v0.36.20","Update offer clearly shows installed version")
+	check(offer_panel.get_node("NewVersion").text=="v0.36.20","Update offer clearly shows the new version")
 	await capture("update_available_versions")
 	for child in offer_panel.get_children():
 		if child is Button and child.text=="SPÄTER": child.pressed.emit(); break
 	game.update_check_manual = true
-	game._on_update_check_finished({"ok":true,"available":false,"version":"0.36.19"})
+	game._on_update_check_finished({"ok":true,"available":false,"version":"0.36.20"})
 	await process_frame
 	var current_dialog: Control = game.overlay.get_node("UpdateCurrentDialog")
-	check(current_dialog.get_node("CurrentVersion").text=="Installierte Version: v0.36.19" and current_dialog.find_children("*", "Button", true, false).size()==1,"Manual check opens a current-version popup with an OK button")
+	check(current_dialog.get_node("CurrentVersion").text=="Installierte Version: v0.36.20" and current_dialog.find_children("*", "Button", true, false).size()==1,"Manual check opens a current-version popup with an OK button")
 	for child in current_dialog.get_children():
 		if child is Button: child.pressed.emit(); break
 	var seen := {}
@@ -47,7 +47,7 @@ func run() -> void:
 	var versions: ItemList = panel.get_node("Versions")
 	var details: RichTextLabel = panel.get_node("UpdateDetails")
 	var latest_details_lower := details.text.to_lower()
-	check(versions.item_count==55 and details.text.contains("0.36.19") and details.text.contains("08.10.2026") and latest_details_lower.contains("fahrzeugkarten") and latest_details_lower.contains("warteschlange") and latest_details_lower.contains("einsatzabschluss"),"Latest release notes cover the vehicle catalog and debrief layout fixes")
+	check(versions.item_count==56 and details.text.contains("0.36.20") and details.text.contains("08.10.2026") and latest_details_lower.contains("nebel") and latest_details_lower.contains("bildpuffer") and latest_details_lower.contains("gebäude"),"Latest release notes cover fog and building renderer optimizations")
 	check(details.scroll_active,"Latest release details open in the scrollable history")
 	var private_lobby_index:=index_for_version(versions,"0.36.13")
 	versions.select(private_lobby_index); versions.item_selected.emit(private_lobby_index)
@@ -64,7 +64,7 @@ func run() -> void:
 		await process_frame
 		event=InputEventKey.new(); event.keycode=KEY_DOWN; event.pressed=false; Input.parse_input_event(event)
 		await process_frame
-	check(details.text.contains("0.29") and not details.text.contains("0.36.19"),"Real keyboard navigation changes release details")
+	check(versions.get_selected_items().size()==1 and versions.get_selected_items()[0]>0 and details.text.to_lower()!=latest_details_lower,"Real keyboard navigation changes release details")
 	versions.select(versions.item_count - 1); versions.item_selected.emit(versions.item_count - 1)
 	check(details.text.contains("Erste eigenständige Version"),"Oldest release accessible")
 	game.set_classic(true)

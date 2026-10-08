@@ -103,6 +103,7 @@ func measure_building_crowd() -> bool:
 	for i in 4:
 		building_ids.append(game.sim.spawn("power",0,Vector2((20+i*4)*32,38*32),true))
 	await settle_frames(75)
+	var static_cache_times: Dictionary=game.renderer.building_texture_times.duplicate(true)
 	var baseline_total := 0.0
 	var baseline_buildings := 0.0
 	var baseline_started := Time.get_ticks_usec()
@@ -112,6 +113,10 @@ func measure_building_crowd() -> bool:
 		baseline_buildings+=game.renderer.profile_buildings_ms
 	var baseline_fps := 60.0/maxf(0.001,float(Time.get_ticks_usec()-baseline_started)/1000000.0)
 	print("RENDER BUILDINGS 4 added: %.1f FPS | draw submission %.2f ms | building pass %.2f ms/frame | cache hits/misses %d/%d" % [baseline_fps,baseline_total/60.0,baseline_buildings/60.0,game.renderer.building_cache_hits,game.renderer.building_cache_misses])
+	var static_cache_ok: bool=not static_cache_times.is_empty() and game.renderer.building_texture_times.size()==static_cache_times.size()
+	for key in static_cache_times:
+		if not is_equal_approx(float(game.renderer.building_texture_times.get(key,-1.0)),float(static_cache_times[key])): static_cache_ok=false
+	if not static_cache_ok: push_error("BUILDING CACHE REGRESSION: unchanged buildings were rasterized again")
 	await settle_frames(3)
 	root.get_texture().get_image().save_png("res://test-output/render_buildings_4.png")
 	for id in building_ids: game.sim.entities.erase(id)
@@ -136,7 +141,7 @@ func measure_building_crowd() -> bool:
 	if not cache_ok: push_error("BUILDING CACHE REGRESSION: 50 visible buildings did not resolve from cache")
 	for id in building_ids: game.sim.entities.erase(id)
 	game.renderer.camera=previous_camera
-	return cache_ok
+	return cache_ok and static_cache_ok
 
 func measure_destruction_debris() -> void:
 	game.renderer.combat_fx.ruins.clear()
@@ -187,6 +192,12 @@ func run() -> void:
 	game.skip_intro(); game.start_game(); game.paused=true
 	game.renderer.profile_enabled=true
 	game.sim.ai_timer=999999
+	await settle_frames(3)
+	var fog_buffer: Image=game.renderer.fog_image
+	await settle_frames(45)
+	var fog_cache_ok: bool=fog_buffer!=null and game.renderer.fog_image==fog_buffer and game.renderer.fog_texture!=null
+	if not fog_cache_ok: push_error("FOG CACHE REGRESSION: stable map fog did not reuse its image buffer")
+	print("RENDER FOG CACHE: reused image buffer across scheduled visibility updates: %s" % fog_cache_ok)
 	for count in [1,10,20,40]: await measure(count)
 	var quality_ok := compare_vehicle_sharpness()
 	await measure_moving_combat()
@@ -197,4 +208,4 @@ func run() -> void:
 	file.close()
 	game.music.shutdown(); game.queue_free()
 	await process_frame
-	quit(0 if quality_ok and buildings_ok else 1)
+	quit(0 if quality_ok and buildings_ok and fog_cache_ok else 1)

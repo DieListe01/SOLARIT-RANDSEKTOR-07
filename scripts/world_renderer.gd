@@ -24,6 +24,8 @@ var crt := 0
 var elapsed := 0.0
 const INK = Color("162b2e")
 var fog_texture: ImageTexture
+var fog_image: Image
+var fog_base_colors := PackedColorArray()
 var fog_timer := 0.0
 var industrial_art := IndustrialArt.new()
 var visual_bursts: Array[Dictionary] = []
@@ -201,10 +203,6 @@ func draw_cached_building(entity: Dictionary) -> bool:
 			process_building_cache_queue.call_deferred()
 		return false
 	building_cache_hits+=1
-	if elapsed-float(building_texture_times.get(key,0.0))>0.65 and not building_cache_pending.has(key):
-		building_cache_pending[key]=true
-		building_cache_queue.append({"key":key,"entity":entity.duplicate(true),"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner]})
-		process_building_cache_queue.call_deferred()
 	draw_texture_rect(texture,Rect2(entity.pos-Vector2(128,128),Vector2(256,256)),false)
 	return true
 
@@ -381,17 +379,25 @@ func _process(dt: float) -> void:
 			for chunk in dirty_chunks: _build_solarit_detail_chunk(chunk)
 	fog_timer-=dt
 	if sim!=null and fog_timer<=0:
-		fog_timer=0.12
-		var mask := Image.create(sim.grid.width,sim.grid.height,false,Image.FORMAT_RGBA8)
+		fog_timer=0.25
+		var fog_size:=Vector2i(sim.grid.width,sim.grid.height)
+		if fog_image==null or fog_image.get_size()!=fog_size:
+			fog_image=Image.create(fog_size.x,fog_size.y,false,Image.FORMAT_RGBA8)
+			fog_base_colors.resize(fog_size.x*fog_size.y)
+			for y in fog_size.y:
+				for x in fog_size.x:
+					var index:=y*fog_size.x+x
+					var grain := sin(float(x*73+y*179))*0.0035
+					var strata := sin(float(x)*0.37+sin(float(y)*0.23))*0.006
+					fog_base_colors[index]=Color(0.09+grain+strata,0.075+grain+strata,0.066+grain+strata,1.0)
 		for y in sim.grid.height:
 			for x in sim.grid.width:
 				var index := y*sim.grid.width+x
 				var alpha := 1.0 if sim.explored[sim.view_owner][index]==0 else (0.62 if sim.fog[sim.view_owner][index]==0 else 0.0)
-				var grain := sin(float(x*73+y*179))*0.0035
-				var strata := sin(float(x)*0.37+sin(float(y)*0.23))*0.006
-				mask.set_pixel(x,y,Color(0.09+grain+strata,0.075+grain+strata,0.066+grain+strata,alpha))
-		if fog_texture==null: fog_texture=ImageTexture.create_from_image(mask)
-		else: fog_texture.update(mask)
+				var base_color: Color=fog_base_colors[index]
+				fog_image.set_pixel(x,y,Color(base_color.r,base_color.g,base_color.b,alpha))
+		if fog_texture==null: fog_texture=ImageTexture.create_from_image(fog_image)
+		else: fog_texture.update(fog_image)
 	marker_time=maxf(0,marker_time-dt)
 	queue_redraw()
 
