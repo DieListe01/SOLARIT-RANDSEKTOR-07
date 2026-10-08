@@ -125,54 +125,64 @@ func interpolated_entity(entity: Dictionary) -> Dictionary:
 	visual.turret=lerp_angle(float(before[2]),float(now[2]),interpolation_alpha)
 	return visual
 
-func nearest_vehicle_texture(key: String, requested_frame: int) -> Texture2D:
+func nearest_vehicle_texture(key: String) -> Texture2D:
 	var requested: PackedStringArray=key.split("|")
 	var best: Texture2D
-	var best_state_distance:=2147483647
-	var best_turret_distance:=2147483647
+	var best_distance:=2147483647
 	for candidate in vehicle_texture_cache:
 		var parts: PackedStringArray=str(candidate).split("|")
-		if parts.size()!=8 or requested.size()!=8: continue
+		if parts.size()!=10 or requested.size()!=10: continue
 		if parts[0]!=requested[0] or parts[1]!=requested[1] or parts[2]!=requested[2] or parts[3]!=requested[3]: continue
-		var state_distance:=absi(int(parts[5])-int(requested[5]))*16+absi(int(parts[6])-int(requested[6]))*2+absi(int(parts[7])-int(requested[7]))*12
-		var difference:=absi(int(parts[4])-requested_frame)
-		difference=mini(difference,64-difference)
-		# Preserve the exact damage/cargo/harvest look whenever available. If a
-		# new state is still being rasterized, use the closest cached state of the
-		# same vehicle instead of dropping into the much more expensive vector art.
-		if state_distance<best_state_distance or (state_distance==best_state_distance and difference<best_turret_distance):
-			best_state_distance=state_distance
-			best_turret_distance=difference
+		if parts[6]!=requested[6] or parts[7]!=requested[7] or parts[8]!=requested[8]: continue
+		var heading_delta:=absi(int(parts[4])-int(requested[4]))
+		heading_delta=mini(heading_delta,16-heading_delta)
+		var turret_delta:=absi(int(parts[5])-int(requested[5]))
+		turret_delta=mini(turret_delta,16-turret_delta)
+		var drive_delta:=absi(int(parts[9])-int(requested[9]))
+		drive_delta=mini(drive_delta,4-drive_delta)
+		# Keep damage, cargo and work state exact while choosing the nearest 3D
+		# body heading and turret view during cache warmup.
+		var distance:=heading_delta*3+turret_delta+drive_delta*2
+		if distance<best_distance:
+			best_distance=distance
 			best=vehicle_texture_cache[candidate]
 	return best
 
 func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float, ratio: float) -> bool:
 	if classic: return false
 	var relative := wrapf(entity.turret-entity.angle,-PI,PI)
-	# Half as many turret snapshots keep continuously turning units from rebuilding
-	# an unbounded set of nearly identical 256px textures during large fights.
-	var turret_frame := posmod(roundi((relative+PI)*32.0/TAU)*2,64)
-	var turret_angle := float(turret_frame)*TAU/64.0-PI
+	# Render the hull from sixteen actual yaw angles and the turret from sixteen
+	# relative angles. Translation remains smoothly interpolated in world space.
+	var heading_frame:=posmod(roundi(entity.angle*16.0/TAU),16)
+	var heading_angle:=float(heading_frame)*TAU/16.0
+	var turret_frame:=posmod(roundi((relative+PI)*16.0/TAU),16)
+	var turret_angle:=float(turret_frame)*TAU/16.0-PI
+	var vehicle_velocity:Vector2=entity.get("velocity",Vector2.ZERO)
+	var moving:bool=vehicle_velocity.length()>5.0
+	var drive_frame:=posmod(floori(elapsed*4.0),4) if moving and entity.kind in ["tank","siege","harvester","scorcher","bulwark"] else 0
 	var hp_ratio: float=entity.hp/entity.max_hp
 	var damage_state := 2 if hp_ratio<0.35 else (1 if hp_ratio<0.65 else 0)
 	var cargo_state := clampi(roundi(float(entity.get("cargo",0.0))/maxf(1.0,float(sim.db.rules.harvest_capacity))*8.0),0,8) if entity.kind=="harvester" else 0
 	var harvest_state := 1 if entity.kind=="harvester" and entity.get("harvest_state","")=="HARVEST" else 0
 	var color_key := sim.team_color(entity.owner).to_html(false)
-	var key := "%s|%s|%d|%s|%d|%d|%d|%d" % [entity.kind,sim.factions[entity.owner],entity.owner,color_key,turret_frame,damage_state,cargo_state,harvest_state]
+	var key := "%s|%s|%d|%s|%d|%d|%d|%d|%d|%d" % [entity.kind,sim.factions[entity.owner],entity.owner,color_key,heading_frame,turret_frame,damage_state,cargo_state,harvest_state,drive_frame]
 	var texture: Texture2D=vehicle_texture_cache.get(key)
 	if texture==null:
 		vehicle_cache_misses+=1
 		if not vehicle_cache_pending.has(key) and vehicle_cache_queue.size()<16:
 			vehicle_cache_pending[key]=true
-			vehicle_cache_queue.append({"key":key,"entity":entity.duplicate(true),"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner],"turret":turret_angle})
+			var snapshot:=entity.duplicate(true)
+			snapshot.angle=heading_angle
+			snapshot.drive_frame=drive_frame
+			vehicle_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner],"turret":turret_angle})
 			process_vehicle_cache_queue.call_deferred()
-		texture=nearest_vehicle_texture(key,turret_frame)
+		texture=nearest_vehicle_texture(key)
 		if texture==null: return false
 	else:
 		vehicle_cache_hits+=1
 	var base := output*0.5-camera*scale_value+visual_offset*ratio
 	var screen_pos: Vector2=base+(entity.pos+combat_fx.hit_offset(entity.id))*scale_value
-	draw_set_transform(screen_pos,entity.angle,Vector2.ONE*(scale_value*0.25))
+	draw_set_transform(screen_pos,0.0,Vector2.ONE*(scale_value*0.32))
 	draw_texture(texture,Vector2(-128,-128))
 	draw_set_transform(base,0,Vector2.ONE*scale_value)
 	return true
@@ -269,7 +279,6 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	painter.art=IndustrialArt.new()
 	painter.entity=source.duplicate(true)
 	painter.entity.pos=Vector2.ZERO
-	painter.entity.angle=0.0
 	painter.entity.turret=turret_angle
 	painter.entity.velocity=Vector2.ZERO
 	painter.entity.cache_treads=true
@@ -284,7 +293,7 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	if not is_instance_valid(viewport): return
 	var image := viewport.get_texture().get_image()
 	if image!=null:
-		if vehicle_texture_cache.size()>=128: vehicle_texture_cache.erase(vehicle_texture_cache.keys()[0])
+		if vehicle_texture_cache.size()>=256: vehicle_texture_cache.erase(vehicle_texture_cache.keys()[0])
 		vehicle_texture_cache[key]=ImageTexture.create_from_image(image)
 	vehicle_cache_pending.erase(key)
 	viewport.queue_free()

@@ -1,6 +1,6 @@
 # SOLARIT: RANDSEKTOR 07
 
-Ein eigenständiges RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36.27 / 3D-Gebäude mit eigenen Silhouetten**, 8. Oktober 2026.
+Ein eigenständiges RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig spielbaren Missionen. Stand: **0.36.28 / Detaillierte 3D-Fahrzeuge und räumliche Bewegung**, 8. Oktober 2026.
 
 Fahrzeuge und Gebäude werden im Einsatz als beleuchtete 3D-Modelle gerendert und passend zur RTS-Kamera in die Schlacht eingebettet. Alle acht Fahrzeug- und Gebäudetypen übernehmen Teamfarbe, Ausrichtung und sichtbare Zustände; jedes Gebäude hat eine eigene Silhouette und lesbare Fassadendetails. Der Windows-Build ist auf Forward+ und Vulkan festgelegt; das Classic-Design behält seine bisherige Darstellung.
 

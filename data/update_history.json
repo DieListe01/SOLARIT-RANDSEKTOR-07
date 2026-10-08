@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.27",
+  "current_version": "0.36.28",
   "entries": [
+    {
+      "version": "0.36.28",
+      "date": "08.10.2026",
+      "title": "Detaillierte 3D-Fahrzeuge und räumliche Bewegung",
+      "changes": [
+        "Alle acht Fahrzeugtypen erhalten eigene 3D-Details wie Laufrollen, bewegte Ketten, Sensoren, Sammler, Waffenmodule und Panzerplatten.",
+        "Fahrzeuge drehen ihre 3D-Karosserie in sechzehn Blickrichtungen; Turm und Waffe werden unabhängig davon ausgerichtet.",
+        "Die 3D-Gebäudesilhouetten und Größenanpassungen aus 0.36.27 sind enthalten; Forward+ mit Vulkan bleibt Standard."
+      ]
+    },
     {
       "version": "0.36.27",
       "date": "08.10.2026",
