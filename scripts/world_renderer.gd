@@ -46,6 +46,7 @@ var movement_vfx_enabled := true
 var previous_positions: Dictionary = {}
 var previous_speeds: Dictionary = {}
 var track_timer := 0.0
+var track_age_timer := 0.0
 var heat_layer: ColorRect
 var combat_fx := CombatEffects.new()
 var visual_paused := false
@@ -328,10 +329,14 @@ func _process(dt: float) -> void:
 		elapsed+=dt
 		combat_fx.update(dt)
 	visual_offset=combat_fx.offset
-	for burst in visual_bursts: burst.life-=dt
-	visual_bursts=visual_bursts.filter(func(b):return b.life>0)
-	for track in tracks: track.life-=dt
-	tracks=tracks.filter(func(t):return t.life>0)
+	for index in range(visual_bursts.size()-1,-1,-1):
+		visual_bursts[index].life-=dt
+		if visual_bursts[index].life<=0: visual_bursts.remove_at(index)
+	track_age_timer+=dt
+	if track_age_timer>=0.2:
+		var age_step:=track_age_timer
+		track_age_timer=0.0
+		age_ground_tracks(age_step)
 	track_timer-=dt
 	if not movement_vfx_enabled:
 		tracks.clear(); previous_positions.clear(); previous_speeds.clear()
@@ -400,6 +405,11 @@ func _process(dt: float) -> void:
 		else: fog_texture.update(fog_image)
 	marker_time=maxf(0,marker_time-dt)
 	queue_redraw()
+
+func age_ground_tracks(dt: float) -> void:
+	for index in range(tracks.size()-1,-1,-1):
+		tracks[index].life-=dt
+		if tracks[index].life<=0: tracks.remove_at(index)
 
 func _movement_bucket_has_visible_cell(bucket: Vector2i) -> bool:
 	var tile_size:=sim.grid.tile

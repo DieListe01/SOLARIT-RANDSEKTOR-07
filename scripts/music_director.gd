@@ -15,6 +15,9 @@ var sfx_volume := 0.75
 var ended := false
 var paused := false
 var shot_cooldown := 0.0
+var tactical_scan_timer := 0.0
+var cached_movers := 0
+var cached_visible_enemies := 0
 var cue_cooldowns: Dictionary = {}
 var variants: Dictionary = {}
 var cue_indices: Dictionary = {}
@@ -71,6 +74,7 @@ func start(model: Simulation) -> void:
 	ended=false
 	paused=false
 	state="BASE_CALM"; pending=state; age=0; intensity=0; last_music_bar=-1
+	tactical_scan_timer=0.0; cached_movers=0; cached_visible_enemies=0
 	for layer in layers: layer.stream_paused=false; layer.stop(); layer.stream=null; layer.queue_free()
 	layers.clear()
 	for name_value in LAYER_NAMES:
@@ -143,15 +147,21 @@ func _process(dt: float) -> void:
 		frontend_player.volume_db=move_toward(frontend_player.volume_db,linear_to_db(maxf(0.001,music_volume*0.7)),dt*12)
 		return
 	if sim==null or layers.is_empty() or paused: return
-	var movers := 0
-	for e in sim.entities.values():
-		if not e.building and e.velocity.length()>8 and sim.is_visible(e,sim.view_owner): movers+=1
-	engine_voice.volume_db=move_toward(engine_voice.volume_db,linear_to_db(maxf(0.0001,minf(0.20,movers*0.035)*sfx_volume)),dt*35)
+	tactical_scan_timer-=dt
+	if tactical_scan_timer<=0.0:
+		tactical_scan_timer=0.25
+		cached_movers=0
+		cached_visible_enemies=0
+		for e in sim.entities.values():
+			var is_enemy: bool=e.owner!=sim.view_owner
+			var is_moving_unit: bool=not e.building and e.velocity.length()>8
+			if not is_enemy and not is_moving_unit: continue
+			if not sim.is_visible(e,sim.view_owner): continue
+			if is_enemy: cached_visible_enemies+=1
+			if is_moving_unit: cached_movers+=1
+	engine_voice.volume_db=move_toward(engine_voice.volume_db,linear_to_db(maxf(0.0001,minf(0.20,cached_movers*0.035)*sfx_volume)),dt*35)
 	age+=dt
-	var visible_enemies := 0
-	for e in sim.entities.values():
-		if e.owner!=sim.view_owner and sim.is_visible(e,sim.view_owner): visible_enemies+=1
-	var desired := clampf(sim.combat_heat+visible_enemies*0.025+(0.4 if sim.base_alarm>0 else 0.0),0,1)
+	var desired := clampf(sim.combat_heat+cached_visible_enemies*0.025+(0.4 if sim.base_alarm>0 else 0.0),0,1)
 	intensity=move_toward(intensity,desired,dt*0.45)
 	var next := "BASE_CALM"
 	if sim.result!="": next=sim.result.to_upper()
@@ -159,7 +169,7 @@ func _process(dt: float) -> void:
 	elif intensity>0.75: next="MAJOR_BATTLE"
 	elif intensity>0.4: next="BATTLE"
 	elif intensity>0.18: next="SKIRMISH"
-	elif visible_enemies>0: next="ENEMY_CONTACT"
+	elif cached_visible_enemies>0: next="ENEMY_CONTACT"
 	elif not sim.buildings(sim.view_owner,"refinery").is_empty(): next="ECONOMY"
 	if next!=pending: pending=next
 	# Minimum dwell plus transitions at a 2-second bar boundary.

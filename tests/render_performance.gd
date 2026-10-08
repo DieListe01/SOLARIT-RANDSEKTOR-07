@@ -198,6 +198,14 @@ func run() -> void:
 	var fog_cache_ok: bool=fog_buffer!=null and game.renderer.fog_image==fog_buffer and game.renderer.fog_texture!=null
 	if not fog_cache_ok: push_error("FOG CACHE REGRESSION: stable map fog did not reuse its image buffer")
 	print("RENDER FOG CACHE: reused image buffer across scheduled visibility updates: %s" % fog_cache_ok)
+	game.renderer.tracks.clear()
+	game.renderer.tracks.append({"a":Vector2.ZERO,"b":Vector2.ONE,"angle":0.0,"life":0.1})
+	game.renderer.tracks.append({"a":Vector2.ZERO,"b":Vector2.ONE,"angle":0.0,"life":1.0})
+	game.renderer.age_ground_tracks(0.25)
+	var track_aging_ok: bool=game.renderer.tracks.size()==1 and is_equal_approx(float(game.renderer.tracks[0].life),0.75)
+	if not track_aging_ok: push_error("TRACK LIFETIME REGRESSION: batched track aging did not expire and retain the correct tracks")
+	game.renderer.tracks.clear()
+	print("RENDER TRACK AGING: batched aging retains lifetimes and removes expired tracks: %s" % track_aging_ok)
 	for count in [1,10,20,40]: await measure(count)
 	var quality_ok := compare_vehicle_sharpness()
 	await measure_moving_combat()
@@ -208,4 +216,4 @@ func run() -> void:
 	file.close()
 	game.music.shutdown(); game.queue_free()
 	await process_frame
-	quit(0 if quality_ok and buildings_ok and fog_cache_ok else 1)
+	quit(0 if quality_ok and buildings_ok and fog_cache_ok and track_aging_ok else 1)

@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.20",
+  "current_version": "0.36.21",
   "entries": [
+    {
+      "version": "0.36.21",
+      "date": "08.10.2026",
+      "title": "Fahrspuren und Musik-Scans entlastet",
+      "changes": [
+        "Fahrspuren werden gebündelt gealtert und abgelaufene Spuren ohne vollständige Array-Neuerstellung entfernt. Das reduziert die laufende Arbeit bei langen Einsätzen mit vielen Bewegungen.",
+        "Die adaptive Musik zählt sichtbare Gegner und fahrende Einheiten jetzt in einem gemeinsamen Scan viermal pro Sekunde statt beide Listen in jedem Bild erneut zu durchlaufen."
+      ]
+    },
     {
       "version": "0.36.20",
       "date": "08.10.2026",
