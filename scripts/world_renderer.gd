@@ -171,11 +171,18 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	var hp_ratio: float=entity.hp/entity.max_hp
 	var damage_state := 2 if hp_ratio<0.35 else (1 if hp_ratio<0.65 else 0)
 	var cargo_state := clampi(roundi(float(entity.get("cargo",0.0))/maxf(1.0,float(sim.db.rules.harvest_capacity))*8.0),0,8) if entity.kind=="harvester" else 0
-	var harvest_state := 1 if entity.kind=="harvester" and entity.get("harvest_state","")=="HARVEST" else 0
-	var drive_active:=moving or harvest_state==1
+	# Cache a deterministic pose for the actual work state. This lets authored
+	# GLB Move/Harvest/Unload clips animate without running a 3D model for every
+	# visible unit on every display frame.
+	var animation_state := 0
+	if entity.kind=="harvester":
+		animation_state=1 if entity.get("harvest_state","")=="HARVEST" else (2 if entity.get("harvest_state","")=="UNLOAD" else (3 if moving else 0))
+	elif moving:
+		animation_state=3
+	var drive_active:=moving or animation_state in [1,2]
 	var drive_frame:=posmod(floori(elapsed*4.0),4) if drive_active and entity.kind in ["tank","siege","harvester","scorcher","bulwark"] else 0
 	var color_key := sim.team_color(entity.owner).to_html(false)
-	var key := "%s|%s|%d|%s|%d|%d|%d|%d|%d|%d" % [entity.kind,sim.factions[entity.owner],entity.owner,color_key,heading_frame,turret_frame,damage_state,cargo_state,harvest_state,drive_frame]
+	var key := "%s|%s|%d|%s|%d|%d|%d|%d|%d|%d" % [entity.kind,sim.factions[entity.owner],entity.owner,color_key,heading_frame,turret_frame,damage_state,cargo_state,animation_state,drive_frame]
 	var texture: Texture2D=vehicle_texture_cache.get(key)
 	if texture==null:
 		vehicle_cache_misses+=1
@@ -184,6 +191,10 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 			var snapshot:=entity.duplicate(true)
 			snapshot.angle=heading_angle
 			snapshot.drive_frame=drive_frame
+			snapshot.visual_animation_state=animation_state
+			snapshot.animation_frame_count=4
+			snapshot.visual_cargo_state=cargo_state
+			snapshot.visual_damage_state=damage_state
 			vehicle_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner],"turret":turret_angle})
 			process_vehicle_cache_queue.call_deferred()
 		texture=nearest_vehicle_texture(key)

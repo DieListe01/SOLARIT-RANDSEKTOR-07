@@ -204,14 +204,14 @@ func verify_vehicle_cache_fallback() -> bool:
 	image.fill(Color.WHITE)
 	var exact_state := ImageTexture.create_from_image(image)
 	var nearby_state := ImageTexture.create_from_image(image)
-	var requested := "cache_test_unit|forge|0|ffffff|0|2|0|0"
-	var exact_key := "cache_test_unit|forge|0|ffffff|30|2|0|0"
-	var fallback_key := "cache_test_unit|forge|0|ffffff|0|1|0|0"
+	var requested := "cache_test_unit|forge|0|ffffff|0|2|0|0|0|0"
+	var exact_key := requested
+	var fallback_key := "cache_test_unit|forge|0|ffffff|1|2|0|0|0|0"
 	game.renderer.vehicle_texture_cache[exact_key]=exact_state
 	game.renderer.vehicle_texture_cache[fallback_key]=nearby_state
-	var exact_preferred: bool=game.renderer.nearest_vehicle_texture(requested,0)==exact_state
+	var exact_preferred: bool=game.renderer.nearest_vehicle_texture(requested)==exact_state
 	game.renderer.vehicle_texture_cache.erase(exact_key)
-	var fallback_found: bool=game.renderer.nearest_vehicle_texture(requested,0)==nearby_state
+	var fallback_found: bool=game.renderer.nearest_vehicle_texture(requested)==nearby_state
 	game.renderer.vehicle_texture_cache.erase(fallback_key)
 	if not exact_preferred: push_error("VEHICLE CACHE REGRESSION: exact visual state was not preferred")
 	if not fallback_found: push_error("VEHICLE CACHE REGRESSION: missing visual state did not use a nearby cached variant")
@@ -223,7 +223,7 @@ func run() -> void:
 	game=load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	await settle_frames(3)
-	game.skip_intro(); game.start_game(); game.paused=true
+	game.skip_intro(); game.set_classic(false); game.start_game(); game.paused=true
 	game.renderer.profile_enabled=true
 	game.sim.ai_timer=999999
 	await settle_frames(3)

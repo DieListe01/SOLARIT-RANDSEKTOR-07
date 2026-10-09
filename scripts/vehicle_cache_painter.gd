@@ -36,12 +36,15 @@ func _ready() -> void:
 	camera.name="Cache camera"
 	camera.projection=Camera3D.PROJECTION_ORTHOGONAL
 	camera.size=7.2
-	camera.position=Vector3(7.5,9.5,11.5)
+	var kind := str(entity.get("kind", "tank"))
+	# The collector's defining cutter and armored cab sit on its work-facing end.
+	# Look toward that end in its 2D cache so the role reads at battlefield scale.
+	var is_unloading:=str(entity.get("harvest_state",""))=="UNLOAD"
+	camera.position=Vector3(7.5,9.5,11.5) if kind!="harvester" or is_unloading else Vector3(7.5,9.5,-11.5)
 	add_child(camera)
 	camera.look_at(Vector3(0,0.7,0),Vector3.UP)
 	camera.current=true
 	_add_shadow()
-	var kind := str(entity.get("kind", "tank"))
 	var asset_path := "res://assets/models/vehicles/%s.glb" % kind
 	if ModelAssets.add_optional_glb(self, asset_path, "Authored vehicle",team):
 		var imported_model := get_node("Authored vehicle") as Node3D
@@ -51,6 +54,7 @@ func _ready() -> void:
 		var turret := imported_model.find_child("Turret",true,false) as Node3D
 		if turret != null:
 			turret.rotation.y=LowpolyModelFactory.heading_yaw_for_screen_angle(body_angle+float(entity.get("turret",0.0)))-body_yaw
+		ModelAssets.apply_cached_animation(imported_model,entity)
 		return
 	LowpolyModelFactory.vehicle(self,entity,team,faction,float(entity.get("turret",0.0)))
 
@@ -61,9 +65,20 @@ func _add_shadow() -> void:
 	mesh.size=Vector2(3.2,4.1)
 	shadow.mesh=mesh
 	shadow.position=Vector3(0,0.025,0)
-	var material := StandardMaterial3D.new()
-	material.albedo_color=Color(0.12,0.075,0.04,0.3)
-	material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	var material := ShaderMaterial.new()
+	var shader := Shader.new()
+	shader.code="""
+	shader_type spatial;
+	render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
+	uniform vec4 shadow_color : source_color = vec4(0.12, 0.075, 0.04, 0.26);
+	void fragment() {
+		float radius = length(UV * 2.0 - vec2(1.0));
+		float edge_fade = 1.0 - smoothstep(0.28, 1.0, radius);
+		ALBEDO = shadow_color.rgb;
+		ALPHA = edge_fade * shadow_color.a;
+	}
+	"""
+	material.shader=shader
 	shadow.material_override=material
+	shadow.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(shadow)

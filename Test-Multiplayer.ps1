@@ -31,13 +31,22 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
         $deadline = [DateTime]::UtcNow.AddSeconds(60)
         while ($peers.Where({ -not $_.HasExited }).Count -gt 0) {
             foreach ($peer in $peers) {
-                if ($peer.HasExited -and $peer.ExitCode -ne 0) { throw "Multiplayer-Testprozess fehlgeschlagen: $Script" }
+                # Refresh and wait before inspecting the status. Some Windows
+                # console launchers still expose a null ExitCode; the final log
+                # marker below is the authoritative completion signal in that case.
+                $peer.Refresh()
+                if ($peer.HasExited) {
+                    $peer.WaitForExit()
+                    $peer.Refresh()
+                    if ($null -ne $peer.ExitCode -and $peer.ExitCode -ne 0) { throw "Multiplayer-Testprozess fehlgeschlagen: $Script (Exit $($peer.ExitCode))" }
+                }
             }
             if ([DateTime]::UtcNow -gt $deadline) { throw "Multiplayer-Test: Zeitlimit erreicht: $Script" }
             Start-Sleep -Milliseconds 100
         }
         foreach ($role in @('host', 'client')) {
-            Get-Content (Join-Path $logDirectory "$Prefix-$role.log")
+            $log = Get-Content (Join-Path $logDirectory "$Prefix-$role.log") -Raw
+            Write-Output $log
             $errors = Get-Content (Join-Path $logDirectory "$Prefix-$role.err") -Raw
             if ($errors) { Write-Output $errors }
             $actionableErrors = $errors `
@@ -45,8 +54,11 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
                 -replace '(?ms)^WARNING: \d+ ObjectDB instances were leaked at exit \(run with `--verbose` for details\)\.[\r\n]+\s*at: cleanup \(core/object/object\.cpp:\d+\)[\r\n]*', '' `
                 -replace '(?ms)^ERROR: \d+ resources still in use at exit \(run with --verbose for details\)\.[\r\n]+\s*at: clear \(core/io/resource\.cpp:\d+\)[\r\n]*', ''
             $index = if ($role -eq 'host') { 0 } else { 1 }
-            if ($peers[$index].ExitCode -ne 0 -or $actionableErrors -match '(?m)^ERROR:|SCRIPT ERROR:') {
-                throw "Multiplayer-Test fehlgeschlagen: $role"
+            $peers[$index].Refresh()
+            $completion = if ($Script -like '*network_roundtrip*') { "NETWORK ROUNDTRIP $($role.ToUpperInvariant())" } else { "NETWORK GAME $($role.ToUpperInvariant())" }
+            $completedMarker = $log.Contains($completion)
+            if (($null -ne $peers[$index].ExitCode -and $peers[$index].ExitCode -ne 0) -or -not $completedMarker -or $actionableErrors -match '(?m)^ERROR:|SCRIPT ERROR:') {
+                throw "Multiplayer-Test fehlgeschlagen: $role (Exit $($peers[$index].ExitCode), Abschlussmarke $completedMarker)"
             }
         }
     } catch {

@@ -4,6 +4,10 @@ Ein eigenständiges RTS mit Basisbau, Solarit-Wirtschaft und drei vollständig s
 
 Fahrzeuge und Gebäude werden im Einsatz als beleuchtete 3D-Modelle gerendert und passend zur RTS-Kamera in die Schlacht eingebettet. Alle acht Fahrzeug- und Gebäudetypen übernehmen Teamfarbe, Ausrichtung und sichtbare Zustände; Kobalt-Konsortium, Wanderpakt und Prisma-Konklave haben eigene Fahrwerksformen. Das Classic-Design behält seine bisherige Darstellung. Die bestehende SubViewport-Cache-Pipeline kann optionale, in Blender erstellte GLB-Modelle aufnehmen; die Qualitätsgrenzen und Modellkonventionen stehen in [docs/3D_ASSET_PIPELINE.md](docs/3D_ASSET_PIPELINE.md).
 
+## Grafikarbeit v0.37 (in Arbeit)
+
+Der erste Blender-Vertikalschnitt ergänzt den Solarit-Sammler H09 als editierbare `.blend`-Quelle und importiertes `.glb`. Schneidwalze, Arbeitshub, Fahrpose und Entladeklappe sind animiert und werden passend zum Simulationszustand über die bestehende 3D-SubViewport- und 2D-Cache-Pipeline gerendert. Die vier reproduzierbaren Ansichten liegen unter `test-output/harvester_*.png`; Erstellungs- und Prüfpfad stehen in [docs/3D_ASSET_PIPELINE.md](docs/3D_ASSET_PIPELINE.md). Der Meilenstein ist noch in Arbeit: Raffinerie, Solaritfeld, Abbau- und Schadensdarstellung sowie Vergleichsaufnahmen bleiben offen.
+
 ## Intro und Startmenü
 
 Beim Start läuft ein 15-sekündiges Intro: Die Landschaft von Veyra wird aufgedeckt, ein Landeschiff nähert sich der beleuchteten Kolonie, kurze Texte führen in die Welt ein und der Spieltitel erscheint. Escape, Enter, Leertaste, Linksklick oder „Überspringen“ führen jederzeit ins Menü. Nach 15 Sekunden öffnet sich das Menü automatisch. „Intro ansehen“ spielt die Sequenz erneut.

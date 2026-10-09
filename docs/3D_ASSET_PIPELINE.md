@@ -15,7 +15,27 @@ The cache painters first look for a matching authored scene and use the procedur
 
 The GLB root must be a `Node3D`. Vehicle forward is local **-Z**, the root origin sits on the ground at the center of the hull, and model dimensions should be authored in Godot world units to fit the isometric cache camera. A rotatable weapon assembly should be a child named `Turret`; the cache painter aligns it to the current aim direction. Name a mesh `TeamColor` when its white/base material should inherit the owning faction color. Building roots sit at ground level in the center of their footprint; the `TeamColor` hook works for them too.
 
-The imported model is rendered by the same `SubViewport` and cache as the fallback. It therefore retains the current 2.5D presentation while gaining full 3D silhouettes and Blender-authored topology, UVs, materials, and details. Keep the model's exterior self-contained in its GLB; use a small number of shared PBR materials and appropriately sized textures. If a vehicle needs moving parts, add an explicit animation contract and drive it from the cached simulation frame before treating the animation as production-ready. The current seam handles hull heading, an optional `Turret` heading, and automatic team tint on `TeamColor` meshes; arbitrary GLB animation playback and runtime damage material swapping still need dedicated hooks.
+The imported model is rendered by the same `SubViewport` and cache as the fallback. It therefore retains the current 2.5D presentation while gaining full 3D silhouettes and Blender-authored topology, UVs, materials, and details. Keep the model's exterior self-contained in its GLB; use a small number of shared PBR materials and appropriately sized textures. Imported clips must have a named animation contract and be sampled at a deterministic cache frame, rather than advanced separately on every visible unit.
+
+## First Blender vertical slice: H09 Solarit-Sammler
+
+The working v0.37 branch now contains an editable Blender source at `assets/models/source/harvester.blend` and the in-game import at `assets/models/vehicles/harvester.glb`. Rebuild both with Blender 5.2 or newer using:
+
+```powershell
+& 'C:\Program Files\Blender Foundation\Blender 5.2\blender.exe' --background --python tools/create_high_end_harvester.py
+```
+
+The asset has a tapered faceted hull, distinct operator cab and ore hopper, twin tracked undercarriage, segmented cutter drum, articulated cutter mount, sloped conveyor, hydraulic lines, vents, fasteners, team-color markings, eight cargo stages, and two visible damage levels. The action names are `Idle`, `Move`, `Harvest`, and `Unload`. Each cache render selects a clip and seeks to one of four stable phases. Simulation harvest state, cargo fill, damage, faction tint, heading, and movement select the rendered cache entry; the game continues to use the existing `SubViewport` and screen-space cache.
+
+`VehicleCachePainter` presents the work-facing end of the harvester to make its cutter readable. The authored harvester-only preview is reproducible with the Godot console renderer (without `--headless`, because a real graphics device is needed):
+
+```powershell
+& '.\tools\Godot_v4.7.2-stable_win64_console.exe' --path . --script tests/harvester_asset_preview.gd
+```
+
+The previews are written to `test-output/harvester_idle.png`, `harvester_moving.png`, `harvester_harvesting.png`, and `harvester_unloading.png`. `tests/prototype_25d.gd` verifies GLB import, faction tint, clip selection, distinct work-head transforms, staged cargo and damage meshes, and the procedural fallback.
+
+This is the first production-shaped asset, not the final asset library. Its low-poly style is deliberately compatible with the game's current isometric scale. Several small fittings are still generated from simple forms by the Blender script; although the main hull, cutter, tracks, and details are real Blender mesh data and a GLB is shipped in the project, the model does not yet use hand-authored UV texture maps, sculpted surfaces, or a texture-baked material set. The remaining vehicles and all buildings still use the Godot mesh fallback. The vertical slice therefore proves the asset route and integration seam; further artist-directed modeling and in-game readability review are required before calling the whole graphics modernization complete.
 
 ## Long-term recommendation
 

@@ -79,3 +79,9 @@ Nächster sinnvoller Content-Schritt:
 - Mission 04 „Staubstraße“ (mobiler Konvoi ohne klassischen Basisbau).
 - Mission 05 „Schwarzes Signal“ (Radar-/Erkundungsziele und Signalstationen).
 - Objective-Typen `reach_location`, `capture` und `escort` ergänzen.
+
+## v0.37 — Blender-Asset-Vertikalschnitt (in Arbeit)
+
+Erster integrierter Blender-Assetstand: editierbarer Solarit-Sammler `H09` als `.blend` und `.glb`, mit Idle-, Fahr-, Ernte- und Entladeclips, Ladestufen, Fraktionsmarkierung und Schadensvarianten. Der Import läuft durch die bestehende 2.5D-SubViewport-Cachepipeline. Die Godot-Mesh-Pipeline bleibt als Fallback erhalten.
+
+Für den v0.37-Abschluss stehen noch die Raffinerie- und Solaritfeld-Integration, Geländekanten, typisierte Zerstörungszustände, der vollständige QA-/Performance-Lauf und alle Punkte aus dem v0.37-Abnahmedokument aus. Das Blender-Modell ist bewusst der erste Stilnachweis; UV-Texturen, baked materials und die eigenständigen Modelle für übrige Einheiten und Gebäude bleiben weitere Arbeit. Bis alle Abnahmepunkte bestanden sind, wird v0.37 nicht als Release markiert.

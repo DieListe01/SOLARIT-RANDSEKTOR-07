@@ -26,6 +26,62 @@ func run() -> void:
 	assert(not ModelAssets.add_optional_glb(optional_asset_probe,"res://assets/models/vehicles/test_missing_model.glb","Missing test model"),"missing authored assets should cleanly select the procedural fallback")
 	assert(optional_asset_probe.get_child_count()==0,"a missing GLB must not add a partial model scene")
 	optional_asset_probe.free()
+	var animation_probe:=Node3D.new()
+	var rotor:=Node3D.new()
+	rotor.name="Rotor"
+	animation_probe.add_child(rotor)
+	var animation_player:=AnimationPlayer.new()
+	animation_player.name="AnimationPlayer"
+	animation_player.root_node=NodePath("..")
+	animation_probe.add_child(animation_player)
+	var animation_library:=AnimationLibrary.new()
+	var move_animation:=Animation.new()
+	move_animation.length=1.0
+	move_animation.loop_mode=Animation.LOOP_LINEAR
+	var rotor_track:=move_animation.add_track(Animation.TYPE_VALUE)
+	move_animation.track_set_path(rotor_track,NodePath("Rotor:rotation:y"))
+	move_animation.track_insert_key(rotor_track,0.0,0.0)
+	move_animation.track_insert_key(rotor_track,1.0,TAU)
+	animation_library.add_animation(&"Move",move_animation)
+	animation_player.add_animation_library(&"",animation_library)
+	assert(ModelAssets.apply_cached_animation(animation_probe,{"visual_animation_state":3,"drive_frame":2,"animation_frame_count":4})==&"Move","authored GLB movement clip should be selected for a moving cached unit")
+	assert(is_equal_approx(rotor.rotation.y,PI),"cached GLB animation should seek to the requested deterministic quarter-cycle pose")
+	assert(ModelAssets.apply_cached_animation(animation_probe,{"visual_animation_state":1,"drive_frame":1,"animation_frame_count":4})==&"","missing optional clips should keep the bind pose without failing")
+	animation_probe.free()
+	var harvester_asset_path:="res://assets/models/vehicles/harvester.glb"
+	assert(FileAccess.file_exists(harvester_asset_path),"the authored Blender harvester GLB should be present in the project")
+	var harvester_scene:=ResourceLoader.load(harvester_asset_path,"PackedScene") as PackedScene
+	assert(harvester_scene!=null,"the authored harvester GLB should import as a Godot scene")
+	var untinted_harvester:=harvester_scene.instantiate() as Node3D
+	var untinted_plate:=untinted_harvester.find_child("TeamColor",true,false) as MeshInstance3D
+	var untinted_color:Color=(untinted_plate.get_active_material(0) as StandardMaterial3D).albedo_color
+	var harvester_parent:=Node3D.new()
+	root.add_child(harvester_parent)
+	assert(ModelAssets.add_optional_glb(harvester_parent,harvester_asset_path,"Authored harvester",Color("e49a63")),"the authored harvester should use the same optional GLB seam as the in-game cache painter")
+	var harvester_model:=harvester_parent.get_node("Authored harvester") as Node3D
+	await process_frame
+	var imported_player:=harvester_model.find_child("AnimationPlayer",true,false) as AnimationPlayer
+	assert(imported_player!=null,"the imported harvester should expose its GLB AnimationPlayer")
+	var authored_team_plate:=harvester_model.find_child("TeamColor",true,false) as MeshInstance3D
+	assert(authored_team_plate!=null and authored_team_plate.get_active_material(0) is StandardMaterial3D and (authored_team_plate.get_active_material(0) as StandardMaterial3D).albedo_color.is_equal_approx(untinted_color*Color("e49a63")),"imported harvester identity plates should inherit the current owner color")
+	untinted_harvester.free()
+	var authored_head:=harvester_model.find_child("HarvesterHead",true,false) as Node3D
+	assert(authored_head!=null and authored_head.global_position.z < -1.4,"the collector work head should face local minus-Z like the vehicle cache convention")
+	var authored_cutter_actuator:=harvester_model.find_child("CutterActuator",true,false) as Node3D
+	assert(authored_cutter_actuator!=null,"harvesting animation needs an independent cutter actuator node")
+	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":0,"drive_frame":0,"animation_frame_count":4})
+	var idle_head_angle:=authored_head.rotation.x
+	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":1,"drive_frame":2,"animation_frame_count":4})
+	var harvest_cutter_angle:=authored_cutter_actuator.rotation.x
+	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":2,"drive_frame":2,"animation_frame_count":4})
+	var unload_head_angle:=authored_head.rotation.x
+	assert(not is_equal_approx(idle_head_angle,unload_head_angle) and not is_zero_approx(harvest_cutter_angle),"imported harvesting and unloading animations should render distinct work-head poses")
+	for clip in [&"Idle",&"Move",&"Harvest",&"Unload"]:
+		assert(imported_player.has_animation(clip),"the imported harvester should include the %s clip"%clip)
+	assert(ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":1,"drive_frame":2,"animation_frame_count":4,"visual_cargo_state":3,"visual_damage_state":2})==&"Harvest","harvester work state should select the actual authored Harvest clip")
+	assert(harvester_model.find_child("CargoStage01",true,false).visible and harvester_model.find_child("CargoStage03",true,false).visible and not harvester_model.find_child("CargoStage04",true,false).visible,"cached cargo stages should mirror the quantized Solarit load")
+	assert(harvester_model.find_child("DamageLight",true,false).visible and harvester_model.find_child("DamageHeavy",true,false).visible,"cached damage variants should expose the matching authored damage details")
+	harvester_parent.queue_free()
 	var team_tint_probe := MeshInstance3D.new()
 	team_tint_probe.name="TeamColor"
 	team_tint_probe.mesh=BoxMesh.new()
