@@ -1,6 +1,15 @@
 {
-  "current_version": "0.36.31",
+  "current_version": "0.36.32",
   "entries": [
+    {
+      "version": "0.36.32",
+      "date": "09.10.2026",
+      "title": "Korrekte Fahrzeugrichtung und saubere Kettenspuren",
+      "changes": [
+        "Die 3D-Fahrzeugausrichtung verwendet jetzt dieselbe Kameraposition wie der Renderer; diagonale Fahrten zeigen wieder in die tatsächliche Bewegungsrichtung.",
+        "Abgesetzte, kurze 2D-Striche um fahrende Kettenfahrzeuge entfallen. Sichtbare Ketten gehören zum 3D-Modell; am Boden bleiben nur die zusammenhängenden Fahrspuren zurück."
+      ]
+    },
     {
       "version": "0.36.31",
       "date": "09.10.2026",

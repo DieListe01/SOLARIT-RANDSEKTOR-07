@@ -7,7 +7,7 @@ const SAND := Color("a67a4e")
 const CREAM := Color("d8c39a")
 const CYAN := Color("35d6c8")
 const AMBER := Color("edaa52")
-const CACHE_CAMERA_POSITION := Vector3(7.5,9.5,11.5)
+const CACHE_CAMERA_POSITION := Vector3(7.5,9.5,-11.5)
 const CACHE_CAMERA_TARGET := Vector3(0,0.7,0)
 static var _surface_texture: ImageTexture
 static var _material_cache: Dictionary = {}

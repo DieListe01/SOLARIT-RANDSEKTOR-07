@@ -40,7 +40,7 @@ func _ready() -> void:
 	# Keep the camera fixed through every work state. Switching ends for unloading
 	# makes the cached vehicle appear to reverse direction when its state changes.
 	# This elevated front-side view keeps the cutter and track profile readable.
-	camera.position=Vector3(7.5,9.5,-11.5)
+	camera.position=LowpolyModelFactory.CACHE_CAMERA_POSITION
 	add_child(camera)
 	camera.look_at(Vector3(0,0.7,0),Vector3.UP)
 	camera.current=true

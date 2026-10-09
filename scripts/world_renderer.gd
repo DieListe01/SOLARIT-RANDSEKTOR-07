@@ -710,25 +710,10 @@ func _draw() -> void:
 		if absf(visual.pos.x-camera.x)>half.x+120 or absf(visual.pos.y-camera.y)>half.y+120: continue
 		sorted.append({"entity":e,"visual":visual})
 	sorted.sort_custom(func(a,b):return a.visual.pos.y<b.visual.pos.y)
-	if movement_vfx_enabled and vfx_budget_tier<3:
-		var tread_points := PackedVector2Array()
-		var tread_colors := PackedColorArray()
-		for render_item in sorted:
-			var e: Dictionary=render_item.entity
-			var visual: Dictionary=render_item.visual
-			if e.building: continue
-			if visual.velocity.length()<=5 or sim.factions[visual.owner] in ["drift","lumen"]: continue
-			var length := 28.0 if visual.kind=="harvester" else (30.0 if visual.kind=="lancer" else (25.0 if visual.kind=="siege" else 22.0))
-			var width := 16.0 if visual.kind=="harvester" else (17.0 if visual.kind=="lancer" else (14.0 if visual.kind=="siege" else 13.0))
-			var phase := fposmod(elapsed*visual.velocity.length()*0.22,4.0)
-			for side in [-1,1]:
-				var tread_step:=4 if vfx_budget_tier==0 else (6 if vfx_budget_tier==1 else 8)
-				for i in range(-int(length)+1,int(length),tread_step):
-					var tread := float(i)+phase
-					tread_points.append(visual.pos+Vector2(tread,side*width-2.8).rotated(visual.angle))
-					tread_points.append(visual.pos+Vector2(tread,side*width+2.8).rotated(visual.angle))
-					tread_colors.append(Color("68645a"))
-		if not tread_points.is_empty(): draw_multiline_colors(tread_points,tread_colors,1.6,true)
+	# Vehicle tread links are part of the cached 3D model. Drawing screen-space
+	# dashes around moving units made them look like detached chains or skid marks,
+	# especially when a harvester turned diagonally. The persistent paired ground
+	# tracks above remain the only movement trail.
 	var object_profile_started := 0
 	visible_mobile_count=0; visible_building_count=0
 	for render_item in sorted:
