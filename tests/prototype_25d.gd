@@ -92,6 +92,16 @@ func run() -> void:
 	ModelAssets.apply_team_tint(team_tint_probe,Color("e49a63"))
 	assert((team_tint_probe.get_surface_override_material(0) as StandardMaterial3D).albedo_color.is_equal_approx(Color("e49a63")),"authored GLB TeamColor surfaces should inherit the owning faction color")
 	team_tint_probe.free()
+	var team_light_probe:=MeshInstance3D.new()
+	team_light_probe.name="TeamColor luminous column"
+	team_light_probe.mesh=BoxMesh.new()
+	var light_material:=StandardMaterial3D.new()
+	light_material.emission_enabled=true
+	light_material.emission=Color("25cbbb")
+	team_light_probe.material_override=light_material
+	ModelAssets.apply_team_tint(team_light_probe,Color("e84932"))
+	assert((team_light_probe.get_surface_override_material(0) as StandardMaterial3D).emission.is_equal_approx(Color("25cbbb")*Color("e84932")),"team-colored GLB indicator glow should follow its faction along with its surface tint")
+	team_light_probe.free()
 	var progress_renderer := WorldRenderer.new()
 	var progress_entity := {"id":42}
 	assert(not progress_renderer.world_progress_label_visible(progress_entity),"unfocused construction should use the compact bar without a text plate")
@@ -180,6 +190,17 @@ func run() -> void:
 	assert(LowpolyModelFactory._material(Color("343a37"),0.86,0.12)==LowpolyModelFactory._material(Color("343a37"),0.86,0.12),"identical procedural materials are shared across models")
 	var building_features := {"core":"Command beacon","power":"Generator housing","refinery":"Fractionation tank","factory":"Vehicle bay","tower":"Rotating gun mount","radar":"Radar dish","repair":"Gantry lamp","armory":"Stored armor plate"}
 	for kind in ["core","power","refinery","factory","tower","radar","repair","armory"]:
+		var authored_path:="res://assets/models/buildings/%s.glb"%kind
+		assert(FileAccess.file_exists(authored_path),"%s should ship as an authored building GLB"%kind)
+		var authored_scene:=load(authored_path) as PackedScene
+		assert(authored_scene!=null,"%s GLB should import as a reusable Godot scene"%kind)
+		var authored_model:Node3D=authored_scene.instantiate()
+		root.add_child(authored_model)
+		assert(authored_model.find_child("TeamColor",true,false)!=null,"%s GLB should expose a faction tint surface"%kind)
+		assert(count_named_descendants(authored_model,"TeamColor")>=4,"%s GLB should expose multiple tintable faction panels"%kind)
+		await process_frame
+		authored_model.queue_free()
+		await process_frame
 		var building := Node3D.new()
 		samples.add_child(building)
 		LowpolyModelFactory.building(building,{"kind":kind,"rotation":0},Color("69d6c0"),"forge",Vector2(64,64))

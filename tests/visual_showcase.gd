@@ -29,6 +29,10 @@ func run() -> void:
 		var id: int = game.sim.spawn(kind,0,Vector2(330+(index%4)*150,1460+floori(index/4.0)*70),false)
 		game.sim.entities[id].angle=-0.35; game.sim.entities[id].turret=-0.65
 		game.sim.entities[id].cargo=160.0
+		if kind=="harvester":
+			game.sim.entities[id].harvest_state="UNLOAD"
+			game.selected=[id]
+			game.renderer.selected=[id]
 		index+=1
 	game.sim.fog[0].fill(1); game.sim.explored[0].fill(1)
 	game.renderer.camera=Vector2(636,1394); game.renderer.zoom=2.15

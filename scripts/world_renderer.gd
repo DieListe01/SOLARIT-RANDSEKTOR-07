@@ -807,6 +807,10 @@ func _draw() -> void:
 	for render_item in sorted:
 		var e: Dictionary=render_item.entity
 		var visual: Dictionary=render_item.visual
+		if e.kind=="harvester" and e.owner==sim.view_owner and (float(e.get("cargo",0.0))>0.0 or selected.has(e.id) or int(e.id)==hovered_entity_id):
+			draw_harvester_cargo(e,visual)
+		if e.kind=="harvester" and e.harvest_state=="UNLOAD":
+			draw_unload_transfer(e,visual)
 		if selected.has(e.id) or health_mode=="always" or (health_mode=="damaged" and (e.hp<e.max_hp or int(e.id)==hovered_entity_id)):
 			if health_mode!="off" or selected.has(e.id):
 				var w := 42.0 if e.building else 24.0
@@ -914,6 +918,38 @@ func draw_world_progress(e: Dictionary, visual: Dictionary) -> void:
 		top_left=Vector2(visual.pos.x-bar_width*0.5,top_left.y+15)
 	draw_rect(Rect2(top_left,Vector2(bar_width,4)),Color("16110d",0.95))
 	draw_rect(Rect2(top_left,Vector2(bar_width*ratio,4)),fill_color)
+
+func draw_harvester_cargo(e: Dictionary, visual: Dictionary) -> void:
+	var capacity:=maxf(1.0,float(sim.db.rules.harvest_capacity))
+	var cargo:=clampf(float(e.get("cargo",0.0)),0.0,capacity)
+	var focused:=selected.has(e.id) or int(e.id)==hovered_entity_id
+	var width:=36.0
+	var top_left:Vector2=visual.pos-Vector2(width*0.5,sim.unit_radius(e.kind)+18.0)
+	var returning:=str(e.get("harvest_state","")) in ["RETURN_TO_BASE","UNLOAD"]
+	var fill:=Color("efbd70") if returning else Color("55ddc5")
+	draw_rect(Rect2(top_left-Vector2(1,1),Vector2(width+2,5)),Color("15120f",0.94))
+	draw_rect(Rect2(top_left,Vector2(width*cargo/capacity,3)),fill)
+	if focused:
+		var label:="LÄDT AB" if str(e.harvest_state)=="UNLOAD" else ("KEHRT ZUR RAFFINERIE" if returning else "SOLARIT-LADUNG")
+		var text_value:="%s · %d / %d"%[label,roundi(cargo),roundi(capacity)]
+		draw_string(ThemeDB.fallback_font,top_left-Vector2(50,7),text_value,HORIZONTAL_ALIGNMENT_CENTER,100,9,fill)
+
+func draw_unload_transfer(e: Dictionary, visual: Dictionary) -> void:
+	var refinery:Dictionary={}
+	var best:=INF
+	for candidate in sim.entities.values():
+		if not candidate.building or candidate.kind!="refinery" or candidate.owner!=e.owner: continue
+		var distance:float=e.pos.distance_squared_to(candidate.pos)
+		if distance<best: best=distance; refinery=candidate
+	if refinery.is_empty(): return
+	var target:Vector2=refinery.pos-Vector2(0,25)
+	var phase:=fposmod(elapsed*3.2+float(e.id),1.0)
+	var tint:=Color("72ead3",0.72)
+	draw_line(visual.pos,target,tint,1.2,true)
+	for i in 3:
+		var t:=fposmod(phase+float(i)/3.0,1.0)
+		var point:Vector2=visual.pos.lerp(target,t)
+		draw_circle(point,2.2,Color(tint,1.0-t*0.28))
 
 func draw_vehicle_damage(e: Dictionary) -> void:
 	var hp_ratio:=clampf(float(e.hp)/maxf(1.0,float(e.max_hp)),0.0,1.0)

@@ -1,6 +1,17 @@
 {
-  "current_version": "0.36.32",
+  "current_version": "0.36.33",
   "entries": [
+    {
+      "version": "0.36.33",
+      "date": "09.10.2026",
+      "title": "Sichtbare Sammlerladung und neue Blender-Gebäude",
+      "changes": [
+        "Der Solarit-Sammler zeigt seine Ladung dauerhaft als Balken; bei Auswahl oder Mauszeigerkontakt erscheinen Ladungsmenge und klarer Status für Ernte, Rückfahrt und Abladen.",
+        "Die Rückfahrt endet jetzt an der nächstgelegenen erreichbaren Seite der Raffinerie statt an einem festen Andockpunkt. Während des Abladevorgangs zeigt ein sichtbarer Transferstrahl den Materialfluss.",
+        "Alle acht Gebäudetypen erhalten eigene, in Blender modellierte GLB-Assets mit unterscheidbaren Industrieformen, mechanischen Baugruppen, Leitungen, Wartungselementen und Teamkennzeichnung. Die vorhandene SubViewport-Cache-Pipeline bleibt erhalten; prozedurale Modelle bleiben als Rückfall verfügbar.",
+        "Ein Regressionstest beobachtet den vollständigen Ablauf vom beladenen Rückweg bis zum Entladen und prüft die abgelieferte Solaritmenge."
+      ]
+    },
     {
       "version": "0.36.32",
       "date": "09.10.2026",

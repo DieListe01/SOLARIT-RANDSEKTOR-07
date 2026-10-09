@@ -663,7 +663,8 @@ func harvest(e: Dictionary, dt: float) -> void:
 	elif e.harvest_state in ["RETURN_TO_BASE","UNLOAD"]:
 		var refinery := nearest_building(e,"refinery")
 		if refinery.is_empty(): e.path=[]; return
-		var dock: Vector2 = grid.center(grid.nearest_free(grid.cell(refinery.pos)+Vector2i(0,2)))
+		var dock: Vector2 = refinery_dock(e,refinery)
+		if dock==Vector2(-1,-1): return
 		if e.pos.distance_to(dock)>32:
 			e.harvest_state="RETURN_TO_BASE"
 			if e.path.is_empty() and not e.path_pending: request_path(e,dock)
@@ -676,6 +677,32 @@ func harvest(e: Dictionary, dt: float) -> void:
 			credits[e.owner]+=amount*bonus
 			side_stats[e.owner].gathered+=amount*bonus
 			if e.cargo<=0: e.harvest_state="SEARCH_RESOURCE"
+
+func refinery_dock(e: Dictionary, refinery: Dictionary) -> Vector2:
+	# Pick a reachable perimeter cell on whichever side is easiest to approach.
+	# The old fixed south-side dock made collectors circle whole refineries and
+	# could leave them looking stranded when that single route was obstructed.
+	var refinery_id:=int(refinery.id)
+	if int(e.get("harvest_dock_refinery",0))==refinery_id:
+		var cached:Variant=e.get("harvest_dock",Vector2(-1,-1))
+		if cached is Vector2 and cached!=Vector2(-1,-1): return cached
+	var origin: Vector2i=refinery.get("cell",grid.cell(refinery.pos))
+	var size_value:=footprint(refinery)
+	var best:=INF
+	var dock:=Vector2(-1,-1)
+	for y in range(-1,int(size_value[1])+1):
+		for x in range(-1,int(size_value[0])+1):
+			if x>=0 and x<int(size_value[0]) and y>=0 and y<int(size_value[1]): continue
+			var cell:=origin+Vector2i(x,y)
+			if not grid.is_free(cell): continue
+			var point:=grid.center(cell)
+			var path:=grid.path(e.pos,point)
+			if path.is_empty() and e.pos.distance_to(point)>32.0: continue
+			var cost:float=float(path.size())+e.pos.distance_to(point)/float(grid.tile)*0.05
+			if cost<best: best=cost; dock=point
+	e.harvest_dock_refinery=refinery_id
+	e.harvest_dock=dock
+	return dock
 
 func is_visible(e: Dictionary, owner: int) -> bool:
 	var c := grid.cell(e.pos)

@@ -22,7 +22,7 @@ static func add_optional_glb(parent: Node3D, resource_path: String, instance_nam
 	return true
 
 static func apply_team_tint(node: Node, team_color: Color) -> void:
-	if node is MeshInstance3D and node.name=="TeamColor":
+	if node is MeshInstance3D and (node.name=="TeamColor" or node.name.begins_with("TeamColor luminous column")):
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance.mesh!=null:
 			for surface in mesh_instance.mesh.get_surface_count():
@@ -33,6 +33,7 @@ static func apply_team_tint(node: Node, team_color: Color) -> void:
 				else:
 					team_material=StandardMaterial3D.new()
 				team_material.albedo_color*=team_color
+				if team_material.emission_enabled: team_material.emission*=team_color
 				mesh_instance.set_surface_override_material(surface,team_material)
 	for child in node.get_children():
 		apply_team_tint(child,team_color)

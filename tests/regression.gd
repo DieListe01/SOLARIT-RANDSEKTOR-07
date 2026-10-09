@@ -89,7 +89,7 @@ func run() -> void:
 	var enemy_core: Dictionary = fresh.buildings(1,"core")[0]
 	check(not fresh.is_visible(enemy_core,0),"Enemy base hidden initially")
 	advance(fresh,40)
-	check(fresh.credits[1]<float(db.mission.credits[1])+400,"AI spends real credits")
+	check(fresh.credits[1]<float(db.mission.credits[1])+float(fresh.side_stats[1].gathered),"AI spends real credits even while its collectors add income")
 	check(fresh.entities.values().filter(func(e):return e.owner==1 and not e.building).size()>3,"AI produces vehicles")
 	# Regression: dead projectile targets and destroyed factories must be harmless.
 	var collision := Simulation.new(db)
@@ -147,8 +147,15 @@ func run() -> void:
 	automatic.ai_timer=99999
 	automatic.spawn("refinery",0,Vector2(14,47)*32,true)
 	var collector_id := automatic.spawn("harvester",0,automatic.grid.center(Vector2i(17,43)),false)
-	advance(automatic,80)
+	var saw_full_return:=false
+	var saw_unload:=false
+	for i in 2400:
+		automatic.tick(1.0/30.0)
+		var live_collector:Dictionary=automatic.entities[collector_id]
+		if live_collector.harvest_state=="RETURN_TO_BASE" and live_collector.cargo>0: saw_full_return=true
+		if live_collector.harvest_state=="UNLOAD": saw_unload=true
 	var collector: Dictionary = automatic.entities[collector_id]
+	check(saw_full_return and saw_unload,"Collector visibly transitions from a loaded return into refinery unloading")
 	check(automatic.stats.gathered>=960,"Collector returns to its refinery and completes repeated collect/unload cycles")
 	check(collector.harvest_state in ["MOVE_TO_RESOURCE","HARVEST","RETURN_TO_BASE"],"Collector leaves the refinery and resumes gathering after unloading")
 	automatic.command([collector_id],automatic.grid.center(Vector2i(17,44)))
