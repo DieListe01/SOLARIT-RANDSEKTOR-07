@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.36.30"
+  #define AppVersion "0.36.31"
 #endif
 
 #define AppName "SOLARIT: RANDSEKTOR 07"

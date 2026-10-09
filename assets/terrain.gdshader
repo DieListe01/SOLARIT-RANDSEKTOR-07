@@ -35,10 +35,21 @@ float kind_at(sampler2D terrain_map, vec2 world, vec2 warp) {
 void fragment() {
 	vec2 world=UV*map_cells*32.0;
 	vec2 warp=vec2(noise(world*0.07),noise(world*0.07+91.0))-0.5;
-	float kind=kind_at(TEXTURE,world,warp);
+	// Keep this boundary field in lockstep with kind_at() so the transition
+	// follows the same warped material cells rather than exposing rectangular
+	// seams between differently distorted samples.
+	vec2 terrain_cell=(world+warp*18.0)/32.0;
+	float kind=kind_at(TEXTURE,world,warp*1.38);
 	vec3 base=material(kind);
-	vec3 neighbors=(material(kind_at(TEXTURE,world+vec2(6,0),warp))+material(kind_at(TEXTURE,world-vec2(6,0),warp))+material(kind_at(TEXTURE,world+vec2(0,6),warp))+material(kind_at(TEXTURE,world-vec2(0,6),warp)))*0.25;
-	base=mix(base,neighbors,0.34);
+	vec2 local=fract(terrain_cell);
+	vec4 edge_distance=vec4(local.x,1.0-local.x,local.y,1.0-local.y);
+	vec4 edge_weight=1.0-smoothstep(vec4(0.015),vec4(0.32),edge_distance);
+	vec3 adjacent=(material(kind_at(TEXTURE,world+vec2(6,0),warp*1.38))*edge_weight.y+
+		material(kind_at(TEXTURE,world-vec2(6,0),warp*1.38))*edge_weight.x+
+		material(kind_at(TEXTURE,world+vec2(0,6),warp*1.38))*edge_weight.w+
+		material(kind_at(TEXTURE,world-vec2(0,6),warp*1.38))*edge_weight.z)/max(0.001,dot(edge_weight,vec4(1.0)));
+	float transition=min(0.72,dot(edge_weight,vec4(1.0))*0.46);
+	base=mix(base,adjacent,transition);
 	float large=noise(world*0.015);
 	float medium=noise(world*0.13);
 	float fine=noise(world*0.7);

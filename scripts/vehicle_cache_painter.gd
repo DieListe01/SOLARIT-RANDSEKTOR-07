@@ -1,5 +1,6 @@
 extends Node3D
 class_name VehicleCachePainter
+const ModelAssets = preload("res://scripts/model_asset_library.gd")
 
 var art: IndustrialArt
 var entity: Dictionary
@@ -40,6 +41,17 @@ func _ready() -> void:
 	camera.look_at(Vector3(0,0.7,0),Vector3.UP)
 	camera.current=true
 	_add_shadow()
+	var kind := str(entity.get("kind", "tank"))
+	var asset_path := "res://assets/models/vehicles/%s.glb" % kind
+	if ModelAssets.add_optional_glb(self, asset_path, "Authored vehicle",team):
+		var imported_model := get_node("Authored vehicle") as Node3D
+		var body_angle := float(entity.get("angle",0.0))
+		var body_yaw := LowpolyModelFactory.heading_yaw_for_screen_angle(body_angle)
+		imported_model.rotation.y=body_yaw
+		var turret := imported_model.find_child("Turret",true,false) as Node3D
+		if turret != null:
+			turret.rotation.y=LowpolyModelFactory.heading_yaw_for_screen_angle(body_angle+float(entity.get("turret",0.0)))-body_yaw
+		return
 	LowpolyModelFactory.vehicle(self,entity,team,faction,float(entity.get("turret",0.0)))
 
 func _add_shadow() -> void:

@@ -10,6 +10,7 @@ const AMBER := Color("edaa52")
 const CACHE_CAMERA_POSITION := Vector3(7.5,9.5,11.5)
 const CACHE_CAMERA_TARGET := Vector3(0,0.7,0)
 static var _surface_texture: ImageTexture
+static var _material_cache: Dictionary = {}
 
 static func heading_yaw_for_screen_angle(screen_angle: float) -> float:
 	# The cache camera sees the ground plane obliquely. Invert that projection so
@@ -33,7 +34,9 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 	model.rotation.y=heading_yaw_for_screen_angle(body_angle)
 	root.add_child(model)
 	var kind := str(entity.get("kind", "tank"))
-	var scale: float = float({"scout":0.86,"tank":1.0,"siege":1.18,"harvester":1.08,"raider":0.84,"lancer":0.98,"scorcher":0.9,"bulwark":1.32}.get(kind,1.0))
+	# A shared, measurable size ladder keeps visual scale distinct from the
+	# collision radii used by navigation and combat.
+	var scale: float = float({"scout":0.82,"tank":1.0,"siege":1.18,"harvester":1.42,"raider":0.9,"lancer":1.0,"scorcher":0.94,"bulwark":1.34}.get(kind,1.0))
 	var hull := _faction_hull(faction)
 	# Keep faction armor recognizable while making ownership readable at RTS zoom.
 	var accent := team
@@ -41,10 +44,11 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 	var dark_mat := _material(DARK, 0.9, 0.12)
 	var trim_mat := _material(accent, 0.46, 0.28)
 	var armor_mat := _material(CREAM.lerp(hull, 0.2), 0.7, 0.08)
-	var track_shoe_mat := _material(Color("77796f"),0.86,0.04)
+	var amber_mat := _material(AMBER,0.62,0.08)
+	var track_shoe_mat := _material(Color("343a37"),0.86,0.12)
 	var length: float = float({"scout":2.4,"tank":3.25,"siege":3.8,"harvester":3.6,"raider":2.8,"lancer":3.15,"scorcher":2.9,"bulwark":4.0}.get(kind,3.0)) * scale
 	var width: float = float({"scout":1.25,"tank":1.95,"siege":2.2,"harvester":2.5,"raider":1.55,"lancer":1.9,"scorcher":1.8,"bulwark":2.7}.get(kind,1.8)) * scale
-	var track_unit := kind in ["tank", "siege", "harvester", "scorcher", "bulwark"]
+	var track_unit := faction=="forge" and kind in ["tank", "siege", "harvester", "scorcher", "bulwark"]
 	var harvester_unit := kind=="harvester"
 	var drive_frame:=posmod(int(entity.get("drive_frame",0)),4)
 	if track_unit:
@@ -53,32 +57,34 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 			for i in 6:
 				var wheel_pos:=Vector3(side*width*0.58,0.3*scale,-length*0.38+i*length*0.152)
 				_cylinder(model,"Road wheel",0.17*scale,0.13*scale,wheel_pos,dark_mat,12,Vector3(0,0,PI*0.5))
-				_cylinder(model,"Wheel hub",0.085*scale,0.145*scale,wheel_pos,armor_mat,8,Vector3(0,0,PI*0.5))
-				for bolt in 4:
-					var bolt_angle:=TAU*float(bolt)/4.0+PI*0.25
-					var bolt_pos:=wheel_pos+Vector3(side*0.078*scale,sin(bolt_angle)*0.105*scale,cos(bolt_angle)*0.105*scale)
-					_cylinder(model,"Road wheel fastener",0.018*scale,0.018*scale,bolt_pos,dark_mat,6,Vector3(0,0,PI*0.5))
+				_cylinder(model,"Wheel hub",0.085*scale,0.145*scale,wheel_pos,_material(Color("747970"),0.75,0.28),8,Vector3(0,0,PI*0.5))
 			var tread_step:=length*0.078
 			for i in 12:
 				var tread_z:float=-length*0.43+i*tread_step+tread_step*float(drive_frame)*0.25
 				_box(model,"Track cleat",Vector3(0.31*scale,0.045*scale,0.105*scale),Vector3(side*width*0.47,0.535*scale,tread_z),track_shoe_mat)
 	else:
-		if kind=="scout":
-			# Four exposed wheels, a low cabin and front bumper make the recon
-			# vehicle read clearly at normal gameplay zoom.
+		if kind=="scout" or faction=="drift":
+			# Recon and Wanderpakt vehicles use visible wheels; the latter's light
+			# chassis silhouette contrasts with the Consortium's tracked armor.
 			for side in [-1.0,1.0]:
 				for axle in [-1.0,1.0]:
 					var wheel_pos:=Vector3(side*width*0.48,0.27*scale,axle*length*0.31)
-					_cylinder(model,"Scout tire",0.22*scale,0.15*scale,wheel_pos,dark_mat,10,Vector3(0,0,PI*0.5))
-					_cylinder(model,"Scout wheel hub",0.105*scale,0.17*scale,wheel_pos,armor_mat,8,Vector3(0,0,PI*0.5))
-			_box(model,"Scout front bumper",Vector3(width*0.9,0.18*scale,0.16*scale),Vector3(0,0.4*scale,-length*0.46),dark_mat)
+					var wheel_side := "left" if side < 0.0 else "right"
+					var wheel_axle := "front" if axle < 0.0 else "rear"
+					var wheel_label := ("Scout tire " if kind=="scout" else "Drift road tire ")+wheel_side+" "+wheel_axle
+					var hub_label := ("Scout wheel hub " if kind=="scout" else "Drift wheel hub ")+wheel_side+" "+wheel_axle
+					_cylinder(model,wheel_label,0.22*scale,0.15*scale,wheel_pos,dark_mat,10,Vector3(0,0,PI*0.5))
+					_cylinder(model,hub_label,0.105*scale,0.17*scale,wheel_pos,armor_mat,8,Vector3(0,0,PI*0.5))
+			if kind=="scout":
+				_box(model,"Scout front bumper",Vector3(width*0.9,0.18*scale,0.16*scale),Vector3(0,0.4*scale,-length*0.46),dark_mat)
 		else:
 			for side in [-1.0,1.0]:
 				_cylinder(model,"Hover pod",0.25*scale,0.58*scale,Vector3(side*width*0.42,0.22*scale,0.2*scale),dark_mat,8,Vector3(0,0,PI*0.5))
 				_box(model,"Hover emitter",Vector3(0.13*scale,0.1*scale,0.34*scale),Vector3(side*width*0.42,0.14*scale,0.2*scale),trim_mat)
-	_box(model,"Lower hull",Vector3(width*0.82,0.48*scale,length*0.82),Vector3(0,0.47*scale,0),hull_mat)
-	_box(model,"Forward glacis",Vector3(width*0.76,0.18*scale,length*0.22),Vector3(0,0.75*scale,-length*0.3),armor_mat)
-	_box(model,"Rear deck",Vector3(width*0.68,0.16*scale,length*0.2),Vector3(0,0.75*scale,length*0.29),_material(SAND.lerp(hull,0.28),0.86,0.05))
+	var hull_width:=width*(0.84 if faction=="drift" else 1.0)
+	_box(model,"Lower hull",Vector3(hull_width*0.82,0.48*scale,length*0.82),Vector3(0,0.47*scale,0),hull_mat)
+	_box(model,"Forward glacis",Vector3(hull_width*0.76,0.18*scale,length*0.22),Vector3(0,0.75*scale,-length*0.3),armor_mat)
+	_box(model,"Rear deck",Vector3(hull_width*0.68,0.16*scale,length*0.2),Vector3(0,0.75*scale,length*0.29),_material(SAND.lerp(hull,0.28),0.86,0.05))
 	_box(model,"Hull stripe",Vector3(0.2*scale,0.07*scale,length*0.54),Vector3(0,0.84*scale,0.01),trim_mat)
 	for side in [-1.0,1.0]:
 		_box(model,"Side armor skirt",Vector3(0.1*scale,0.22*scale,length*0.42),Vector3(side*width*0.43,0.58*scale,0.02*scale),armor_mat)
@@ -93,6 +99,16 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 		_box(model,"Hull side panel",Vector3(0.045*scale,0.12*scale,length*0.18),Vector3(side*width*0.445,0.72*scale,-length*0.12),_material(hull.lightened(0.08),0.78,0.16))
 		for i in 3:
 			_box(model,"Hull panel fastener",Vector3(0.028*scale,0.035*scale,0.035*scale),Vector3(side*width*0.47,0.76*scale,-length*0.18+i*length*0.06),armor_mat)
+	if faction=="drift":
+		var wedge:=_box(model,"Drift wedge glacis",Vector3(hull_width*0.92,0.13*scale,length*0.30),Vector3(0,0.76*scale,-length*0.36),trim_mat)
+		wedge.rotation.x=-0.20
+		for side in [-1.0,1.0]:
+			var fender:=_box(model,"Drift sloped fender",Vector3(0.13*scale,0.18*scale,length*0.45),Vector3(side*width*0.46,0.49*scale,0),armor_mat)
+			fender.rotation.z=side*0.12
+	elif faction=="lumen":
+		_cylinder(model,"Lumen ventral reactor",0.43*scale,0.10*scale,Vector3(0,0.20*scale,0),_material(Color("65dcf4"),0.24,0.0,true),16)
+		for side in [-1.0,1.0]:
+			_box(model,"Lumen levitation vane",Vector3(0.09*scale,0.06*scale,length*0.32),Vector3(side*width*0.48,0.28*scale,0),_material(Color("a78cf4"),0.28,0.08,true))
 	var weapon:Node3D
 	var barrel_len:=0.0
 	if harvester_unit:
@@ -112,7 +128,27 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 		_box(model,"Collector cutting edge",Vector3(width*0.78,0.075*scale,0.19*scale),Vector3(0,0.66*scale,-length*0.5),trim_mat)
 		for side in [-1.0,1.0]:
 			_box(model,"Collector arm",Vector3(0.14*scale,0.28*scale,length*0.23),Vector3(side*width*0.36,0.72*scale,-length*0.4),armor_mat)
-			_cylinder(model,"Collection drum",0.21*scale,width*0.24,Vector3(side*width*0.35,0.43*scale,-length*0.48),trim_mat,10,Vector3(0,0,PI*0.5))
+			var drum := _cylinder(model,"Collection drum",0.21*scale,width*0.24,Vector3(side*width*0.35,0.43*scale,-length*0.48),trim_mat,10,Vector3(0,0,PI*0.5))
+			# Four baked drum positions create a cheap, readable harvesting animation.
+			drum.rotation.x+=float(drive_frame)*PI*0.5
+			_cylinder(model,"Cutter hub",0.095*scale,width*0.27,Vector3(side*width*0.35,0.43*scale,-length*0.48),dark_mat,8,Vector3(0,0,PI*0.5))
+			_box(model,"Hydraulic ram",Vector3(0.075*scale,0.075*scale,length*0.2),Vector3(side*width*0.30,0.78*scale,-length*0.32),_material(Color("9a8060"),0.55,0.42))
+			_box(model,"Collector radiator",Vector3(0.10*scale,0.36*scale,length*0.24),Vector3(side*width*0.42,0.88*scale,length*0.06),dark_mat)
+			for fin in 4:
+				_box(model,"Radiator fin",Vector3(0.035*scale,0.045*scale,length*0.20),Vector3(side*width*0.45,0.75*scale+fin*0.08*scale,length*0.06),armor_mat)
+		for exhaust_index in 2:
+			var exhaust_z:=length*0.37+exhaust_index*0.12
+			_cylinder(model,"Dust exhaust",0.09*scale,0.28*scale,Vector3((exhaust_index-0.5)*0.48*scale,1.34*scale,exhaust_z),dark_mat,8)
+			_cylinder(model,"Exhaust collar",0.105*scale,0.055*scale,Vector3((exhaust_index-0.5)*0.48*scale,1.42*scale,exhaust_z),armor_mat,8)
+		# A raised conveyor spine, roller hubs and amber work lights make the
+		# processing path visible from the isometric gameplay camera.
+		_box(model,"Ore conveyor housing",Vector3(width*0.34,0.12*scale,length*0.32),Vector3(0,1.31*scale,length*0.02),hull_mat)
+		for roller in 4:
+			var roller_z:float=-length*0.12+roller*length*0.09
+			var belt_roller:=_cylinder(model,"Ore belt roller",0.075*scale,width*0.38,Vector3(0,1.38*scale,roller_z),dark_mat,8,Vector3(0,0,PI*0.5))
+			belt_roller.rotation.x+=float(drive_frame)*PI*0.5
+		for side in [-1.0,1.0]:
+			_box(model,"Collector work lamp",Vector3(0.11*scale,0.075*scale,0.08*scale),Vector3(side*width*0.40,0.77*scale,-length*0.43),_material(Color("e8c56f"),0.28,0.0,true))
 		var cargo_crystals := clampi(roundi(float(entity.get("cargo",0.0))/80.0),0,3)
 		for i in range(cargo_crystals):
 			var crystal := PrismMesh.new()
@@ -120,18 +156,28 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 			_mesh(model,"Cargo crystal",crystal,Vector3(-0.38*scale+i*0.38*scale,1.19*scale,length*0.22),_material(CYAN,0.35,0.05,true))
 	else:
 		var turret := Node3D.new()
-		turret.name="Turret"
+		turret.name="Flame projector mount" if kind=="scorcher" else "Turret"
 		turret.position=Vector3(0,0.82*scale,0)
 		turret.rotation.y=heading_yaw_for_screen_angle(body_angle+turret_angle)-model.rotation.y
 		model.add_child(turret)
 		var turret_size := Vector3(width*0.6,0.48*scale,length*0.38)
-		if kind=="scout": turret_size=Vector3(width*0.66,0.3*scale,length*0.27)
-		if kind=="siege": turret_size=Vector3(width*0.7,0.56*scale,length*0.43)
-		if kind=="bulwark": turret_size=Vector3(width*0.72,0.62*scale,length*0.43)
+		if kind=="scout": turret_size=Vector3(width*0.56,0.22*scale,length*0.23)
+		if kind=="siege": turret_size=Vector3(width*0.76,0.66*scale,length*0.52)
+		if kind=="bulwark": turret_size=Vector3(width*0.84,0.72*scale,length*0.48)
+		if kind=="scorcher": turret_size=Vector3(width*0.82,0.34*scale,length*0.46)
 		_box(turret,"Turret base",Vector3(turret_size.x*1.08,0.16*scale,turret_size.z*1.08),Vector3(0,0.03*scale,0),dark_mat)
 		_box(turret,"Turret body",turret_size,Vector3(0,0.32*scale,0),hull_mat)
 		_box(turret,"Turret armor",Vector3(turret_size.x*0.78,0.12*scale,turret_size.z*0.66),Vector3(0,0.61*scale,0.01),armor_mat)
-		_box(turret,"Turret stripe",Vector3(turret_size.x*0.58,0.045*scale,0.1*scale),Vector3(0,0.69*scale,0),trim_mat)
+		if kind=="siege":
+			_box(turret,"Open mortar cradle",Vector3(turret_size.x*0.66,0.18*scale,turret_size.z*0.56),Vector3(0,0.72*scale,0.06*scale),dark_mat)
+			for side in [-1.0,1.0]:
+				_box(turret,"Shell canister",Vector3(0.2*scale,0.28*scale,turret_size.z*0.7),Vector3(side*turret_size.x*0.40,0.44*scale,turret_size.z*0.18),armor_mat)
+		elif kind=="scorcher":
+			_box(turret,"Thermal shield",Vector3(turret_size.x*1.14,0.24*scale,turret_size.z*0.38),Vector3(0,0.35*scale,0),dark_mat)
+			for side in [-1.0,1.0]:
+				_cylinder(turret,"Pressure gauge",0.105*scale,0.06*scale,Vector3(side*turret_size.x*0.43,0.52*scale,turret_size.z*0.22),amber_mat,10,Vector3(PI*0.5,0,0))
+		else:
+			_box(turret,"Turret stripe",Vector3(turret_size.x*0.58,0.045*scale,0.1*scale),Vector3(0,0.69*scale,0),trim_mat)
 		# A broad top ID plate stays visible from the elevated RTS camera, including
 		# when the vehicle is angled or partly hidden in a formation.
 		_box(turret,"Team ID plate",Vector3(turret_size.x*0.78,0.045*scale,turret_size.z*0.34),Vector3(0,0.704*scale,turret_size.z*0.1),trim_mat)
@@ -149,7 +195,15 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 		if kind=="siege":
 			_box(weapon,"Mortar base",Vector3(0.62*scale,0.2*scale,0.62*scale),Vector3(0,0.08*scale,-0.18*scale),dark_mat)
 			_box(weapon,"Mortar tube",Vector3(0.36*scale,0.42*scale,barrel_len),Vector3(0,0.26*scale,-barrel_len*0.38),barrel_mat)
+			_cylinder(weapon,"Recoil sleeve",0.24*scale,0.22*scale,Vector3(0,0.26*scale,-barrel_len*0.35),dark_mat,10,Vector3(PI*0.5,0,0))
 			_cylinder(weapon,"Muzzle ring",0.23*scale,0.12*scale,Vector3(0,0.26*scale,-barrel_len*0.72),armor_mat,8,Vector3(PI*0.5,0,0))
+		elif kind=="scorcher":
+			for side in [-1.0,1.0]:
+				var nozzle_pos:=Vector3(side*0.25*scale,0.08*scale,-barrel_len*0.38)
+				var nozzle_side := "left" if side < 0.0 else "right"
+				_cylinder(weapon,"Flame lance "+nozzle_side,0.105*scale,barrel_len*0.88,nozzle_pos,armor_mat,10,Vector3(PI*0.5,0,0))
+				_cylinder(weapon,"Flame mouth "+nozzle_side,0.145*scale,0.08*scale,nozzle_pos+Vector3(0,0,-barrel_len*0.43),amber_mat,10,Vector3(PI*0.5,0,0))
+				_box(weapon,"Flame safety guard",Vector3(0.20*scale,0.24*scale,0.10*scale),nozzle_pos+Vector3(0,0.02*scale,0.05*scale),dark_mat)
 		else:
 			_box(weapon,"Weapon",Vector3((0.16 if kind!="bulwark" else 0.28)*scale,0.18*scale,barrel_len),Vector3(0,0.08*scale,-barrel_len*0.4),barrel_mat)
 			_box(weapon,"Muzzle",Vector3(0.22*scale,0.22*scale,0.14*scale),Vector3(0,0.08*scale,-barrel_len*0.83),dark_mat)
@@ -158,23 +212,47 @@ static func vehicle(root: Node3D, entity: Dictionary, team: Color, faction: Stri
 	if kind=="lancer": _box(weapon,"Energy core",Vector3(0.22*scale,0.22*scale,barrel_len*0.58),Vector3(0,0.08*scale,-barrel_len*0.3),_material(Color("70edff"),0.28,0.1,true))
 	if kind=="scorcher":
 		for side in [-1.0,1.0]:
-			_cylinder(model,"Fuel tank",0.22*scale,0.65*scale,Vector3(side*width*0.28,0.76*scale,length*0.19),_material(AMBER,0.68),10,Vector3(PI*0.5,0,0))
-			_box(model,"Flame nozzle",Vector3(0.2*scale,0.18*scale,0.32*scale),Vector3(side*width*0.25,0.62*scale,-length*0.46),_material(Color("ff8a3d"),0.35,0.0,true))
+			_cylinder(model,"Armored fuel tank",0.25*scale,0.72*scale,Vector3(side*width*0.40,0.72*scale,length*0.22),_material(Color("70432f"),0.74,0.18),12,Vector3(PI*0.5,0,0))
+			_cylinder(model,"Fuel tank end cap",0.20*scale,0.08*scale,Vector3(side*width*0.40,0.72*scale,length*0.22-0.36*scale),amber_mat,10,Vector3(PI*0.5,0,0))
+			_box(model,"Fuel feed pipe",Vector3(0.06*scale,0.07*scale,length*0.28),Vector3(side*width*0.3,0.76*scale,-length*0.01),_material(Color("a67943"),0.52,0.42))
+		_box(model,"Scorcher hazard plate",Vector3(width*0.08,0.06*scale,length*0.25),Vector3(0,0.87*scale,length*0.16),amber_mat)
 	if kind=="scout":
 		_box(model,"Scout sensor mast",Vector3(0.07*scale,0.42*scale,0.07*scale),Vector3(0,1.12*scale,length*0.15),dark_mat)
 		_cylinder(model,"Scout sensor",0.11*scale,0.32*scale,Vector3(0,1.34*scale,length*0.15),trim_mat,8,Vector3(0,0,PI*0.5))
 	if kind=="raider":
 		for side in [-1.0,1.0]:
-			_box(model,"Raider flank",Vector3(0.16*scale,0.22*scale,length*0.38),Vector3(side*width*0.48,0.52*scale,0.02),trim_mat)
-			_box(model,"Raider side blade",Vector3(0.3*scale,0.12*scale,0.38*scale),Vector3(side*width*0.48,0.55*scale,-length*0.3),armor_mat)
+			var flank:=_box(model,"Raider flank",Vector3(0.16*scale,0.22*scale,length*0.46),Vector3(side*width*0.48,0.52*scale,0.02),dark_mat)
+			flank.rotation.y=side*0.11
+			var blade:=_box(model,"Raider wedge blade",Vector3(0.34*scale,0.10*scale,0.48*scale),Vector3(side*width*0.48,0.58*scale,-length*0.3),trim_mat)
+			blade.rotation.y=side*0.16
+		_box(model,"Raider prow",Vector3(width*0.74,0.16*scale,length*0.25),Vector3(0,0.73*scale,-length*0.39),armor_mat)
 	if kind=="lancer":
 		_box(weapon,"Lance emitter",Vector3(0.3*scale,0.28*scale,0.34*scale),Vector3(0,0.08*scale,-0.22*scale),dark_mat)
-	if int(entity.get("hp",1)) < int(entity.get("max_hp",1))*0.65:
+		for side in [-1.0,1.0]:
+			_cylinder(model,"Lance capacitor",0.14*scale,0.56*scale,Vector3(side*width*0.31,0.74*scale,length*0.18),_material(Color("535068"),0.45,0.48),10,Vector3(PI*0.5,0,0))
+			_cylinder(model,"Capacitor glow",0.075*scale,0.42*scale,Vector3(side*width*0.31,0.74*scale,length*0.18),_material(Color("91e9ff"),0.22,0.0,true),8,Vector3(PI*0.5,0,0))
+		_box(model,"Lance power spine",Vector3(width*0.11,0.08*scale,length*0.46),Vector3(0,0.98*scale,length*0.07),trim_mat)
+	var hp_ratio:=float(entity.get("hp",1.0))/maxf(1.0,float(entity.get("max_hp",1.0)))
+	if hp_ratio < 0.65:
 		_box(model,"Battle scar",Vector3(width*0.3,0.025*scale,length*0.16),Vector3(width*0.18,0.88*scale,length*0.1),_material(Color("352a25"),1.0))
+		_box(model,"Scorched armor edge",Vector3(width*0.22,0.025*scale,length*0.055),Vector3(-width*0.18,0.90*scale,-length*0.11),_material(Color("221e1a"),0.98))
+	if hp_ratio < 0.35:
+		_box(model,"Blown armor panel",Vector3(width*0.24,0.04*scale,length*0.11),Vector3(-width*0.20,0.94*scale,length*0.12),dark_mat)
+		_cylinder(model,"Hot breach",0.10*scale,0.045*scale,Vector3(width*0.19,0.98*scale,-length*0.05),_material(Color("ef713c"),0.4,0.0,true),8)
 	if kind=="bulwark":
-		for side in [-1.0,1.0]: _box(model,"Ram plate",Vector3(0.3*scale,0.4*scale,0.22*scale),Vector3(side*width*0.38,0.62*scale,-length*0.45),armor_mat)
+		for side in [-1.0,1.0]: _box(model,"Ram plate",Vector3(0.38*scale,0.50*scale,0.30*scale),Vector3(side*width*0.38,0.66*scale,-length*0.45),armor_mat)
 		_box(model,"Bulwark prow",Vector3(width*0.76,0.35*scale,0.24*scale),Vector3(0,0.58*scale,-length*0.47),dark_mat)
-		for i in 5: _box(model,"Prow reinforcement",Vector3(width*0.11,0.08*scale,0.1*scale),Vector3(-width*0.28+i*width*0.14,0.78*scale,-length*0.48),trim_mat)
+		for i in 5: _box(model,"Prow reinforcement",Vector3(width*0.11,0.11*scale,0.12*scale),Vector3(-width*0.28+i*width*0.14,0.80*scale,-length*0.49),trim_mat)
+		for side in [-1.0,1.0]:
+			_box(model,"Bulwark side armor",Vector3(0.15*scale,0.42*scale,length*0.46),Vector3(side*width*0.51,0.52*scale,0.02),hull_mat)
+	if kind=="siege":
+		# Braced firing legs and separated ammunition racks give the artillery
+		# chassis a wide, planted stance that reads apart from the battle tank.
+		for side in [-1.0,1.0]:
+			var brace:=_box(model,"Artillery stabilizer",Vector3(0.12*scale,0.13*scale,length*0.34),Vector3(side*width*0.58,0.28*scale,length*0.26),armor_mat)
+			brace.rotation.y=side*0.18
+			_box(model,"Stabilizer foot",Vector3(0.30*scale,0.11*scale,0.20*scale),Vector3(side*width*0.72,0.16*scale,length*0.42),dark_mat)
+			_box(model,"Shell rack",Vector3(0.28*scale,0.38*scale,length*0.25),Vector3(side*width*0.47,0.83*scale,length*0.21),hull_mat)
 
 static func building(root: Node3D, entity: Dictionary, team: Color, faction: String, footprint: Vector2) -> void:
 	var kind := str(entity.get("kind","core"))
@@ -296,6 +374,8 @@ static func _faction_hull(faction: String) -> Color:
 		_: return STEEL
 
 static func _material(color: Color, roughness: float=0.8, metallic: float=0.0, glow: bool=false) -> StandardMaterial3D:
+	var key: String="%s|%.2f|%.2f|%s"%[color.to_html(false),roughness,metallic,str(glow)]
+	if _material_cache.has(key): return _material_cache[key]
 	var material := StandardMaterial3D.new()
 	material.albedo_color=color
 	material.roughness=roughness
@@ -307,6 +387,7 @@ static func _material(color: Color, roughness: float=0.8, metallic: float=0.0, g
 	if glow:
 		material.emission_enabled=true
 		material.emission=color.darkened(0.35)
+	_material_cache[key]=material
 	return material
 
 static func _surface_detail_texture() -> ImageTexture:

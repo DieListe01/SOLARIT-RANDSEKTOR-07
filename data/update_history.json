@@ -1,6 +1,18 @@
 {
-  "current_version": "0.36.30",
+  "current_version": "0.36.31",
   "entries": [
+    {
+      "version": "0.36.31",
+      "date": "09.10.2026",
+      "title": "Eigenständige Fraktionsfahrzeuge und weichere Geländekanten",
+      "changes": [
+        "Kobalt-Konsortium, Wanderpakt und Prisma-Konklave erhalten in der 3D-Ansicht eigene Ketten-, Rad- und Schwebefahrwerke mit klar erkennbaren Fraktionsformen.",
+        "Panzer, Sammler und Spezialfahrzeuge zeigen besser unterscheidbare Rollenformen, sichtbare Schadensspuren und bewegte Arbeitsdetails.",
+        "Geländematerialien gehen mit unregelmäßigen, weicheren Kanten ineinander über; Kristallfelder variieren stärker.",
+        "Baufortschritt bleibt als kompakter Balken sichtbar. Der vollständige Status erscheint erst bei Auswahl oder Mauszeigerkontakt.",
+        "Die vorhandene 3D-Cache-Ansicht kann optionale Blender-Modelle im GLB-Format aufnehmen; prozedurale Modelle bleiben der Rückfall, solange noch kein externes Modell vorliegt."
+      ]
+    },
     {
       "version": "0.36.30",
       "date": "09.10.2026",

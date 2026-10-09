@@ -168,11 +168,12 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	var turret_angle:=float(turret_frame)*TAU/VEHICLE_TURRET_FRAMES-PI
 	var vehicle_velocity:Vector2=entity.get("velocity",Vector2.ZERO)
 	var moving:bool=vehicle_velocity.length()>5.0
-	var drive_frame:=posmod(floori(elapsed*4.0),4) if moving and entity.kind in ["tank","siege","harvester","scorcher","bulwark"] else 0
 	var hp_ratio: float=entity.hp/entity.max_hp
 	var damage_state := 2 if hp_ratio<0.35 else (1 if hp_ratio<0.65 else 0)
 	var cargo_state := clampi(roundi(float(entity.get("cargo",0.0))/maxf(1.0,float(sim.db.rules.harvest_capacity))*8.0),0,8) if entity.kind=="harvester" else 0
 	var harvest_state := 1 if entity.kind=="harvester" and entity.get("harvest_state","")=="HARVEST" else 0
+	var drive_active:=moving or harvest_state==1
+	var drive_frame:=posmod(floori(elapsed*4.0),4) if drive_active and entity.kind in ["tank","siege","harvester","scorcher","bulwark"] else 0
 	var color_key := sim.team_color(entity.owner).to_html(false)
 	var key := "%s|%s|%d|%s|%d|%d|%d|%d|%d|%d" % [entity.kind,sim.factions[entity.owner],entity.owner,color_key,heading_frame,turret_frame,damage_state,cargo_state,harvest_state,drive_frame]
 	var texture: Texture2D=vehicle_texture_cache.get(key)
@@ -671,6 +672,7 @@ func _draw() -> void:
 			if not draw_cached_vehicle(visual,output,scale_value,ratio):
 				industrial_art.simplified=zoom<0.68
 				draw_unit(visual)
+			draw_vehicle_damage(visual)
 			if profile_enabled: profile_vehicles_ms+=float(Time.get_ticks_usec()-object_profile_started)/1000.0
 		if combat_fx.flashes.has(e.id):
 			glow_at(visual.pos,45 if e.building else 22,Color(1,0.82,0.48,float(combat_fx.flashes[e.id])*2.8))
@@ -812,21 +814,25 @@ func _world_progress_data(e: Dictionary) -> Dictionary:
 		return {"ratio":production_ratio,"title":str(unit_def.get("name",job.kind)),"detail":"MONTAGE","queue":e.queue.size(),"kind":"production"}
 	return {}
 
+func world_progress_label_visible(e: Dictionary) -> bool:
+	return selected.has(e.id) or int(e.id)==hovered_entity_id
+
 func draw_world_progress(e: Dictionary, visual: Dictionary) -> void:
 	var data: Dictionary=_world_progress_data(e)
 	if data.is_empty(): return
-	var focused: bool=selected.has(e.id) or int(e.id)==hovered_entity_id
+	var focused:=world_progress_label_visible(e)
 	var ratio: float=float(data.ratio)
 	var building_height: float=float({"core":88,"power":74,"radar":80,"refinery":68,"factory":66,"repair":65,"armory":70}.get(e.kind,58))
-	# Construction stays readable in-world. Running factories show their active product at
-	# normal zoom, but collapse to a tiny progress bar when the camera is far away.
-	var show_label: bool=str(data.kind)!="production" or focused or zoom>=0.90
-	var bar_width: float=72.0 if show_label else 42.0
+	# Keep the battlefield clear when several structures build at once. Full
+	# context appears only for selection or deliberate hover; every active job
+	# keeps a small, color-coded bar attached to its building.
+	var show_label:=focused
+	var bar_width: float=88.0 if show_label else 58.0
 	var y_offset: float=building_height+(8.0 if show_label else 6.0)
 	var top_left: Vector2=visual.pos-Vector2(bar_width*0.5,y_offset)
 	var fill_color: Color=Color("78e3c5") if str(data.kind)!="production" else Color("e7bd78")
 	if show_label:
-		var plate_width: float=maxf(116.0,bar_width)
+		var plate_width: float=maxf(150.0,bar_width)
 		top_left.x=visual.pos.x-plate_width*0.5
 		draw_rect(Rect2(top_left-Vector2(6,24),Vector2(plate_width+12,41)),Color("130f0c",0.88))
 		draw_rect(Rect2(top_left-Vector2(6,24),Vector2(plate_width+12,41)),Color("8f6b3f",0.8),false,1.0)
@@ -841,6 +847,25 @@ func draw_world_progress(e: Dictionary, visual: Dictionary) -> void:
 		top_left=Vector2(visual.pos.x-bar_width*0.5,top_left.y+15)
 	draw_rect(Rect2(top_left,Vector2(bar_width,4)),Color("16110d",0.95))
 	draw_rect(Rect2(top_left,Vector2(bar_width*ratio,4)),fill_color)
+
+func draw_vehicle_damage(e: Dictionary) -> void:
+	var hp_ratio:=clampf(float(e.hp)/maxf(1.0,float(e.max_hp)),0.0,1.0)
+	if hp_ratio>=0.65: return
+	var scale_factor:=1.0 if e.kind in ["bulwark","harvester"] else 0.72
+	var phase:=elapsed*1.7+float(e.id)*0.73
+	var smoke_color:=Color("322a23",0.26) if hp_ratio>=0.35 else Color("272523",0.42)
+	var offset:=Vector2(sin(phase)*3.0,-12.0*scale_factor)
+	paint_circle(e.pos+offset,3.0*scale_factor,Color("201a17",0.28),true,16,false)
+	if hp_ratio<0.35:
+		for puff in 3:
+			var age:=fposmod(elapsed*0.78+float(puff)*0.31+float(e.id)*0.1,1.0)
+			var drift:=Vector2(sin(phase+puff)*5.0,-(8.0+age*17.0)*scale_factor)
+			var puff_color:=smoke_color
+			puff_color.a*=1.0-age
+			paint_circle(e.pos+offset+drift,2.0+age*5.0,puff_color,true,16,false)
+	else:
+		var spark: Vector2=e.pos+offset+Vector2(cos(phase)*5.0,-2.0)
+		paint_circle(spark,1.5,Color("f3a252",0.55+sin(phase*2.0)*0.18),true,10,false)
 
 func draw_selection(e: Dictionary, hover: bool = false) -> void:
 	var color := Color("e7bd78") if hover else sim.team_color(e.owner)
@@ -958,8 +983,8 @@ func _build_solarit_detail_chunk(chunk: Vector2i) -> void:
 			var variation:=posmod(seed_value*17+x*y,4)
 			var atlas_origin:=Vector2(variation*32,tier*32)
 			var cell_origin:=Vector2(cell*grid.tile)
-			var center := cell_origin+Vector2(16+sin(seed_value*1.7)*4.0,16+cos(seed_value*2.3)*4.0)
-			var radius := 12.0+float(posmod(seed_value*13+x*y,9))*0.65
+			var center := cell_origin+Vector2(16+sin(seed_value*1.7)*5.5,16+cos(seed_value*2.3)*5.5)
+			var radius := 10.5+float(posmod(seed_value*13+x*y,11))*0.82
 			var rotation := sin(seed_value*0.71)*0.32
 			var first:=vertices.size()
 			for corner in [Vector2(-1,-1),Vector2(1,-1),Vector2(1,1),Vector2(-1,1)]:
@@ -971,6 +996,20 @@ func _build_solarit_detail_chunk(chunk: Vector2i) -> void:
 			var tint:=Color(brightness,brightness,brightness,0.68+0.32*depletion)
 			for _i in 4: colors.append(tint)
 			indices.append_array(PackedInt32Array([first,first+1,first+2,first,first+2,first+3]))
+			# A secondary shard gives resource patches varied, clustered outlines
+			# without adding a draw call or changing harvesting cell logic.
+			if posmod(seed_value*3+x*y,3)==0:
+				var shard_first:=vertices.size()
+				var shard_variation:=posmod(variation+1+posmod(seed_value,2),4)
+				var shard_origin:=Vector2(shard_variation*32,tier*32)
+				var shard_center:=center+Vector2(cos(rotation+0.7),sin(rotation+0.7))*radius*1.16
+				var shard_radius:=radius*0.43
+				for corner in [Vector2(-1,-1),Vector2(1,-1),Vector2(1,1),Vector2(-1,1)]:
+					var shard_point: Vector2=shard_center+(corner*shard_radius*Vector2(0.72,0.9)).rotated(rotation-0.42)
+					vertices.append(Vector3(shard_point.x,shard_point.y,0))
+				for uv in [shard_origin,shard_origin+Vector2(32,0),shard_origin+Vector2(32,32),shard_origin+Vector2(0,32)]: uvs.append(uv/atlas_size)
+				for _i in 4: colors.append(tint.darkened(0.08))
+				indices.append_array(PackedInt32Array([shard_first,shard_first+1,shard_first+2,shard_first,shard_first+2,shard_first+3]))
 	if vertices.is_empty():
 		solarit_detail_chunks.erase(chunk)
 		return

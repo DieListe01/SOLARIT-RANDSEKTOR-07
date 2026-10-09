@@ -1,5 +1,6 @@
 extends Node3D
 class_name BuildingCachePainter
+const ModelAssets = preload("res://scripts/model_asset_library.gd")
 
 var art: IndustrialArt
 var entity: Dictionary
@@ -40,6 +41,10 @@ func _ready() -> void:
 	var footprint_data: Array=sim.definition(entity).footprint
 	var footprint := Vector2(footprint_data[0],footprint_data[1])*sim.grid.tile
 	_add_shadow(footprint)
+	var kind := str(entity.get("kind", "core"))
+	var asset_path := "res://assets/models/buildings/%s.glb" % kind
+	if ModelAssets.add_optional_glb(self, asset_path, "Authored building",team):
+		return
 	LowpolyModelFactory.building(self,entity,team,faction,footprint)
 
 func _add_shadow(footprint: Vector2) -> void:
