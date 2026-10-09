@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.33",
+  "current_version": "0.36.34",
   "entries": [
+    {
+      "version": "0.36.34",
+      "date": "09.10.2026",
+      "title": "Gebäude mit klar getrennten Silhouetten",
+      "changes": [
+        "Die acht Blender-Gebäude teilen nicht länger dieselbe Fassaden- und Dachbehandlung: Reaktor, Raffinerie, Werft, Reparaturbucht, Radar, Munitionslager, Geschützturm und Kommandozentrum erhalten deutlich unterschiedliche Dachprofile und Funktionsbaugruppen.",
+        "Die Blender-Exportvorlage verwendet jetzt eine einheitliche Hochachse. Zuvor lagen mehrere markante Bauteile in der Spielansicht verdeckt oder wirkten wie wiederholte Kästen.",
+        "Die bestehenden GLB-Modelle bleiben in derselben SubViewport-Cache-Pipeline; die prozeduralen Modelle bleiben als Rückfall erhalten."
+      ]
+    },
     {
       "version": "0.36.33",
       "date": "09.10.2026",

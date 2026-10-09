@@ -10,8 +10,8 @@ SubViewport through scripts/building_cache_painter.gd.
 from __future__ import annotations
 
 import os
+import math
 import bpy
-from mathutils import Vector
 from mathutils import Vector
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -56,11 +56,16 @@ def bevel(obj, amount=.06, segments=2):
     mod.keep_sharp = True
     return obj
 
+def game_to_blender(point):
+    """Convert the asset kit's documented X/Y-up/Z-depth coordinates to Blender Z-up."""
+    return (point[0], point[2], point[1])
+
 def cube(name, loc, size, material, radius=.04, rotation=0):
     bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
     o = bpy.context.object
     o.name = name
-    o.dimensions = size
+    o.location = game_to_blender(loc)
+    o.dimensions = (size[0], size[2], size[1])
     o.rotation_euler.z = rotation
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     o.data.materials.append(material)
@@ -68,11 +73,12 @@ def cube(name, loc, size, material, radius=.04, rotation=0):
         bevel(o, radius)
     return o
 
-def cyl(name, loc, radius, depth, material, vertices=16, axis="Z"):
-    bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=radius, depth=depth, location=loc)
+def cyl(name, loc, radius, depth, material, vertices=16, axis="Y"):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=radius, depth=depth, location=game_to_blender(loc))
     o = bpy.context.object
     o.name = name
-    if axis == "Y": o.rotation_euler.x = 1.5708
+    # The primitive's Blender Z axis maps to the kit's vertical Y axis.
+    if axis == "Z": o.rotation_euler.x = 1.5708
     if axis == "X": o.rotation_euler.y = 1.5708
     o.data.materials.append(material)
     bevel(o, .025, 2)
@@ -87,7 +93,7 @@ def pipe(name, points, radius, material):
     spline = curve.splines.new("BEZIER")
     spline.bezier_points.add(len(points)-1)
     for p, co in zip(spline.bezier_points, points):
-        p.co = co
+        p.co = game_to_blender(co)
         p.handle_left_type = p.handle_right_type = "AUTO"
     obj = bpy.data.objects.new(name, curve)
     bpy.context.collection.objects.link(obj)
@@ -95,8 +101,8 @@ def pipe(name, points, radius, material):
     return obj
 
 def base(w=2.8,d=2.8):
-    cube("Layered armored foundation", (0,.16,0),(w,d,.32),M["dark"],.11)
-    cube("Ceramic foundation cap", (0,.36,0),(w*.92,d*.9,.12),M["armor"],.045)
+    cube("Layered armored foundation", (0,.16,0),(w,.32,d),M["dark"],.11)
+    cube("Ceramic foundation cap", (0,.36,0),(w*.92,.12,d*.9),M["armor"],.045)
     for x in [-w*.42,w*.42]:
         for y in [-d*.4,d*.4]:
             cube("Corner cast foot",(x,.22,y),(.22,.36,.22),M["steel"],.04)
@@ -131,6 +137,10 @@ def make(kind, footprint):
         cube("Command bunker lower hull",(0,.78,0),(w*.78,.82,d*.72),M["dark"],.13)
         cube("Angled ceramic armor shell",(0,1.36,-.03),(w*.82,.58,d*.76),M["armor"],.12)
         cube("Raised armored command citadel",(0,1.87,-.16),(w*.48,.62,d*.42),M["dark"],.12)
+        # A split, offset command roof makes the core read as a low bunker,
+        # instead of another flat industrial roof at the battlefield camera.
+        cube("Command roof wing left",(-w*.24,1.74,-.03),(w*.38,.14,d*.68),M["steel"],.07,rotation=-.12)
+        cube("Command roof wing right",(w*.24,1.74,-.03),(w*.38,.14,d*.68),M["steel"],.07,rotation=.12)
         cube("Sensor bridge glazing",(0,1.94,d*.063),(w*.35,.24,.035),M["glass"],.025)
         cube("Roof command light",(0,2.21,-.16),(w*.3,.07,.13),M["team"],.025)
         for side in [-1,1]:
@@ -138,39 +148,50 @@ def make(kind, footprint):
         cube("Blast door with inset",(0,.58,d*.38),(w*.42,.43,.09),M["steel"],.055)
     elif kind == "power":
         cube("Reactor pressure vessel housing",(0,.87,0),(w*.7,.9,d*.7),M["dark"],.14)
-        cube("Asymmetric armored reactor shroud",(0,1.43,-.02),(w*.75,.33,d*.75),M["armor"],.11)
-        for x in [-w*.28,0,w*.28]:
-            cyl("Ceramic heat exchanger",(x,1.48,-.12),.21,.88,M["armor"],20)
-            cyl("Induction collar",(x,1.11,-.12),.245,.13,M["team"],20)
-            cyl("Vented exchanger cap",(x,1.94,-.12),.15,.11,M["steel"],16)
-            cyl("Cap aperture",(x,2.005,-.12),.07,.02,M["dark"],12)
+        # The power plant is organized around one large reactor core and two
+        # offset cooling stacks; the refinery owns the horizontal process line.
+        cyl("Primary reactor containment ring",(0,1.35,-.08),.62,.25,M["steel"],32)
+        cyl("Ceramic reactor crown",(0,1.57,-.08),.46,.31,M["armor"],24)
+        cyl("Luminous reactor aperture",(0,1.74,-.08),.25,.055,M["team"],24)
+        for i,(x,z,height_value) in enumerate([(-.63,-.36,.82),(.63,.20,1.12)]):
+            cyl("Cooling stack %d"%(i+1),(x,1.02+height_value*.5,z),.20,height_value,M["armor"],20)
+            for y in [1.10,1.22+height_value*.25,1.22+height_value*.55]:
+                cyl("Cooling stack collar",(x,y,z),.225,.055,M["team"] if y==1.10 else M["steel"],20)
+            cyl("Vented stack crown",(x,1.06+height_value,z),.16,.10,M["dark"],16)
+            cyl("Crown aperture",(x,1.115+height_value,z),.075,.02,M["amber"],12)
         for x in [-.72,.72]:
             for z in [-.35,.35]: pipe("Reactor coolant loop",[(x,.8,z),(x,1.22,z),(x,1.55,z*.7)],.038,M["steel"])
+        for i in range(6):
+            angle=i*math.tau/6
+            cube("Reactor crown radial brace",(math.cos(angle)*.52,1.75,-.08+math.sin(angle)*.52),(.20,.07,.055),M["hazard"],.015,rotation=-angle)
         cube("High voltage busbar",(0,.72,d*.46),(w*.62,.15,.09),M["team"],.03)
     elif kind == "refinery":
-        cube("Ore separation hall",(-.25,.85,-.12),(w*.62,.9,d*.72),M["dark"],.14)
-        cube("Faceted ceramic process shell",(-.25,1.39,-.16),(w*.67,.32,d*.77),M["armor"],.1)
-        # Three pressure columns, each with real flanges, weld rings and pipe returns.
-        for i,x in enumerate([-.78,0,.78]):
-            cyl("Fractionation pressure drum",(x,1.22,.36),.22,.91,M["armor"],24)
-            for z in [.81,1.0,1.48,1.65]: cyl("Welded vessel ring",(x,z,.36),.236,.045,M["steel"],24)
-            cyl("Dark vent crown",(x,1.71,.36),.14,.1,M["dark"],20)
-            cyl("Pressure relief valve",(x,1.81,.36),.07,.09,M["amber"],12)
-            pipe("Manifold return",[(x,1.15,.2),(x,1.88,.02),(x*.65,1.9,-.5)],.045,M["team"])
-        cube("Ore receiving apron",(.12,.46,d*.44),(w*.68,.16,.48),M["steel"],.07)
-        cube("Armored unload hopper",(.12,.79,d*.37),(w*.43,.54,.39),M["dark"],.1)
-        # Tapered intake mouth, support trusses and segmented conveyor rollers.
-        cube("Ore hopper lip",(.12,1.08,d*.46),(w*.48,.09,.16),M["team"],.04)
-        for x in [-.6,.6]:
-            pipe("Hopper support brace",[(x,.4,d*.39),(x,.9,d*.39),(x,.9,d*.13)],.04,M["steel"])
-        for i in range(5): cyl("Conveyor idler",(-.62+i*.31,.45,-d*.37),.055,.78,M["steel"],12,"X")
-        cube("Black belt and cleats",(0,.5,-d*.37),(1.55,.07,.66),M["rubber"],.03,rotation=-.1)
-        for x in [-.62,.62]: pipe("Feed pipe",[(x,.9,-.15),(x,1.55,-.15),(x,1.65,.1)],.055,M["team"])
+        # Keep processing equipment squat and horizontal so it cannot be
+        # mistaken for the power plant's vertical cooling stacks.
+        cube("Ore separation hall",(-.30,.78,-.10),(w*.62,.78,d*.68),M["dark"],.14)
+        cube("Faceted process roof",(-.30,1.25,-.10),(w*.68,.18,d*.74),M["armor"],.1)
+        for i,x in enumerate([-.72,-.10,.52]):
+            cyl("Horizontal fractionation drum",(x,.96,-.34),.24,.78,M["steel"],24,"X")
+            for end in [-.33,.33]: cyl("Drum end flange",(x+end,.96,-.34),.285,.065,M["armor"],24,"X")
+            for ring in [-.20,0,.20]: cyl("Drum weld ring",(x+ring,.96,-.34),.255,.035,M["team"] if i==1 else M["dark"],24,"X")
+            cube("Drum ID plate",(x,.97,-.04),(.22,.16,.04),M["amber"],.025)
+        # Long, sloped conveyor and a deep receiving throat define the refinery
+        # in the high oblique game view; its moving belt is a separate mesh.
+        cube("Ore receiving apron",(.12,.43,d*.42),(w*.76,.16,.48),M["steel"],.07)
+        cube("Armored unload hopper",(.12,.79,d*.36),(w*.40,.52,.38),M["dark"],.1)
+        cube("Hopper throat",(.12,1.08,d*.44),(w*.46,.10,.16),M["team"],.04)
+        for x in [-.66,.66]: pipe("Hopper support brace",[(x,.4,d*.36),(x,.9,d*.36),(x,.9,d*.12)],.04,M["steel"])
+        for i in range(7): cyl("Conveyor idler",(-.82+i*.28,.42,-d*.39),.052,.82,M["steel"],12,"X")
+        cube("Ore conveyor belt",(.02,.49,-d*.39),(2.02,.075,.70),M["rubber"],.03,rotation=-.13)
+        for i in range(7): cube("Conveyor cleat",(-.82+i*.28,.54,-d*.39),(.045,.055,.64),M["hazard"],.012,rotation=-.13)
+        for x in [-.62,.62]: pipe("Refinery feed pipe",[(x,.86,-.12),(x,1.40,-.20),(x,1.42,-.58)],.045,M["team"])
     elif kind == "factory":
-        cube("Welded hangar chassis",(0,.88,0),(w*.82,1.12,d*.74),M["dark"],.15)
-        # Tall open bay reads as a vehicle-scale opening, framed with load-bearing beams.
-        cube("Upper armored roof block",(0,1.62,-.03),(w*.83,.43,d*.79),M["armor"],.10)
-        cube("Dark vehicle bay recess",(0,.86,d*.385),(w*.62,.86,.08),M["rubber"],.025)
+        # An open-frame assembly hangar; roof is deliberately sparse so the
+        # crane and vehicle-scale bay remain readable from above.
+        cube("Welded hangar chassis",(0,.65,0),(w*.74,.40,d*.64),M["dark"],.12)
+        cube("Left armored roof shoulder",(-w*.31,1.16,-.03),(w*.27,.38,d*.74),M["armor"],.10)
+        cube("Right armored roof shoulder",(w*.31,1.16,-.03),(w*.27,.38,d*.74),M["armor"],.10)
+        cube("Dark vehicle bay recess",(0,.96,d*.385),(w*.60,1.02,.08),M["rubber"],.025)
         for x in [-w*.35,w*.35]:
             cube("Hangar load column",(x,.96,d*.4),(.17,1.27,.18),M["steel"],.035)
             for y in [.48,.72,.96,1.2]: cube("Column gusset",(x,y,d*.49),(.22,.055,.055),M["hazard"],.015)
@@ -178,7 +199,7 @@ def make(kind, footprint):
         for z in [-d*.29,d*.29]: cube("Crane runway",(0,1.85,z),(w*.76,.12,.11),M["steel"],.03)
         cube("Overhead bridge crane",(0,1.7,0),(w*.66,.13,.13),M["team"],.04)
         for x in [-.55,.55]: pipe("Crane hoist cable",[(x,1.68,0),(x,1.35,0),(x,.96,0)],.025,M["steel"])
-        cube("Hydraulic deployment ramp",(0,.47,d*.54),(w*.6,.13,.5),M["steel"],.05)
+        cube("Hydraulic deployment ramp",(0,.47,d*.61),(w*.72,.13,.72),M["steel"],.05)
         for x in [-.62,-.42,-.22,0,.22,.42,.62]: cube("Ramp traction tooth",(x,.55,d*.65),(.1,.045,.035),M["hazard"],.01)
     elif kind == "tower":
         cube("Bastion plinth",(0,.56,0),(w*.8,.48,d*.8),M["dark"],.12)
@@ -200,8 +221,12 @@ def make(kind, footprint):
         for x in [-.28,0,.28]: pipe("Dish radial rib",[(x,2.18,-.4),(x*.8,2.42,-.4),(0,2.63,-.4)],.025,M["steel"])
         cyl("Feed horn",(0,2.56,-.4),.075,.22,M["amber"],12)
     elif kind == "repair":
-        cube("Workshop armored core",(0,.77,0),(w*.74,.82,d*.7),M["dark"],.13)
-        cube("Service roof deck",(0,1.26,0),(w*.82,.16,d*.8),M["armor"],.07)
+        # The workshop is a drive-through gantry around an exposed repair pad,
+        # not a closed warehouse box.
+        cube("Workshop control pod",(-.48,.72,-.12),(w*.32,.72,d*.38),M["dark"],.10)
+        cube("Open repair pad",(.22,.39,.12),(w*.50,.14,d*.72),M["steel"],.07)
+        for x in [-.58,.58]:
+            for z in [-.54,.54]: cube("Hydraulic lift plate",(x,.50,z),(.26,.18,.26),M["team"],.04)
         for x in [-w*.36,w*.36]:
             cube("Lift gantry pillar",(x,1.18,-d*.3),(.16,1.55,.16),M["steel"],.035)
             cube("Gantry warning beacon",(x,2.0,-d*.3),(.21,.12,.21),M["amber"],.03)
@@ -216,11 +241,13 @@ def make(kind, footprint):
             for y in [.62,.88,1.14]: cube("Sealed ammunition canister",(x,y,d*.46),(.21,.18,.14),M["hazard"],.035)
         for x in [-.45,-.15,.15,.45]: cyl("Roof vent",(x,1.68,-.45),.08,.25,M["steel"],12)
         cube("Blast-lock entry",(0,.62,d*.4),(w*.36,.48,.09),M["rubber"],.03)
-    wall_panels(w,d)
-    vents(w,d)
+    # Avoid applying the same wall panels and roof louvers to every structure:
+    # the distinctive machinery above should control each building's read.
     markings(w,d)
-    # Contact shadow and a low perimeter curb anchor the structures on terrain.
-    for x in [-w*.47,w*.47]: cube("Continuous side skid",(x,.36,0),(.12,.12,d*.76),M["steel"],.025)
+    # Different foundation breaks echo each silhouette instead of repeating a
+    # continuous rectangular outline on every asset.
+    if kind in ["core","factory","armory"]:
+        for x in [-w*.42,w*.42]: cube("Segmented side skid",(x,.36,0),(.12,.12,d*.56),M["steel"],.025)
     return [obj for obj in bpy.context.scene.objects if obj not in before]
 
 def main():

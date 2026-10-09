@@ -198,6 +198,17 @@ func run() -> void:
 		root.add_child(authored_model)
 		assert(authored_model.find_child("TeamColor",true,false)!=null,"%s GLB should expose a faction tint surface"%kind)
 		assert(count_named_descendants(authored_model,"TeamColor")>=4,"%s GLB should expose multiple tintable faction panels"%kind)
+		var authored_signature: String = str({
+			"core":"Command roof wing left",
+			"power":"Primary reactor containment ring",
+			"refinery":"Ore conveyor belt",
+			"factory":"Hydraulic deployment ramp",
+			"tower":"Armored turret race",
+			"radar":"Signal dish core",
+			"repair":"Open repair pad",
+			"armory":"Sealed ammunition canister"
+	}[kind])
+		assert(authored_model.find_child(authored_signature,true,false)!=null,"%s GLB should retain its own unmistakable architectural feature"%kind)
 		await process_frame
 		authored_model.queue_free()
 		await process_frame
