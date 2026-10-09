@@ -439,7 +439,7 @@ def create_animations(rig, head, cutter_actuator, cutter_rotor, conveyor):
     scene.frame_start=1
     scene.frame_end=40
     # Move drives the separated sprocket wheels; the continuous belt remains
-    # visible, and small chassis response makes the cached movement pose read.
+    # visible, while the chassis response makes cached movement easy to read.
     sprockets=[]
     for side,x in (("L",-1.03),("R",1.03)):
         pivot=empty("Track%s"%side,(x,0.5,0.0)); pivot.parent=rig
@@ -449,7 +449,7 @@ def create_animations(rig, head, cutter_actuator, cutter_rotor, conveyor):
             local_cylinder_mesh("Animated %s sprocket energy hub"%side,(0,0,0),0.10,0.17,"team","X",20,parent=wheel)
             sprockets.append(wheel)
     slats=[]
-    # The conveyor flights are independently phased, so four cached poses
+    # The conveyor flights are independently phased, so eight cached poses
     # visibly advance Solarit toward the hopper.
     for i in range(6):
         flight=bpy.data.objects.get("ConveyorFlight%d"%i)
@@ -458,6 +458,12 @@ def create_animations(rig, head, cutter_actuator, cutter_rotor, conveyor):
     box_mesh("Rear unloading hatch armored leaf",(0,1.25,1.22),(1.10,0.38,0.12),"armor",0.035,parent=door)
     for side in (-1,1):
         tube("Unloading hatch actuator",[(side*0.48,1.25,1.22),(side*0.66,1.15,1.38),(side*0.66,0.94,1.47)],0.04,"steel",parent=door,sides=10)
+    # A side discharge flap stays readable from the fixed cache camera, so
+    # unloading changes the silhouette without making the vehicle reverse.
+    side_chute=empty("SideUnloadChute",(0.94,1.08,0.46)); side_chute.parent=rig
+    local_box_mesh("Solarit side discharge armored flap",(0.10,0.0,0.0),(0.12,0.48,0.76),"energy",0.035,side_chute)
+    local_box_mesh("Solarit side discharge chute rim",(0.15,-0.18,0.0),(0.16,0.08,0.80),"hazard",0.018,side_chute)
+    local_cylinder_mesh("Side discharge hinge pin",(0.0,0.0,0.0),0.07,0.20,"steel","Y",20,side_chute)
     idle_signal=empty("IdleSignal",(0,1.85,-0.82)); idle_signal.parent=rig
     cylinder_mesh("Idle status beacon base",(0,1.85,-0.82),0.12,0.055,"shadow","Y",20,parent=idle_signal)
     cylinder_mesh("Idle status beacon lamp",(0,1.93,-0.82),0.075,0.06,"energy","Y",20,parent=idle_signal)
@@ -469,11 +475,11 @@ def create_animations(rig, head, cutter_actuator, cutter_rotor, conveyor):
         action.layers[0].strips.new(type="KEYFRAME")
         return action
 
-    def animate_rotation(action, obj, angles):
+    def animate_rotation(action, obj, angles, axis_index=0):
         obj.animation_data_create(); obj.animation_data.action=action
         slot=action.slots.new("OBJECT",obj.name)
         obj.animation_data.action_slot=slot
-        curve=action.fcurve_ensure_for_datablock(obj,"rotation_euler",index=0,group_name=obj.name)
+        curve=action.fcurve_ensure_for_datablock(obj,"rotation_euler",index=axis_index,group_name=obj.name)
         for frame,angle in angles:
             key=curve.keyframe_points.insert(frame,angle,options={"FAST"})
             key.interpolation="LINEAR"
@@ -500,10 +506,13 @@ def create_animations(rig, head, cutter_actuator, cutter_rotor, conveyor):
     move=new_action("Move")
     for wheel in sprockets:
         animate_rotation(move,wheel,[(1,0.0),(11,math.tau*0.25),(21,math.tau*0.5),(31,math.tau*0.75),(40,math.tau)])
-    animate_rotation(move,rig,[(1,0.0),(11,0.012),(21,0.0),(31,-0.012),(40,0.0)])
+    # Give the cached six-frame-per-second poses enough chassis response to read
+    # at RTS scale while keeping the harvester's silhouette stable.
+    animate_rotation(move,rig,[(1,0.0),(11,0.10),(21,0.0),(31,-0.10),(40,0.0)])
+    animate_location(move,rig,[(1,0.0),(6,0.12),(11,0.0),(16,-0.08),(21,0.0),(26,0.12),(31,0.0),(36,-0.08),(40,0.0)])
     actions.append(move)
     harvest=new_action("Harvest")
-    animate_rotation(harvest,cutter_actuator,[(1,0.0),(11,0.36),(21,0.0),(31,-0.36),(40,0.0)])
+    animate_rotation(harvest,cutter_actuator,[(1,0.0),(11,0.78),(21,0.0),(31,-0.78),(40,0.0)])
     animate_rotation(harvest,cutter_rotor,[(1,0.0),(11,math.pi*0.5),(21,math.pi),(31,math.pi*1.5),(40,math.tau)])
     for i,flight in enumerate(slats):
         animate_location(harvest,flight,[(1,-0.55+(i%2)*0.06),(11,-0.18+(i%2)*0.06),(21,0.18+(i%2)*0.06),(31,0.53+(i%2)*0.06),(40,-0.55+(i%2)*0.06)])
@@ -511,6 +520,7 @@ def create_animations(rig, head, cutter_actuator, cutter_rotor, conveyor):
     unload=new_action("Unload")
     animate_rotation(unload,door,[(1,0.0),(11,-0.2),(21,-0.62),(31,-0.34),(40,0.0)])
     animate_rotation(unload,head,[(1,0.0),(11,0.45),(21,0.9),(31,0.45),(40,0.0)])
+    animate_rotation(unload,side_chute,[(1,0.0),(8,0.18),(16,0.72),(24,0.92),(32,0.48),(40,0.0)],axis_index=2)
     actions.append(unload)
 
 

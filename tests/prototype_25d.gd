@@ -69,16 +69,19 @@ func run() -> void:
 	assert(authored_head!=null and authored_head.global_position.z < -1.4,"the collector work head should face local minus-Z like the vehicle cache convention")
 	var authored_cutter_actuator:=harvester_model.find_child("CutterActuator",true,false) as Node3D
 	assert(authored_cutter_actuator!=null,"harvesting animation needs an independent cutter actuator node")
-	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":0,"drive_frame":0,"animation_frame_count":4})
+	var unload_chute:=harvester_model.find_child("SideUnloadChute",true,false) as Node3D
+	assert(unload_chute!=null,"the unloading pose needs a cache-camera-visible side discharge flap")
+	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":0,"drive_frame":0,"animation_frame_count":8})
 	var idle_head_angle:=authored_head.rotation.x
-	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":1,"drive_frame":2,"animation_frame_count":4})
+	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":1,"drive_frame":4,"animation_frame_count":8})
 	var harvest_cutter_angle:=authored_cutter_actuator.rotation.x
-	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":2,"drive_frame":2,"animation_frame_count":4})
+	ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":2,"drive_frame":4,"animation_frame_count":8})
 	var unload_head_angle:=authored_head.rotation.x
 	assert(not is_equal_approx(idle_head_angle,unload_head_angle) and not is_zero_approx(harvest_cutter_angle),"imported harvesting and unloading animations should render distinct work-head poses")
+	assert(unload_chute.rotation.length()>0.3,"eight-phase unloading should open the camera-visible side discharge flap")
 	for clip in [&"Idle",&"Move",&"Harvest",&"Unload"]:
 		assert(imported_player.has_animation(clip),"the imported harvester should include the %s clip"%clip)
-	assert(ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":1,"drive_frame":2,"animation_frame_count":4,"visual_cargo_state":3,"visual_damage_state":2})==&"Harvest","harvester work state should select the actual authored Harvest clip")
+	assert(ModelAssets.apply_cached_animation(harvester_model,{"visual_animation_state":1,"drive_frame":4,"animation_frame_count":8,"visual_cargo_state":3,"visual_damage_state":2})==&"Harvest","harvester work state should select the actual authored Harvest clip")
 	assert(harvester_model.find_child("CargoStage01",true,false).visible and harvester_model.find_child("CargoStage03",true,false).visible and not harvester_model.find_child("CargoStage04",true,false).visible,"cached cargo stages should mirror the quantized Solarit load")
 	assert(harvester_model.find_child("DamageLight",true,false).visible and harvester_model.find_child("DamageHeavy",true,false).visible,"cached damage variants should expose the matching authored damage details")
 	harvester_parent.queue_free()

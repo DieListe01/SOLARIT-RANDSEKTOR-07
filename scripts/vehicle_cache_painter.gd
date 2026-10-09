@@ -37,10 +37,10 @@ func _ready() -> void:
 	camera.projection=Camera3D.PROJECTION_ORTHOGONAL
 	camera.size=7.2
 	var kind := str(entity.get("kind", "tank"))
-	# The collector's defining cutter and armored cab sit on its work-facing end.
-	# Look toward that end in its 2D cache so the role reads at battlefield scale.
-	var is_unloading:=str(entity.get("harvest_state",""))=="UNLOAD"
-	camera.position=Vector3(7.5,9.5,11.5) if kind!="harvester" or is_unloading else Vector3(7.5,9.5,-11.5)
+	# Keep the camera fixed through every work state. Switching ends for unloading
+	# makes the cached vehicle appear to reverse direction when its state changes.
+	# This elevated front-side view keeps the cutter and track profile readable.
+	camera.position=Vector3(7.5,9.5,-11.5)
 	add_child(camera)
 	camera.look_at(Vector3(0,0.7,0),Vector3.UP)
 	camera.current=true

@@ -2,6 +2,8 @@ extends Node2D
 class_name WorldRenderer
 const CachePainterScript = preload("res://scripts/vehicle_cache_painter.gd")
 const VEHICLE_HEADING_FRAMES := 32
+const HARVESTER_ANIMATION_FRAMES := 8
+const HARVESTER_ANIMATION_FPS := 6.0
 const VEHICLE_TURRET_FRAMES := 16
 const VEHICLE_CACHE_SIZE := 512
 const BuildingCachePainterScript = preload("res://scripts/building_cache_painter.gd")
@@ -180,7 +182,9 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	elif moving:
 		animation_state=3
 	var drive_active:=moving or animation_state in [1,2]
-	var drive_frame:=posmod(floori(elapsed*4.0),4) if drive_active and entity.kind in ["tank","siege","harvester","scorcher","bulwark"] else 0
+	var animation_frame_count:=HARVESTER_ANIMATION_FRAMES if entity.kind=="harvester" else 4
+	var animation_fps:=HARVESTER_ANIMATION_FPS if entity.kind=="harvester" else 4.0
+	var drive_frame:=posmod(floori(elapsed*animation_fps),animation_frame_count) if drive_active and entity.kind in ["tank","siege","harvester","scorcher","bulwark"] else 0
 	var color_key := sim.team_color(entity.owner).to_html(false)
 	var key := "%s|%s|%d|%s|%d|%d|%d|%d|%d|%d" % [entity.kind,sim.factions[entity.owner],entity.owner,color_key,heading_frame,turret_frame,damage_state,cargo_state,animation_state,drive_frame]
 	var texture: Texture2D=vehicle_texture_cache.get(key)
@@ -192,7 +196,7 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 			snapshot.angle=heading_angle
 			snapshot.drive_frame=drive_frame
 			snapshot.visual_animation_state=animation_state
-			snapshot.animation_frame_count=4
+			snapshot.animation_frame_count=animation_frame_count
 			snapshot.visual_cargo_state=cargo_state
 			snapshot.visual_damage_state=damage_state
 			vehicle_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner],"turret":turret_angle})

@@ -6,7 +6,7 @@ Fahrzeuge und Gebäude werden im Einsatz als beleuchtete 3D-Modelle gerendert un
 
 ## Grafikarbeit v0.37 (in Arbeit)
 
-Der erste Blender-Vertikalschnitt ergänzt den Solarit-Sammler H09 als editierbare `.blend`-Quelle und importiertes `.glb`. Schneidwalze, Arbeitshub, Fahrpose und Entladeklappe sind animiert und werden passend zum Simulationszustand über die bestehende 3D-SubViewport- und 2D-Cache-Pipeline gerendert. Die vier reproduzierbaren Ansichten liegen unter `test-output/harvester_*.png`; Erstellungs- und Prüfpfad stehen in [docs/3D_ASSET_PIPELINE.md](docs/3D_ASSET_PIPELINE.md). Der Meilenstein ist noch in Arbeit: Raffinerie, Solaritfeld, Abbau- und Schadensdarstellung sowie Vergleichsaufnahmen bleiben offen.
+Der erste Blender-Vertikalschnitt ergänzt den Solarit-Sammler H09 als editierbare `.blend`-Quelle und importiertes `.glb`. Schneidwalze, Arbeitshub, Fahrpose und Entladeklappe sind animiert und werden passend zum Simulationszustand über die bestehende 3D-SubViewport- und 2D-Cache-Pipeline gerendert. Der Cache zeigt 32 Fahrzeugrichtungen und tastet Fahr-, Abbau- und Entladeanimationen jeweils in acht Phasen ab. Eine reproduzierbare Übersicht mit allen 32 Richtungen und den 24 Animationsphasen liegt unter `test-output/harvester_turntable_animation_sheet.png`; Erstellungs- und Prüfpfad stehen in [docs/3D_ASSET_PIPELINE.md](docs/3D_ASSET_PIPELINE.md). Der Meilenstein ist noch in Arbeit: Raffinerie, Solaritfeld, Abbau- und Schadensdarstellung sowie Vergleichsaufnahmen bleiben offen.
 
 ## Intro und Startmenü
 
