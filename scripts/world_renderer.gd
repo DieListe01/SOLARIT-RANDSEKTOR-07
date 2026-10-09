@@ -443,24 +443,7 @@ func _process(dt: float) -> void:
 	fog_timer-=dt
 	if sim!=null and fog_timer<=0:
 		fog_timer=0.25
-		var fog_size:=Vector2i(sim.grid.width,sim.grid.height)
-		if fog_image==null or fog_image.get_size()!=fog_size:
-			fog_image=Image.create(fog_size.x,fog_size.y,false,Image.FORMAT_RGBA8)
-			fog_base_colors.resize(fog_size.x*fog_size.y)
-			for y in fog_size.y:
-				for x in fog_size.x:
-					var index:=y*fog_size.x+x
-					var grain := sin(float(x*73+y*179))*0.0035
-					var strata := sin(float(x)*0.37+sin(float(y)*0.23))*0.006
-					fog_base_colors[index]=Color(0.09+grain+strata,0.075+grain+strata,0.066+grain+strata,1.0)
-		for y in sim.grid.height:
-			for x in sim.grid.width:
-				var index := y*sim.grid.width+x
-				var alpha := 1.0 if sim.explored[sim.view_owner][index]==0 else (0.62 if sim.fog[sim.view_owner][index]==0 else 0.0)
-				var base_color: Color=fog_base_colors[index]
-				fog_image.set_pixel(x,y,Color(base_color.r,base_color.g,base_color.b,alpha))
-		if fog_texture==null: fog_texture=ImageTexture.create_from_image(fog_image)
-		else: fog_texture.update(fog_image)
+		_update_fog_texture()
 	marker_time=maxf(0,marker_time-dt)
 	queue_redraw()
 
@@ -468,6 +451,85 @@ func age_ground_tracks(dt: float) -> void:
 	for index in range(tracks.size()-1,-1,-1):
 		tracks[index].life-=dt
 		if tracks[index].life<=0: tracks.remove_at(index)
+
+func _update_fog_texture() -> void:
+	var fog_size:=Vector2i(sim.grid.width,sim.grid.height)
+	var cell_count:=fog_size.x*fog_size.y
+	if fog_base_colors.size()!=cell_count:
+		fog_base_colors.resize(cell_count)
+		for y in fog_size.y:
+			for x in fog_size.x:
+				var index:=y*fog_size.x+x
+				var grain:=sin(float(x*73+y*179))*0.0035
+				var strata:=sin(float(x)*0.37+sin(float(y)*0.23))*0.006
+				fog_base_colors[index]=Color(0.09+grain+strata,0.075+grain+strata,0.066+grain+strata,1.0)
+	# A small chamfer-distance field feathers the visual edge of explored fog.
+	# Gameplay visibility remains cell-exact; only the terrain overlay is softened.
+	var fog_distance:=PackedFloat32Array()
+	fog_distance.resize(cell_count)
+	for index in cell_count:
+		fog_distance[index]=0.0 if sim.fog[sim.view_owner][index]>0 else 1000000.0
+	var diagonal:=1.41421356
+	var fog_cells:=Image.create(fog_size.x,fog_size.y,false,Image.FORMAT_RGBA8)
+	for y in fog_size.y:
+		for x in fog_size.x:
+			var index:=y*fog_size.x+x
+			if fog_distance[index]==0.0: continue
+			if x>0: fog_distance[index]=minf(fog_distance[index],fog_distance[index-1]+1.0)
+			if y>0:
+				fog_distance[index]=minf(fog_distance[index],fog_distance[index-fog_size.x]+1.0)
+				if x>0: fog_distance[index]=minf(fog_distance[index],fog_distance[index-fog_size.x-1]+diagonal)
+				if x+1<fog_size.x: fog_distance[index]=minf(fog_distance[index],fog_distance[index-fog_size.x+1]+diagonal)
+	for y in range(fog_size.y-1,-1,-1):
+		for x in range(fog_size.x-1,-1,-1):
+			var index:=y*fog_size.x+x
+			if fog_distance[index]==0.0: continue
+			if x+1<fog_size.x: fog_distance[index]=minf(fog_distance[index],fog_distance[index+1]+1.0)
+			if y+1<fog_size.y:
+				fog_distance[index]=minf(fog_distance[index],fog_distance[index+fog_size.x]+1.0)
+				if x>0: fog_distance[index]=minf(fog_distance[index],fog_distance[index+fog_size.x-1]+diagonal)
+				if x+1<fog_size.x: fog_distance[index]=minf(fog_distance[index],fog_distance[index+fog_size.x+1]+diagonal)
+	var discovery_distance:=PackedFloat32Array()
+	discovery_distance.resize(cell_count)
+	for index in cell_count:
+		discovery_distance[index]=0.0 if sim.explored[sim.view_owner][index]>0 else 1000000.0
+	for y in fog_size.y:
+		for x in fog_size.x:
+			var index:=y*fog_size.x+x
+			if discovery_distance[index]==0.0: continue
+			if x>0: discovery_distance[index]=minf(discovery_distance[index],discovery_distance[index-1]+1.0)
+			if y>0:
+				discovery_distance[index]=minf(discovery_distance[index],discovery_distance[index-fog_size.x]+1.0)
+				if x>0: discovery_distance[index]=minf(discovery_distance[index],discovery_distance[index-fog_size.x-1]+diagonal)
+				if x+1<fog_size.x: discovery_distance[index]=minf(discovery_distance[index],discovery_distance[index-fog_size.x+1]+diagonal)
+	for y in range(fog_size.y-1,-1,-1):
+		for x in range(fog_size.x-1,-1,-1):
+			var index:=y*fog_size.x+x
+			if discovery_distance[index]==0.0: continue
+			if x+1<fog_size.x: discovery_distance[index]=minf(discovery_distance[index],discovery_distance[index+1]+1.0)
+			if y+1<fog_size.y:
+				discovery_distance[index]=minf(discovery_distance[index],discovery_distance[index+fog_size.x]+1.0)
+				if x>0: discovery_distance[index]=minf(discovery_distance[index],discovery_distance[index+fog_size.x-1]+diagonal)
+				if x+1<fog_size.x: discovery_distance[index]=minf(discovery_distance[index],discovery_distance[index+fog_size.x+1]+diagonal)
+	for y in fog_size.y:
+		for x in fog_size.x:
+			var index:=y*fog_size.x+x
+			var explored_cell:bool=sim.explored[sim.view_owner][index]>0
+			var currently_visible:bool=sim.fog[sim.view_owner][index]>0
+			var alpha:=1.0
+			if explored_cell:
+				alpha=0.0 if currently_visible else 0.62*clampf(fog_distance[index]/4.0,0.0,1.0)
+			else:
+				# Fade the visual boundary without extending gameplay vision or revealing units.
+				alpha=lerpf(0.62,1.0,clampf(discovery_distance[index]/3.0,0.0,1.0))
+			var base_color:Color=fog_base_colors[index]
+			fog_cells.set_pixel(x,y,Color(base_color.r,base_color.g,base_color.b,alpha))
+	# The world tile grid is much coarser than the terrain art. Upsample the
+	# fog mask so alpha transitions do not expose square cell boundaries.
+	fog_image=fog_cells.duplicate()
+	fog_image.resize(fog_size.x*4,fog_size.y*4,Image.INTERPOLATE_CUBIC)
+	if fog_texture==null: fog_texture=ImageTexture.create_from_image(fog_image)
+	else: fog_texture.update(fog_image)
 
 func _movement_bucket_has_visible_cell(bucket: Vector2i) -> bool:
 	var tile_size:=sim.grid.tile

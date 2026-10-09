@@ -61,7 +61,25 @@ func run() -> void:
 	check(not game.show_world_entity_hover(hover_id,Vector2(-100,-100)) and not game.hover_panel.visible,"Hover panel stays inside the battlefield")
 	game.paused=true
 	await process_frame
+	game.sim.explored[0].fill(1)
 	game.sim.fog[0].fill(0)
+	var fog_center:Vector2i=game.sim.grid.cell(game.renderer.camera)
+	for y in range(fog_center.y-2,fog_center.y+3):
+		for x in range(fog_center.x-2,fog_center.x+3): game.sim.fog[0][y*game.sim.grid.width+x]=1
+	game.renderer._update_fog_texture()
+	var fog_near_alpha:float=game.renderer.fog_image.get_pixel((fog_center.x+3)*4+2,fog_center.y*4+2).a
+	var fog_far_alpha:float=game.renderer.fog_image.get_pixel((fog_center.x+8)*4+2,fog_center.y*4+2).a
+	var fog_edge_a:float=game.renderer.fog_image.get_pixel((fog_center.x+3)*4+3,fog_center.y*4+2).a
+	var fog_edge_b:float=game.renderer.fog_image.get_pixel((fog_center.x+4)*4,fog_center.y*4+2).a
+	check(fog_near_alpha>0.0 and fog_near_alpha<fog_far_alpha and fog_far_alpha>0.6 and absf(fog_edge_a-fog_edge_b)<0.1,"Explored fog feathers smoothly away from current vision and across tile edges")
+	game.sim.explored[0].fill(0)
+	game.sim.fog[0].fill(0)
+	for y in range(fog_center.y-2,fog_center.y+3):
+		for x in range(fog_center.x-2,fog_center.x+3): game.sim.explored[0][y*game.sim.grid.width+x]=1
+	game.renderer._update_fog_texture()
+	var discovery_edge_alpha:float=game.renderer.fog_image.get_pixel((fog_center.x+3)*4+2,fog_center.y*4+2).a
+	var discovery_far_alpha:float=game.renderer.fog_image.get_pixel((fog_center.x+8)*4+2,fog_center.y*4+2).a
+	check(discovery_edge_alpha>0.62 and discovery_edge_alpha<discovery_far_alpha and discovery_far_alpha>0.99,"Unknown-terrain boundary fades outward without changing simulation visibility")
 	await process_frame
 	var visible_before: int=game.renderer.visible_mobile_count
 	var hidden_pos: Vector2=game.renderer.camera+Vector2(450,300)

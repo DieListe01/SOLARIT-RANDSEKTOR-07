@@ -148,8 +148,9 @@ func run() -> void:
 	automatic.spawn("refinery",0,Vector2(14,47)*32,true)
 	var collector_id := automatic.spawn("harvester",0,automatic.grid.center(Vector2i(17,43)),false)
 	advance(automatic,80)
-	check(automatic.stats.gathered>=480,"Collector starts without orders and automatically completes multiple collect/unload cycles")
 	var collector: Dictionary = automatic.entities[collector_id]
+	check(automatic.stats.gathered>=960,"Collector returns to its refinery and completes repeated collect/unload cycles")
+	check(collector.harvest_state in ["MOVE_TO_RESOURCE","HARVEST","RETURN_TO_BASE"],"Collector leaves the refinery and resumes gathering after unloading")
 	automatic.command([collector_id],automatic.grid.center(Vector2i(17,44)))
 	advance(automatic,12)
 	check(collector.harvest_state!="IDLE","Collector automatically resumes work after a relocation")
