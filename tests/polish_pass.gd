@@ -135,7 +135,7 @@ func run() -> void:
 	var previous_launcher_override:String=OS.get_environment("SOLARIT_LAUNCH_FULL_HD")
 	OS.set_environment("SOLARIT_LAUNCH_FULL_HD","1")
 	game._apply_launcher_display_override()
-	check(game.get_window().size==Vector2i(1920,1080) and game.get_window().mode==Window.MODE_FULLSCREEN and not game.classic,"Launcher forces Full HD Modern fullscreen over saved display preferences")
+	check(game.get_window().content_scale_size==Vector2i(1920,1080) and game.get_window().mode==Window.MODE_FULLSCREEN and not game.classic,"Launcher forces a Full HD Modern canvas in fullscreen over saved display preferences")
 	if previous_launcher_override.is_empty(): OS.unset_environment("SOLARIT_LAUNCH_FULL_HD")
 	else: OS.set_environment("SOLARIT_LAUNCH_FULL_HD",previous_launcher_override)
 	game.set_classic(original_classic)
