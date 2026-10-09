@@ -144,7 +144,7 @@ func nearest_vehicle_texture(key: String) -> Texture2D:
 		var parts: PackedStringArray=str(candidate).split("|")
 		if parts.size()!=10 or requested.size()!=10: continue
 		if parts[0]!=requested[0] or parts[1]!=requested[1] or parts[2]!=requested[2] or parts[3]!=requested[3]: continue
-		if parts[6]!=requested[6] or parts[7]!=requested[7] or parts[8]!=requested[8]: continue
+		if parts[6]!=requested[6]: continue
 		var heading_delta:=absi(int(parts[4])-int(requested[4]))
 		heading_delta=mini(heading_delta,VEHICLE_HEADING_FRAMES-heading_delta)
 		var turret_delta:=absi(int(parts[5])-int(requested[5]))
@@ -153,7 +153,12 @@ func nearest_vehicle_texture(key: String) -> Texture2D:
 		drive_delta=mini(drive_delta,4-drive_delta)
 		# Keep damage, cargo and work state exact while choosing the nearest 3D
 		# body heading and turret view during cache warmup.
-		var distance:=heading_delta*3+turret_delta+drive_delta*2
+		# During harvest/unload/drive animation or cargo changes, keep using the
+		# closest cached 3D pose while the exact frame renders asynchronously.
+		# Falling back to the live 2D painter here makes the harvester visibly pop.
+		var cargo_delta:=absi(int(parts[7])-int(requested[7]))
+		var state_delta:=0 if parts[8]==requested[8] else 12
+		var distance:=heading_delta*3+turret_delta+drive_delta*2+cargo_delta*2+state_delta
 		if distance<best_distance:
 			best_distance=distance
 			best=vehicle_texture_cache[candidate]

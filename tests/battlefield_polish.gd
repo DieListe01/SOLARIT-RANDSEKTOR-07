@@ -99,7 +99,7 @@ func run() -> void:
 		for i in count:
 			ids.append(game.sim.spawn(game.db.units.keys()[i%game.db.units.size()],0,Vector2(470+(i%8)*80,1310+(i/8)*82),false))
 		game.sim.rebuild_movement_buckets()
-		game.sim.fog[0].fill(1); game.sim.explored[0].fill(1)
+		game.sim.fog[0].fill(1); game.sim.explored[0].fill(1); game.renderer._update_fog_texture()
 		game.selected=ids; game.update_hud()
 		await process_frame; await process_frame
 		root.get_texture().get_image().save_png("res://test-output/battlefield-group-%d.png"%count)

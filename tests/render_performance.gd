@@ -206,7 +206,9 @@ func verify_vehicle_cache_fallback() -> bool:
 	var nearby_state := ImageTexture.create_from_image(image)
 	var requested := "cache_test_unit|forge|0|ffffff|0|2|0|0|0|0"
 	var exact_key := requested
-	var fallback_key := "cache_test_unit|forge|0|ffffff|1|2|0|0|0|0"
+	# The closest prior texture may differ in cargo and work/drive phase. Keeping
+	# that 3D pose is less disruptive than exposing the live 2D fallback per frame.
+	var fallback_key := "cache_test_unit|forge|0|ffffff|1|2|0|2|1|3"
 	game.renderer.vehicle_texture_cache[exact_key]=exact_state
 	game.renderer.vehicle_texture_cache[fallback_key]=nearby_state
 	var exact_preferred: bool=game.renderer.nearest_vehicle_texture(requested)==exact_state
