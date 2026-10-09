@@ -3639,7 +3639,17 @@ func load_settings() -> void:
 		window.mode=save_config.get_value("video","mode",Window.MODE_WINDOWED)
 		window.borderless=save_config.get_value("video","borderless",false)
 		set_classic(save_config.get_value("video","classic",false))
+	_apply_launcher_display_override()
 	renderer.health_mode=health_mode
+
+func _apply_launcher_display_override() -> void:
+	if OS.get_environment("SOLARIT_LAUNCH_FULL_HD")!="1": return
+	var window:=get_window()
+	window.size=MINIMUM_WINDOW_RESOLUTION
+	window.borderless=false
+	window.mode=Window.MODE_FULLSCREEN
+	set_classic(false)
+	persist_settings()
 
 static func _normalize_window_resolution(size: Vector2i) -> Vector2i:
 	if size.x < MINIMUM_WINDOW_RESOLUTION.x or size.y < MINIMUM_WINDOW_RESOLUTION.y:

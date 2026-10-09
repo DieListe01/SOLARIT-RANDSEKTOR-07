@@ -106,13 +106,13 @@ func run() -> void:
 	check(resolution_option!=null and mode_option!=null,"Resolution and window mode remain available in the image tab")
 	check(resolution_option!=null and resolution_option.item_count==3 and resolution_option.get_item_text(0)=="1920 × 1080","Resolution options exclude sizes below Full HD")
 	check(game._normalize_window_resolution(Vector2i(1600,900))==Vector2i(1920,1080),"Previously saved sub-Full-HD window sizes migrate to Full HD")
+	var original_size: Vector2i=game.get_window().size
+	var original_mode: int=game.get_window().mode
+	var original_borderless: bool=game.get_window().borderless
 	# GitHub-hosted Windows runners have no interactive desktop; their virtual
 	# display can report exclusive fullscreen even after requesting windowed mode.
 	# Exercise the real OS transitions on local desktops where they are observable.
 	if OS.get_environment("GITHUB_ACTIONS")!="true":
-		var original_size: Vector2i=game.get_window().size
-		var original_mode: int=game.get_window().mode
-		var original_borderless: bool=game.get_window().borderless
 		resolution_option.select(0); resolution_option.item_selected.emit(0)
 		check(game.get_window().size==Vector2i(1920,1080),"Resolution dropdown applies Full HD")
 		var original_resolution_index := 0
@@ -131,6 +131,18 @@ func run() -> void:
 		check(game.get_window().mode==original_mode and game.get_window().borderless==original_borderless,"Window mode restores after test ("+str(original_mode)+" → "+str(game.get_window().mode)+")")
 	else:
 		check(true,"Display controls are present; native mode switching is covered on local desktops")
+	var original_classic:bool=game.classic
+	var previous_launcher_override:String=OS.get_environment("SOLARIT_LAUNCH_FULL_HD")
+	OS.set_environment("SOLARIT_LAUNCH_FULL_HD","1")
+	game._apply_launcher_display_override()
+	check(game.get_window().size==Vector2i(1920,1080) and game.get_window().mode==Window.MODE_FULLSCREEN and not game.classic,"Launcher forces Full HD Modern fullscreen over saved display preferences")
+	if previous_launcher_override.is_empty(): OS.unset_environment("SOLARIT_LAUNCH_FULL_HD")
+	else: OS.set_environment("SOLARIT_LAUNCH_FULL_HD",previous_launcher_override)
+	game.set_classic(original_classic)
+	game.get_window().size=original_size
+	game.get_window().mode=original_mode
+	game.get_window().borderless=original_borderless
+	game.persist_settings()
 	var shake_option := options.find_child("CameraShake",true,false) as Button
 	if shake_option:
 		shake_option.pressed.emit()
