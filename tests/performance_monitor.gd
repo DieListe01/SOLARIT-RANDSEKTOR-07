@@ -42,7 +42,7 @@ func run() -> void:
 	game.record_performance_sample(55.0,0.6)
 	check(FileAccess.file_exists(game.performance_log_path),"Sustained sub-60 FPS creates a log")
 	var lines:=FileAccess.get_file_as_string(game.performance_log_path).strip_edges().split("\n")
-	check(lines.size()==2 and lines[0].contains("entities,units,buildings") and lines[0].contains("fog_culled_units,offscreen_culled_units") and lines[0].contains("terrain_ms") and lines[0].contains("vehicle_cache_queue") and lines[1].contains("LOW_FPS_WARNING"),"Low-FPS row includes visibility culls, object counts and renderer/cache breakdown")
+	check(lines.size()==2 and lines[0].contains("entities,units,buildings") and lines[0].contains("fog_culled_units,offscreen_culled_units") and lines[0].contains("terrain_ms") and lines[0].contains("vehicle_cache_queue") and lines[0].contains("vehicle_cache_new_poses_total") and lines[0].contains("vehicle_cache_readback_ms_total") and lines[0].contains("vehicle_cache_subviewport_wait_ms_total") and lines[0].contains("vehicle_cache_active_subviewports") and lines[1].contains("LOW_FPS_WARNING"),"Low-FPS row includes visibility culls, object counts, renderer/cache timing, pose creation and readback metrics")
 	check(lines[0].split(",").size()==lines[1].split(",").size(),"Performance CSV header and event rows have matching columns")
 	check(lines[1].contains(",55.00,55.00,"),"Low-FPS row records average and minimum FPS")
 	game.record_performance_sample(49.0,0.4)

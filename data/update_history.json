@@ -1,6 +1,15 @@
 {
-  "current_version": "0.38.0",
+  "current_version": "0.38.1",
   "entries": [
+    {
+      "version": "0.38.1",
+      "date": "09.10.2026",
+      "title": "Fahrzeug-Cache und Leistungsdiagnose",
+      "changes": [
+        "Der Fahrzeug-Posen-Cache hält mehr Ansichten vor, damit bereits bekannte Fahrtrichtungen seltener neu gerendert werden. Auflösung, 4×-Kantenglättung, Modelle und Spielmaßstab bleiben unverändert.",
+        "Leistungsprotokolle erfassen jetzt zusätzlich neu erzeugte Fahrzeugposen, SubViewport-Wartezeit, GPU→CPU-Readbacks und Cache-Verdrängungen, um Ruckler gezielt einzugrenzen."
+      ]
+    },
     {
       "version": "0.38.0",
       "date": "09.10.2026",
@@ -80,11 +89,11 @@
       "date": "08.10.2026",
       "title": "Höhere Grafiktreue und mehr 3D-Details",
       "changes": [
-		"Fahrzeuge und Gebäude werden mit 4-facher Kantenglättung und deutlich höherer Cache-Auflösung gerendert; hochauflösende Umgebungsverdeckung (SSAO) hebt Fugen und Kontaktflächen hervor.",
+        "Fahrzeuge und Gebäude werden mit 4-facher Kantenglättung und deutlich höherer Cache-Auflösung gerendert; hochauflösende Umgebungsverdeckung (SSAO) hebt Fugen und Kontaktflächen hervor.",
         "Panzerungen, Laufrollen und Fassaden erhalten zusätzliche Wartungsklappen, Befestigungen, Kühlrippen und Materialtexturen.",
-		"Gelände zeigt feinere Dünenrippel, Gesteinskörnung und zusätzliche Geröll-Details. Forward+ mit Vulkan bleibt Standard.",
-		"Fahrzeuge unterscheiden Freund und Feind jetzt durch große farbige Kennflächen; 32 Karosserie-Blickwinkel stellen diagonale Fahrten präziser dar.",
-		"Die Fahrzeugansichten sind korrekt um ihren Mittelpunkt skaliert. Die Ausrichtung folgt der tatsächlichen Bewegung einschließlich Kurven und Fahrzeugabständen."
+        "Gelände zeigt feinere Dünenrippel, Gesteinskörnung und zusätzliche Geröll-Details. Forward+ mit Vulkan bleibt Standard.",
+        "Fahrzeuge unterscheiden Freund und Feind jetzt durch große farbige Kennflächen; 32 Karosserie-Blickwinkel stellen diagonale Fahrten präziser dar.",
+        "Die Fahrzeugansichten sind korrekt um ihren Mittelpunkt skaliert. Die Ausrichtung folgt der tatsächlichen Bewegung einschließlich Kurven und Fahrzeugabständen."
       ]
     },
     {

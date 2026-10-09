@@ -6,6 +6,9 @@ const HARVESTER_ANIMATION_FRAMES := 8
 const HARVESTER_ANIMATION_FPS := 6.0
 const VEHICLE_TURRET_FRAMES := 16
 const VEHICLE_CACHE_SIZE := 512
+const VEHICLE_CACHE_WORLD_SIZE := 81.92
+const VEHICLE_CACHE_MSAA := Viewport.MSAA_4X
+const VEHICLE_CACHE_CAPACITY := 640
 const BuildingCachePainterScript = preload("res://scripts/building_cache_painter.gd")
 
 var sim: Simulation
@@ -70,8 +73,32 @@ var vehicle_texture_cache: Dictionary = {}
 var vehicle_cache_pending: Dictionary = {}
 var vehicle_cache_queue: Array[Dictionary] = []
 var vehicle_cache_worker_active := false
+## Runtime overrides are only used by the repeatable cache A/B harness. Normal
+## gameplay remains the unchanged 512x512 / 4x-MSAA reference configuration.
+var vehicle_cache_resolution := VEHICLE_CACHE_SIZE
+var vehicle_cache_msaa := VEHICLE_CACHE_MSAA
+var vehicle_cache_capacity := VEHICLE_CACHE_CAPACITY
+var vehicle_cache_diagnostics_enabled := false
+var vehicle_cache_created_keys: Dictionary = {}
+var vehicle_cache_recreated_poses_total := 0
 var vehicle_cache_hits := 0
 var vehicle_cache_misses := 0
+var vehicle_cache_hits_total := 0
+var vehicle_cache_misses_total := 0
+var vehicle_cache_new_poses_total := 0
+var vehicle_cache_readbacks_total := 0
+var vehicle_cache_evictions_total := 0
+var vehicle_cache_active_subviewports := 0
+var vehicle_cache_peak_subviewports := 0
+var vehicle_cache_render_wait_ms_total := 0.0
+var vehicle_cache_readback_ms_total := 0.0
+var vehicle_cache_last_render_wait_ms := 0.0
+var vehicle_cache_last_readback_ms := 0.0
+var vehicle_cache_event_log: Array[Dictionary] = []
+
+func record_vehicle_cache_event(event_name: String, key: String, duration_ms: float = 0.0) -> void:
+	if not vehicle_cache_diagnostics_enabled or vehicle_cache_event_log.size() >= 8192: return
+	vehicle_cache_event_log.append({"time_usec": Time.get_ticks_usec(), "event": event_name, "key": key, "duration_ms": duration_ms})
 
 static func vehicle_heading_frame(angle: float) -> int:
 	return posmod(roundi(angle*VEHICLE_HEADING_FRAMES/TAU),VEHICLE_HEADING_FRAMES)
@@ -195,7 +222,9 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	var texture: Texture2D=vehicle_texture_cache.get(key)
 	if texture==null:
 		vehicle_cache_misses+=1
+		vehicle_cache_misses_total+=1
 		if not vehicle_cache_pending.has(key) and vehicle_cache_queue.size()<16:
+			record_vehicle_cache_event("cache_miss_queued",key)
 			vehicle_cache_pending[key]=true
 			var snapshot:=entity.duplicate(true)
 			snapshot.angle=heading_angle
@@ -210,12 +239,12 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 		if texture==null: return false
 	else:
 		vehicle_cache_hits+=1
+		vehicle_cache_hits_total+=1
 	var base := output*0.5-camera*scale_value+visual_offset*ratio
 	var screen_pos: Vector2=base+(entity.pos+combat_fx.hit_offset(entity.id))*scale_value
-	# Cache textures are 512 px but authored for the previous 256 px draw size.
-	# Center the larger image and halve its scale to preserve world size and anchor.
-	draw_set_transform(screen_pos,0.0,Vector2.ONE*(scale_value*0.16))
-	draw_texture(texture,Vector2(-VEHICLE_CACHE_SIZE*0.5,-VEHICLE_CACHE_SIZE*0.5))
+	# Preserve the existing 81.92 world-pixel footprint and image anchor.
+	draw_set_transform(screen_pos,0.0,Vector2.ONE*(scale_value*VEHICLE_CACHE_WORLD_SIZE/float(vehicle_cache_resolution)))
+	draw_texture(texture,Vector2(-vehicle_cache_resolution*0.5,-vehicle_cache_resolution*0.5))
 	draw_set_transform(base,0,Vector2.ONE*scale_value)
 	return true
 
@@ -323,11 +352,13 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 	viewport.queue_free()
 
 func _build_vehicle_texture(key: String, source: Dictionary, team: Color, faction: String, turret_angle: float) -> void:
+	var build_started:=Time.get_ticks_usec()
+	record_vehicle_cache_event("viewport_create_start",key)
 	var viewport := SubViewport.new()
 	# Vehicles occupy a small part of the battlefield, so supersampling and
 	# multisampling make their wheels, armor seams and weapons readable in play.
-	viewport.size=Vector2i(VEHICLE_CACHE_SIZE,VEHICLE_CACHE_SIZE)
-	viewport.msaa_3d=Viewport.MSAA_4X
+	viewport.size=Vector2i(vehicle_cache_resolution,vehicle_cache_resolution)
+	viewport.msaa_3d=vehicle_cache_msaa
 	viewport.transparent_bg=true
 	viewport.own_world_3d=true
 	viewport.gui_disable_input=true
@@ -347,14 +378,39 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	painter.sim=sim
 	viewport.add_child(painter)
 	add_child(viewport)
+	vehicle_cache_active_subviewports+=1
+	vehicle_cache_peak_subviewports=maxi(vehicle_cache_peak_subviewports,vehicle_cache_active_subviewports)
+	var render_wait_started:=Time.get_ticks_usec()
+	record_vehicle_cache_event("subviewport_render_start",key)
 	await RenderingServer.frame_post_draw
-	if not is_instance_valid(viewport): return
-	var image := viewport.get_texture().get_image()
+	if not is_instance_valid(viewport):
+		vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
+		vehicle_cache_pending.erase(key)
+		return
+	vehicle_cache_last_render_wait_ms=float(Time.get_ticks_usec()-render_wait_started)/1000.0
+	vehicle_cache_render_wait_ms_total+=vehicle_cache_last_render_wait_ms
+	record_vehicle_cache_event("subviewport_render_complete",key,vehicle_cache_last_render_wait_ms)
+	var readback_started:=Time.get_ticks_usec()
+	record_vehicle_cache_event("get_image_start",key)
+	var image: Image=viewport.get_texture().get_image()
+	vehicle_cache_last_readback_ms=float(Time.get_ticks_usec()-readback_started)/1000.0
+	vehicle_cache_readback_ms_total+=vehicle_cache_last_readback_ms
+	vehicle_cache_readbacks_total+=1
+	record_vehicle_cache_event("get_image_end",key,vehicle_cache_last_readback_ms)
 	if image!=null:
-		if vehicle_texture_cache.size()>=192: vehicle_texture_cache.erase(vehicle_texture_cache.keys()[0])
+		if vehicle_texture_cache.size()>=vehicle_cache_capacity:
+			var evicted_key: String=vehicle_texture_cache.keys()[0]
+			vehicle_texture_cache.erase(evicted_key)
+			vehicle_cache_evictions_total+=1
 		vehicle_texture_cache[key]=ImageTexture.create_from_image(image)
+		if vehicle_cache_diagnostics_enabled:
+			if vehicle_cache_created_keys.has(key): vehicle_cache_recreated_poses_total+=1
+			elif vehicle_cache_created_keys.size()<4096: vehicle_cache_created_keys[key]=true
+		vehicle_cache_new_poses_total+=1
+		record_vehicle_cache_event("cache_entry_complete",key,float(Time.get_ticks_usec()-build_started)/1000.0)
 	vehicle_cache_pending.erase(key)
 	viewport.queue_free()
+	vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
 
 func seed_mission_ground_details() -> void:
 	if sim==null: return
