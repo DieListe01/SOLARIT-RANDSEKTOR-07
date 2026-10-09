@@ -1,6 +1,16 @@
 {
-  "current_version": "0.36.29",
+  "current_version": "0.36.30",
   "entries": [
+    {
+      "version": "0.36.30",
+      "date": "09.10.2026",
+      "title": "Sammler und Panzer klar unterscheidbar",
+      "changes": [
+        "Solarit-Sammler erhalten eine breite Frontschneide, eine offene Erzwanne mit sichtbarer Fracht und ein Führerhaus statt Turm und Kanone.",
+        "Die 3D-Ketten bekommen dunklere, passend sitzende Laufstege; Spuren und Karosserie zeigen jetzt in dieselbe Richtung wie die Bewegung auf dem Bildschirm.",
+        "Die 3D-Fahrzeugansicht gleicht die schräge Kameraprojektion aus. Panzer und Sammler behalten dadurch bei diagonaler Fahrt die korrekte Ausrichtung."
+      ]
+    },
     {
       "version": "0.36.29",
       "date": "08.10.2026",
