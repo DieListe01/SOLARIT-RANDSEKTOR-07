@@ -38,6 +38,34 @@ static func apply_team_tint(node: Node, team_color: Color) -> void:
 	for child in node.get_children():
 		apply_team_tint(child,team_color)
 
+## Apply a deterministic pose to the authored industrial scene before it is
+## rasterized. The game still displays cached 2D sprites; only changed state
+## combinations require a new SubViewport render.
+static func apply_building_pose(root: Node3D, entity: Dictionary) -> void:
+	root.rotation.y = float(posmod(int(entity.get("rotation", 0)), 4)) * PI * 0.5
+	var frame := posmod(int(entity.get("building_animation_frame", 0)), 8)
+	_set_yaw(root, "CommandSensorPivot", float(frame) * TAU / 8.0)
+	_set_yaw(root, "ReactorRotor", float(frame) * TAU / 4.0)
+	_set_yaw(root, "RadarRotor", float(frame) * TAU / 8.0)
+	_set_yaw(root, "TurretPivot", float(entity.get("turret", 0.0)))
+	_set_yaw(root, "ProductionCrane", sin(float(frame) * TAU / 4.0) * 0.34)
+	_set_yaw(root, "AssemblyArmLeft", -0.10 - float(frame % 3) * 0.10)
+	_set_yaw(root, "AssemblyArmRight", 0.10 + float(frame % 3) * 0.10)
+	_set_yaw(root, "RepairArmLeft", -0.30 if frame > 0 else 0.0)
+	_set_yaw(root, "RepairArmRight", 0.30 if frame > 0 else 0.0)
+	_set_yaw(root, "OrdnanceLift", sin(float(frame) * TAU / 4.0) * 0.22)
+	var gate := root.find_child("UnloadGate", true, false) as Node3D
+	if gate != null:
+		gate.rotation.x = -0.62 if bool(entity.get("unloading", false)) else 0.0
+	var upgrade := root.find_child("UpgradeStage2", true, false)
+	if upgrade != null:
+		upgrade.visible = int(entity.get("upgrade_level", 0)) >= 1
+
+static func _set_yaw(root: Node, node_name: String, yaw: float) -> void:
+	var node := root.find_child(node_name, true, false) as Node3D
+	if node != null:
+		node.rotation.y = yaw
+
 ## The 2D battlefield draws cached poses of the authored 3D scene. Select an
 ## animation from the simulation state and seek to a deterministic cache frame
 ## before the SubViewport renders, rather than advancing a live 3D scene per

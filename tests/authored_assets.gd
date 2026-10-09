@@ -35,12 +35,21 @@ func run() -> void:
 		var nodes:=descendants(model)
 		var mesh_count:=0
 		var named_mesh:=false
+		var textured_material:=false
 		for node in nodes:
 			if node is MeshInstance3D:
 				mesh_count+=1
 				if str(node.name).contains(str(vehicle_signatures[kind])): named_mesh=true
+				if node.mesh!=null:
+					for surface in node.mesh.get_surface_count():
+						var surface_material=node.get_active_material(surface) as StandardMaterial3D
+						if surface_material!=null and surface_material.albedo_texture!=null and surface_material.normal_enabled:
+							assert(surface_material.albedo_texture.resource_path.contains("assets/models/textures/industrial/"),"%s should reuse a shared external albedo map"%kind)
+							assert(surface_material.normal_texture!=null and surface_material.normal_texture.resource_path.contains("assets/models/textures/industrial/"),"%s should reuse a shared external normal map"%kind)
+							textured_material=true
 		assert(mesh_count>=8,"%s should contain an authored multipart vehicle model, not a flat stand-in (got %d meshes)"%[kind,mesh_count])
 		assert(named_mesh,"%s should retain its role-specific mechanical silhouette feature"%kind)
+		if kind!="harvester": assert(textured_material,"%s should show the shared industrial PBR wear and surface-normal details"%kind)
 		assert(model.find_child("TeamColor",true,false) is MeshInstance3D,"%s should expose faction-colored identification hardware"%kind)
 		assert(model.find_child("DamageLight",true,false)!=null and model.find_child("DamageHeavy",true,false)!=null,"%s should have authored damage overlays"%kind)
 		ModelAssets.apply_cached_animation(model,{"visual_damage_state":0})
@@ -73,6 +82,7 @@ func run() -> void:
 		"repair":"Drive-through service door", "armory":"Sealed ammunition canister",
 	}
 	var architectural_counts:Dictionary={}
+	var building_pivots:Dictionary={"core":"CommandSensorPivot","power":"ReactorRotor","refinery":"UnloadGate","factory":"ProductionCrane","tower":"TurretPivot","radar":"RadarRotor","repair":"RepairArmLeft","armory":"OrdnanceLift"}
 	for kind in building_signatures:
 		var packed=ResourceLoader.load("res://assets/models/buildings/%s.glb"%kind,"PackedScene") as PackedScene
 		assert(packed!=null,"%s must retain its authored building GLB"%kind)
@@ -82,9 +92,26 @@ func run() -> void:
 		for node in nodes:
 			if node is MeshInstance3D: mesh_count+=1
 			if str(node.name).contains(str(building_signatures[kind])): signature_found=true
-		assert(mesh_count>=20,"%s should retain detailed Blender-authored building geometry"%kind)
+		assert(mesh_count>=6 and mesh_count<=30,"%s should retain detailed, draw-efficient authored geometry (got %d meshes)"%[kind,mesh_count])
 		assert(signature_found,"%s should expose the machinery that explains its purpose"%kind)
 		assert(model.find_child("TeamColor",true,false)!=null,"%s should identify its owner"%kind)
+		var source="res://assets/models/source/industrial_buildings.blend"
+		assert(FileAccess.file_exists(source),"%s should retain its editable Blender source scene"%kind)
+		assert(model.find_child(building_pivots[kind],true,false) is Node3D,"%s should retain its role-specific animation pivot"%kind)
+		var textured:=false
+		for node in nodes:
+			if node is MeshInstance3D and node.mesh!=null:
+				for surface in node.mesh.get_surface_count():
+					var material=node.get_active_material(surface) as StandardMaterial3D
+					if material!=null and material.albedo_texture!=null and material.normal_enabled:
+						assert(material.albedo_texture.resource_path.contains("assets/models/textures/industrial/"),"%s should reference the shared albedo texture library"%kind)
+						assert(material.normal_texture!=null and material.normal_texture.resource_path.contains("assets/models/textures/industrial/"),"%s should reference the shared normal texture library"%kind)
+						textured=true
+		assert(textured,"%s should use authored albedo and normal detail maps"%kind)
+		ModelAssets.apply_building_pose(model,{"rotation":1,"turret":0.4,"building_animation_frame":2,"unloading":true,"upgrade_level":1})
+		assert(is_equal_approx(model.rotation.y,PI*.5),"%s building pose must respect its 90 degree grid rotation"%kind)
+		if kind=="tower": assert(is_equal_approx((model.find_child("TurretPivot",true,false) as Node3D).rotation.y,.4),"turret pivot must follow its cached aim angle")
+		if kind=="refinery": assert(is_equal_approx((model.find_child("UnloadGate",true,false) as Node3D).rotation.x,-.62),"refinery dock gate must open while a collector unloads")
 		architectural_counts[kind]=mesh_count
 		model.free(); await process_frame
 	var distinct_building_counts:Dictionary={}
@@ -100,5 +127,5 @@ func run() -> void:
 		assert(in_game_model!=null,"the real vehicle cache painter should select the %s GLB"%kind)
 		assert(is_equal_approx(in_game_model.rotation.y,ModelFactory.heading_yaw_for_screen_angle(PI/2)),"the imported %s hull should track its diagonal movement heading"%kind)
 		painter.free(); await process_frame
-	print("Authored Blender asset audit: 8 independent vehicle roles and 8 purpose-designed buildings; faction markers, damage states and turret pivots verified")
+	print("Authored Blender asset audit: 8 independent vehicle roles and 8 purpose-designed buildings; shared external PBR maps, faction markers, damage states and turret pivots verified")
 	quit()

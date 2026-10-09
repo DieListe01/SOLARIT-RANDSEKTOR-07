@@ -6,6 +6,19 @@ tools/editor_data/
 build/
 test-output/
 *.tmp
+# Godot extracts GLB-embedded PBR maps beside each GLB during import.
+/assets/models/buildings/*_albedo.png
+/assets/models/buildings/*_albedo.png.import
+/assets/models/buildings/*_normal.png
+/assets/models/buildings/*_normal.png.import
+/assets/models/buildings/*_roughness.png
+/assets/models/buildings/*_roughness.png.import
+/assets/models/vehicles/*_albedo.png
+/assets/models/vehicles/*_albedo.png.import
+/assets/models/vehicles/*_normal.png
+/assets/models/vehicles/*_normal.png.import
+/assets/models/vehicles/*_roughness.png
+/assets/models/vehicles/*_roughness.png.import
 /data/update_channel.json
 /data/update_channel.json
 

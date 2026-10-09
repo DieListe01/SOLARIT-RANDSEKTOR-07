@@ -1,6 +1,17 @@
 {
-  "current_version": "0.37.0",
+  "current_version": "0.38.0",
   "entries": [
+    {
+      "version": "0.38.0",
+      "date": "09.10.2026",
+      "title": "Individuelle Industriegebäude und detaillierte Fahrzeuge",
+      "changes": [
+        "Alle acht Gebäude haben jetzt eigene, zweckgerechte Silhouetten und ausgearbeitete Industrieanlagen: vom Kommando-Bunker und Reaktorkern bis zu Erzaufbereitung, Fertigungskran, Radarschüssel, Geschützplattform, Servicebucht und Munitionswerk.",
+        "Gebäudeflächen und sieben Kampf- und Aufklärungsfahrzeuge nutzen gemeinsame PBR-Albedo-, Rauheits- und Normalmaps mit UVs für Lack, Stahl, Gummi und Sicherheitsmarkierungen; die Sammler-Quelldatei behält ihre spezialisierten Oberflächen.",
+        "Radar, Reaktor, Kommando-Sensor, Werftkran, Servicearme, Turmgeschütz und Raffinerie-Entladeklappe erhalten zustandsabhängige Posen im vorhandenen 3D-Subviewport-Cache. Die Raffinerie zeigt das Andocken und Abladen des Sammlers.",
+        "Statische Gebäudedetails werden nach Material zusammengefasst. Korrigierte GLB-Pivot-Transforms verhindern schwebende Bauteile; Tests und beschriftete Galerien prüfen alle Gebäude- und Fahrzeugmodelle sowie aktive Cache-Zustände."
+      ]
+    },
     {
       "version": "0.37.0",
       "date": "09.10.2026",

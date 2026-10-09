@@ -25,6 +25,8 @@ foreach ($testScript in @('regression', 'mission_system', 'playthrough', 'perfor
 if ($LASTEXITCODE -ne 0) { throw '2.5D-Fahrzeug- und Gebäudemodelle fehlgeschlagen' }
 & $enginePath --headless --path $gameRoot --script 'tests/authored_assets.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Blender-Modelle für Fahrzeuge und Gebäude fehlgeschlagen' }
+& $enginePath --headless --path $gameRoot --script 'tests/building_asset_states.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Bauzustände und Gebäudeanimationen fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/authored_asset_gallery.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Beschriftete Modellgalerie fehlgeschlagen' }
 & $enginePath --headless --path $gameRoot --script 'tests/campaign_units.gd'

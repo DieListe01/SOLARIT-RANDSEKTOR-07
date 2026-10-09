@@ -45,7 +45,7 @@ func run() -> void:
 		assert(image!=null and not image.is_empty(),"Asset gallery should render the authored models")
 		var directory=DirAccess.open("res://test-output")
 		if directory==null: DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://test-output"))
-		var target="res://test-output/%s_gallery_v0.37.0.png"%mode
+		var target="res://test-output/%s_gallery_v0.38.0.png"%mode
 		assert(image.save_png(target)==OK,"Gallery image should be written: "+target)
 		print("Authored model gallery: "+target)
 		for child in world.get_children():

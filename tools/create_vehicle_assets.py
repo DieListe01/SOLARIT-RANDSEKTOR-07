@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import math
 import os
+import importlib.util
 import bpy
 from mathutils import Vector
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT = os.path.join(ROOT, "assets", "models", "vehicles")
 SOURCE = os.path.join(ROOT, "assets", "models", "source")
+TEXTURES = os.path.join(ROOT, "assets", "models", "textures", "industrial")
 VEHICLE_SOURCE = os.path.join(SOURCE, "vehicles")
 os.makedirs(OUT, exist_ok=True)
 os.makedirs(SOURCE, exist_ok=True)
@@ -46,6 +48,21 @@ def material(key):
     if key in {"team", "energy", "amber"}:
         p.inputs["Emission Color"].default_value = COLORS[key]
         p.inputs["Emission Strength"].default_value = 1.15 if key == "team" else .7
+    texture_key={"armor":"ceramic","armor_light":"ceramic","dark":"graphite","steel":"steel","rubber":"rubber","track":"steel","team":"enamel","energy":"enamel","amber":"safety","hazard":"safety","red":"safety"}.get(key)
+    if texture_key and os.path.isdir(TEXTURES):
+        nodes=m.node_tree.nodes; links=m.node_tree.links
+        for suffix,space,socket in [("albedo","sRGB","Base Color"),("roughness","Non-Color","Roughness")]:
+            image_path=os.path.join(TEXTURES,texture_key+"_"+suffix+".png")
+            if not os.path.isfile(image_path): continue
+            image=bpy.data.images.load(image_path,check_existing=True); image.colorspace_settings.name=space
+            texture=nodes.new("ShaderNodeTexImage"); texture.name="SOLARIT shared "+suffix+" · "+texture_key; texture.image=image
+            links.new(texture.outputs["Color"],p.inputs[socket])
+        normal_path=os.path.join(TEXTURES,texture_key+"_normal.png")
+        if os.path.isfile(normal_path):
+            image=bpy.data.images.load(normal_path,check_existing=True); image.colorspace_settings.name="Non-Color"
+            texture=nodes.new("ShaderNodeTexImage"); texture.name="SOLARIT shared PBR normal · "+texture_key; texture.image=image
+            normal=nodes.new("ShaderNodeNormalMap"); normal.inputs["Strength"].default_value=.12
+            links.new(texture.outputs["Color"],normal.inputs["Color"]); links.new(normal.outputs["Normal"],p.inputs["Normal"])
     M[key] = m
     return m
 
@@ -366,6 +383,13 @@ def design(kind):
         else:
             merged.name="Static · "+mat_name
         merged.data.name=merged.name+" · consolidated mesh"
+    # UV unwrap the consolidated static armor and animation pieces once during
+    # authoring; runtime instances share these PBR maps through the GLB cache.
+    for obj in [item for item in bpy.context.scene.objects if item.type=="MESH"]:
+        bpy.ops.object.select_all(action="DESELECT"); obj.select_set(True); bpy.context.view_layer.objects.active=obj
+        bpy.ops.object.mode_set(mode="EDIT"); bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.smart_project(island_margin=.018,area_weight=.18,correct_aspect=True,scale_to_bounds=True)
+        bpy.ops.object.mode_set(mode="OBJECT")
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(VEHICLE_SOURCE,kind+".blend"))
     # Export with transform-free object geometries and a root marker. Every GLB
     # remains independently editable in the bundled .blend source file.
@@ -383,6 +407,12 @@ def main():
     bpy.context.preferences.filepaths.save_version=0
     for kind in ("scout","tank","siege","raider","lancer","scorcher","bulwark"):
         design(kind)
+    postprocess_path=os.path.join(ROOT,"tools","externalize_glb_textures.py")
+    spec=importlib.util.spec_from_file_location("externalize_glb_textures",postprocess_path)
+    texture_pipeline=importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(texture_pipeline)
+    texture_pipeline.externalize_directory(__import__("pathlib").Path(OUT))
     print("Saved one editable Blender source scene per vehicle:",VEHICLE_SOURCE)
 
 if __name__=="__main__": main()

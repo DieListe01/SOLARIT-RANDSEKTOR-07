@@ -233,7 +233,23 @@ func building_cache_key(entity: Dictionary) -> String:
 	var faction: String=sim.factions[entity.owner]
 	var active := 1 if entity.kind=="factory" and not entity.get("queue",[]).is_empty() else 0
 	var upgrade_stage:=int(entity.get("upgrade_level",0))
-	return "%s|%d|%s|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage]
+	var unloading:=_refinery_receiving(entity) if entity.kind=="refinery" else false
+	var animation_frame:=_building_animation_frame(entity)
+	return "%s|%d|%s|%d|%d|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage,1 if unloading else 0,animation_frame]
+
+func _building_animation_frame(entity: Dictionary) -> int:
+	if entity.kind in ["core", "radar"]: return posmod(int(elapsed*1.1),8)
+	if entity.kind=="power": return posmod(int(elapsed*1.8),4)
+	if entity.kind=="factory" and not entity.get("queue",[]).is_empty(): return posmod(int(elapsed*2.0),4)
+	if entity.kind=="repair" and bool(entity.get("repair",false)): return posmod(int(elapsed*3.0),4)
+	if entity.kind=="armory" and not entity.get("queue",[]).is_empty(): return posmod(int(elapsed*1.5),4)
+	return 0
+
+func _refinery_receiving(refinery: Dictionary) -> bool:
+	for candidate in sim.entities.values():
+		if candidate.kind!="harvester" or candidate.owner!=refinery.owner or candidate.harvest_state!="UNLOAD": continue
+		if candidate.pos.distance_squared_to(refinery.pos)<=float(sim.grid.tile*4.25)*float(sim.grid.tile*4.25): return true
+	return false
 
 func draw_cached_building(entity: Dictionary) -> bool:
 	if classic: return false
@@ -250,7 +266,11 @@ func draw_cached_building(entity: Dictionary) -> bool:
 		building_cache_misses+=1
 		if not building_cache_pending.has(key):
 			building_cache_pending[key]=true
-			building_cache_queue.append({"key":key,"entity":entity.duplicate(true),"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner]})
+			var snapshot: Dictionary=entity.duplicate(true)
+			snapshot.unloading=_refinery_receiving(entity) if entity.kind=="refinery" else false
+			snapshot.building_animation_frame=_building_animation_frame(entity)
+			if entity.kind=="tower": snapshot.turret=float(posmod(roundi(float(entity.get("turret",0.0))*16.0/TAU),16))*TAU/16.0
+			building_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner]})
 			process_building_cache_queue.call_deferred()
 		return false
 	building_cache_hits+=1
@@ -296,7 +316,7 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 	if not is_instance_valid(viewport): return
 	var image := viewport.get_texture().get_image()
 	if image!=null:
-		if building_texture_cache.size()>=48: building_texture_cache.erase(building_texture_cache.keys()[0])
+		if building_texture_cache.size()>=64: building_texture_cache.erase(building_texture_cache.keys()[0])
 		building_texture_cache[key]=ImageTexture.create_from_image(image)
 		building_texture_times[key]=elapsed
 	building_cache_pending.erase(key)

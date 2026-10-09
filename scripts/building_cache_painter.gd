@@ -44,6 +44,7 @@ func _ready() -> void:
 	var kind := str(entity.get("kind", "core"))
 	var asset_path := "res://assets/models/buildings/%s.glb" % kind
 	if ModelAssets.add_optional_glb(self, asset_path, "Authored building",team):
+		ModelAssets.apply_building_pose(get_node("Authored building") as Node3D, entity)
 		return
 	LowpolyModelFactory.building(self,entity,team,faction,footprint)
 
