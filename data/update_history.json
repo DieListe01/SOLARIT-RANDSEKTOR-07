@@ -1,6 +1,17 @@
 {
-  "current_version": "0.36.34",
+  "current_version": "0.37.0",
   "entries": [
+    {
+      "version": "0.37.0",
+      "date": "09.10.2026",
+      "title": "Individuelle Blender-Modelle für alle Einheiten und Gebäude",
+      "changes": [
+        "Alle acht Fahrzeugrollen haben jetzt eigene Blender-Modelle mit zweckgebundenen Formen und mechanischen Details: Aufklärer, Panzer, Artillerie, Sammler, Raider, Lancer, Flammenwerfer und Durchbruchpanzer.",
+        "Alle acht Gebäude zeigen ihre Funktion jetzt durch eigene Silhouetten und Anlagen von Reaktor und Raffinerie bis Werft, Radar, Werkstatt, Arsenal, Turm und Kommandozentrum.",
+        "Teamkennzeichnung, Fahrzeugausrichtung, drehbare Geschütztürme und sichtbare Schadensstufen funktionieren mit den importierten Assets. Der animierte Sammler behält Schneidwerk, Förderband, Füllstand und Entladeklappe.",
+        "Die vorhandene 3D-SubViewport- und Cache-Pipeline bleibt bestehen; die Godot-Modelle bleiben als Rückfall verfügbar. Eine neue Prüfung kontrolliert alle GLB-Modelle und erzeugt beschriftete Fahrzeug- und Gebäudegalerien."
+      ]
+    },
     {
       "version": "0.36.34",
       "date": "09.10.2026",
