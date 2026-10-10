@@ -1,6 +1,17 @@
 {
-  "current_version": "0.38.6",
+  "current_version": "0.38.7",
   "entries": [
+    {
+      "version": "0.38.7",
+      "date": "10.10.2026",
+      "title": "Lesbare Schlachtfelder bei vielen Wracks",
+      "changes": [
+        "In dichten Gefechten wechseln alte Wracks nach 18 Sekunden auf eine kostengünstige statische Silhouette. Frische Zerstörungen behalten ihre detaillierte Darstellung.",
+        "Der Umschaltpunkt berücksichtigt jetzt bereits mehr als zwölf sichtbare Ruinen. Das reduziert wiederholte Zeichnungen von Kleinteilen, ohne Fahrzeugmodelle, Trefferlogik, Kollisionsräume oder Multiplayer-Balance zu verändern.",
+        "Die neue Detaillogik wird durch Grenztests für Alter, Ruinendichte und hohe Renderlast abgesichert.",
+        "Eine entartende Panzerplattenfläche am Geschützturm wurde stabilisiert. Dadurch scheitert die Polygon-Triangulation nicht mehr bei bestimmten Turmwinkeln."
+      ]
+    },
     {
       "version": "0.38.6",
       "date": "10.10.2026",

@@ -25,6 +25,7 @@ var profile_dust_ms := 0.0
 var profile_wrecks_ms := 0.0
 const MAX_RUINS := 128
 const MAX_CRATERS := 80
+const DENSE_WRECK_LOD_THRESHOLD := 12
 const OBJECT_KINDS := ["core", "power", "refinery", "factory", "radar", "repair", "armory", "tower", "scout", "tank", "siege", "harvester", "raider", "lancer", "scorcher", "bulwark"]
 # Presentation profiles, not weapon balance. Five families are reserved for future weapons.
 const FAMILIES = {
@@ -187,7 +188,6 @@ func draw_ground(c: WorldRenderer) -> void:
 	var visible_ruin_count := 0
 	for visible_ruin in ruins:
 		if in_view(c,visible_ruin.pos) and explored(c,visible_ruin.pos): visible_ruin_count+=1
-	var very_dense_wrecks := c.benchmark_compact_wrecks or visible_ruin_count>18 or c.vfx_budget_tier>=3
 	for ruin in ruins:
 		if not in_view(c,ruin.pos) or not explored(c,ruin.pos): continue
 		var scorch := PackedVector2Array()
@@ -198,7 +198,7 @@ func draw_ground(c: WorldRenderer) -> void:
 		if not in_view(c,ruin.pos) or not explored(c,ruin.pos): continue
 		var r: float = ruin.get("radius",42.0 if ruin.building else 21.0)
 		var fade := 1.0
-		var aged_compact := c.benchmark_compact_wrecks or (float(ruin.get("age",0.0))>18.0 and very_dense_wrecks) or (c.vfx_budget_tier>=2 and float(ruin.get("age",0.0))>30.0)
+		var aged_compact := is_compact_wreck_lod(float(ruin.get("age",0.0)),visible_ruin_count,c.vfx_budget_tier,c.benchmark_compact_wrecks)
 		if aged_compact:
 			if ruin.building:
 				var extent_simple := Vector2(ruin.footprint[0],ruin.footprint[1])*32.0*0.40
@@ -299,6 +299,12 @@ func draw_ground(c: WorldRenderer) -> void:
 			c.draw_line(q+side*2,q+direction*length-side,Color("30271f"),1,true)
 			if i%2==0: c.draw_arc(q,2.2,0.2,4.4,12,Color("897256"),1,true)
 	if c.profile_enabled: profile_wrecks_ms=float(Time.get_ticks_usec()-wreck_started)/1000.0
+
+func is_compact_wreck_lod(age: float, visible_ruin_count: int, budget_tier: int, force_compact: bool=false) -> bool:
+	# Keep fresh destruction detailed. In a dense field, old debris becomes a
+	# cheaper static silhouette before wreck drawing dominates a moving battle.
+	var dense_field := force_compact or visible_ruin_count>DENSE_WRECK_LOD_THRESHOLD or budget_tier>=3
+	return force_compact or (age>18.0 and dense_field) or (budget_tier>=2 and age>30.0)
 
 func explored(c: WorldRenderer, pos: Vector2) -> bool:
 	var cell := c.sim.grid.cell(pos)

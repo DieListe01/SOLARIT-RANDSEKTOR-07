@@ -36,6 +36,16 @@ func poly(vertices: Array, color: Color) -> void:
 	points.append(points[0])
 	canvas.draw_polyline(points,Color(color,color.a*opacity),0.7,true)
 
+func turret_side_armor_points(turret: Vector2, direction: Vector2, side: Vector2) -> PackedVector2Array:
+	# Keep the thin shield aligned with the gun's local basis. A screen-space
+	# offset made this quadrilateral degenerate at some turret angles.
+	return PackedVector2Array([
+		turret-direction*6+side*7,
+		turret+direction*10+side*3,
+		turret+direction*10+side*5,
+		turret-direction*6+side*9
+	])
+
 func line(a: Vector2, b: Vector2, color: Color, width: float = 1.0) -> void:
 	canvas.draw_line(point(a),point(b),Color(color,color.a*opacity),width,true)
 
@@ -727,7 +737,7 @@ func vehicle(target: CanvasItem, e: Dictionary, team: Color, faction: String, el
 		line(turret,turret+direction*gun_length,DARK,6)
 		line(turret-side,turret-side+direction*gun_length,STEEL,3)
 		line(turret+direction*(gun_length-4)-side*2,turret+direction*(gun_length-4)+side*2,STEEL.darkened(0.25),4)
-		poly([turret-direction*6+side*7,turret+direction*10+side*3,turret+direction*10+side*3+Vector2(0,3),turret-direction*6+side*7+Vector2(0,3)],team.darkened(0.42))
+		poly(turret_side_armor_points(turret,direction,side),team.darkened(0.42))
 		poly([turret-direction*7-side*6,turret+direction*8-side*5,turret+direction*10+side*3,turret-direction*6+side*7],STEEL.darkened(0.1))
 		poly([turret-direction*7-side*6,turret+direction*8-side*5,turret+direction*6-side*3,turret-direction*5-side*4],STEEL.lightened(0.12))
 		line(turret-direction*6+side*6,turret+direction*7+side*4,team,3)

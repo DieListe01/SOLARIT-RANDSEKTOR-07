@@ -15,6 +15,17 @@ func _initialize() -> void:
 func run() -> void:
 	var terrain_shader := FileAccess.get_file_as_string("res://assets/terrain.gdshader")
 	check(terrain_shader.contains("terrain_cell=(world+warp*1.38*27.0)/32.0") and terrain_shader.contains("kind_at(TEXTURE,world,warp*1.38)") and terrain_shader.contains("world+vec2(0,7),warp*1.38") and terrain_shader.contains("world-vec2(0,5),warp*1.38"),"Terrain material sampling, edge mask and relief probes share the same domain warp")
+	var effects := CombatEffects.new()
+	check(not effects.is_compact_wreck_lod(18.0,40,0),"Fresh wrecks remain detailed through the age threshold")
+	check(effects.is_compact_wreck_lod(18.1,13,0),"Old wrecks use the low-cost silhouette in a dense visible field")
+	check(not effects.is_compact_wreck_lod(18.1,12,0),"Moderate wreck counts retain detailed old wrecks")
+	check(effects.is_compact_wreck_lod(31.0,1,2),"Severe render pressure can compact very old wrecks independently of density")
+	check(effects.is_compact_wreck_lod(0.1,1,0,true),"Benchmark override remains available for controlled comparisons")
+	var industrial := IndustrialArt.new()
+	for direction_index in 64:
+		var turret_direction := Vector2.from_angle(float(direction_index)*TAU/64.0)
+		var turret_plate := industrial.turret_side_armor_points(Vector2(1,-2),turret_direction,turret_direction.orthogonal())
+		check(Geometry2D.triangulate_polygon(turret_plate).size()==6,"Turret side armor remains a valid polygon at heading %d"%direction_index)
 	var db := Catalog.new()
 	for count in [1,5,10,20,40]:
 		var model := Simulation.new(db)

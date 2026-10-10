@@ -92,8 +92,8 @@ func reset_world() -> void:
 			var squad_offset:= -90.0 if squad%2==0 else 90.0
 			game.sim.command(side_units[squad],center+Vector2(-side_sign*260.0,squad_offset),"attack_move")
 	game.sim.update_fog(false)
-	for i in 24:
-		var wreck_pos:=center+Vector2(-430.0+float(i%8)*122.0,-320.0+float(i/8)*300.0)
+	for i in 39:
+		var wreck_pos:=center+Vector2(-520.0+float(i%13)*86.0,-330.0+float(i/13)*330.0)
 		game.renderer.combat_fx.ruins.append({"pos":wreck_pos,"building":false,"core":false,"angle":float(i)*0.37,"age":24.0,"radius":21.0,"variant":i%4,"object_kind":"tank","footprint":[1,1]})
 	game.sim.rebuild_movement_buckets()
 	game.accumulator=0.0
