@@ -3,6 +3,9 @@ $gameRoot = $PSScriptRoot
 $enginePath = Join-Path $gameRoot 'tools\Godot_v4.7.2-stable_win64_console.exe'
 $pythonPath = (Get-Command python -ErrorAction Stop).Source
 $env:PYTHONDONTWRITEBYTECODE = '1'
+$atlasTest = Join-Path $gameRoot 'tests\crystal_atlas.py'
+& $pythonPath $atlasTest
+if ($LASTEXITCODE -ne 0) { throw 'Solarit-Kristallatlas fehlgeschlagen' }
 $previousOnlineStats = $env:SOLARIT_DISABLE_ONLINE_STATS
 try {
 $apiTestDirectory = Join-Path $gameRoot 'server'
@@ -37,6 +40,8 @@ $frontendProfile = Join-Path $gameRoot '.local\Godot\app_userdata\SOLARIT RANDSE
 Remove-Item -LiteralPath $frontendProfile -Force -ErrorAction SilentlyContinue
 & $enginePath --path $gameRoot --script 'tests/frontend.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Intro/Startmenü fehlgeschlagen' }
+& $enginePath --path $gameRoot --script 'tests/intro_cinematic.gd'
+if ($LASTEXITCODE -ne 0) { throw '3D-Intro und Story-Sequenz fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/visual_showcase.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Grafikprüfung fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/color_identity.gd'

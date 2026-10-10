@@ -35,6 +35,8 @@ func run() -> void:
 	game.commander_profile.path = "user://frontend_commander_profile.json"
 	game.commander_profile.load_profile()
 	check(game.intro_active and not game.playing,"Startup enters cinematic intro")
+	check(game.intro_art is IntroCinematic,"Startup uses the authored 3D cinematic stage")
+	check(game.intro_art.world_root.find_child("Cinematic core",true,false)!=null and game.intro_art.world_root.find_child("Cinematic Solarit harvester",true,false)!=null,"Intro reuses the shipped command-center and harvester GLB assets")
 	check(game.sim==null,"Intro never instantiates gameplay simulation")
 	check(game.music.frontend and game.music.frontend_player.playing,"Own title score starts on first launch")
 	check(absf(game.music.frontend_player.stream.get_length()-24)<0.1,"Full 24-second title theme")

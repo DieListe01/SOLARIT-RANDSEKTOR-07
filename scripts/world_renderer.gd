@@ -1230,7 +1230,7 @@ func _build_solarit_detail_chunk(chunk: Vector2i) -> void:
 			var seed_value:=x*37+y*71
 			var depletion:=clampf(remaining/100.0,0.45,1.0)
 			var tier:=0 if depletion<0.60 else (1 if depletion<0.88 else 2)
-			var variation:=posmod(seed_value*17+x*y,4)
+			var variation:=posmod(seed_value*17+x*y,8)
 			var atlas_origin:=Vector2(variation*32,tier*32)
 			var cell_origin:=Vector2(cell*grid.tile)
 			var center := cell_origin+Vector2(16+sin(seed_value*1.7)*5.5,16+cos(seed_value*2.3)*5.5)
@@ -1250,7 +1250,7 @@ func _build_solarit_detail_chunk(chunk: Vector2i) -> void:
 			# without adding a draw call or changing harvesting cell logic.
 			if posmod(seed_value*3+x*y,3)==0:
 				var shard_first:=vertices.size()
-				var shard_variation:=posmod(variation+1+posmod(seed_value,2),4)
+				var shard_variation:=posmod(variation+1+posmod(seed_value,2),8)
 				var shard_origin:=Vector2(shard_variation*32,tier*32)
 				var shard_center:=center+Vector2(cos(rotation+0.7),sin(rotation+0.7))*radius*1.16
 				var shard_radius:=radius*0.43

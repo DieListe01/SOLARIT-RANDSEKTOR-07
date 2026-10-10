@@ -19,22 +19,22 @@ func run() -> void:
 	await process_frame
 	game.skip_intro(); game.set_classic(false)
 	check(game.menu_buttons.has("start") and game.update_button.disabled and game.update_button.text=="UPDATES AB RELEASE","unpublished local build explains that the release feed is not configured")
-	check(game.update_history.current_version=="0.38.2","Central current version")
-	check(game.update_history.entries.size()==74,"Every archived version plus new release")
-	check(FileAccess.get_file_as_string("res://export_presets.cfg").contains("0.38.2.0"),"Export version matches displayed history")
-	game.show_available_update({"version":"0.38.2","notes":"Test release notes."})
+	check(game.update_history.current_version=="0.38.3","Central current version")
+	check(game.update_history.entries.size()==75,"Every archived version plus new release")
+	check(FileAccess.get_file_as_string("res://export_presets.cfg").contains("0.38.3.0"),"Export version matches displayed history")
+	game.show_available_update({"version":"0.38.3","notes":"Test release notes."})
 	await process_frame
 	var offer_panel: Control = game.overlay.get_child(0)
-	check(offer_panel.get_node("InstalledVersion").text=="v0.38.2","Update offer clearly shows installed version")
-	check(offer_panel.get_node("NewVersion").text=="v0.38.2","Update offer clearly shows the new version")
+	check(offer_panel.get_node("InstalledVersion").text=="v0.38.3","Update offer clearly shows installed version")
+	check(offer_panel.get_node("NewVersion").text=="v0.38.3","Update offer clearly shows the new version")
 	await capture("update_available_versions")
 	for child in offer_panel.get_children():
 		if child is Button and child.text=="SPÄTER": child.pressed.emit(); break
 	game.update_check_manual = true
-	game._on_update_check_finished({"ok":true,"available":false,"version":"0.38.2"})
+	game._on_update_check_finished({"ok":true,"available":false,"version":"0.38.3"})
 	await process_frame
 	var current_dialog: Control = game.overlay.get_node("UpdateCurrentDialog")
-	check(current_dialog.get_node("CurrentVersion").text=="Installierte Version: v0.38.2" and current_dialog.find_children("*", "Button", true, false).size()==1,"Manual check opens a current-version popup with an OK button")
+	check(current_dialog.get_node("CurrentVersion").text=="Installierte Version: v0.38.3" and current_dialog.find_children("*", "Button", true, false).size()==1,"Manual check opens a current-version popup with an OK button")
 	for child in current_dialog.get_children():
 		if child is Button: child.pressed.emit(); break
 	var seen := {}
@@ -47,7 +47,7 @@ func run() -> void:
 	var versions: ItemList = panel.get_node("Versions")
 	var details: RichTextLabel = panel.get_node("UpdateDetails")
 	var latest_details_lower := details.text.to_lower()
-	check(versions.item_count==74 and details.text.contains("0.38.2") and details.text.contains("10.10.2026") and latest_details_lower.contains("subviewport") and latest_details_lower.contains("cache") and latest_details_lower.contains("fahrzeug"),"Latest release notes describe GPU-resident vehicle poses and deferred cache misses")
+	check(versions.item_count==75 and details.text.contains("0.38.3") and details.text.contains("10.10.2026") and latest_details_lower.contains("subviewport") and latest_details_lower.contains("cache") and latest_details_lower.contains("fahrzeug"),"Latest release notes describe the intro and preserve the GPU-resident vehicle pose pipeline")
 	check(details.scroll_active,"Latest release details open in the scrollable history")
 	var private_lobby_index:=index_for_version(versions,"0.36.13")
 	versions.select(private_lobby_index); versions.item_selected.emit(private_lobby_index)

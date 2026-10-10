@@ -145,7 +145,7 @@ var health_mode := "damaged"
 var save_config := ConfigFile.new()
 var remap_action := ""
 var intro_active := false
-var intro_art: FrontendBackdrop
+var intro_art: Variant
 var menu_buttons: Dictionary = {}
 var hotkeys := {"attack":KEY_A,"stop":KEY_S,"hold":KEY_H,"guard":KEY_G,"repair":KEY_R,"home":KEY_HOME,"event":KEY_SPACE,"save":KEY_F5,"load":KEY_F9}
 var options_tab := "BILD"
@@ -379,7 +379,7 @@ func button(parent: Node, text_value: String, rect: Rect2, callback: Callable) -
 func show_main_menu() -> void:
 	if is_instance_valid(online_stats): online_stats.stop_playing()
 	if online!=null and online.active: online.leave(false)
-	var scene_time := intro_art.elapsed if is_instance_valid(intro_art) else 0.0
+	var scene_time: float = float(intro_art.elapsed) if is_instance_valid(intro_art) else 0.0
 	intro_active=false
 	playing=false; paused=true; placement=""; renderer.placement=""
 	suppress_world_hover()
@@ -642,8 +642,8 @@ func show_intro() -> void:
 	intro_active=true; playing=false; paused=true
 	view_container.visible=false
 	clear(ui); clear(overlay)
-	intro_art=FrontendBackdrop.new()
-	intro_art.intro=true; intro_art.size=Vector2(1920,1080)
+	intro_art=load("res://scripts/intro_cinematic.gd").new()
+	intro_art.size=Vector2(1920,1080)
 	intro_art.completed.connect(skip_intro)
 	ui.add_child(intro_art)
 	add_version_signature(ui)

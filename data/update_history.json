@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.2",
+  "current_version": "0.38.3",
   "entries": [
+    {
+      "version": "0.38.3",
+      "date": "10.10.2026",
+      "title": "3D-Intro und lebendige Solarit-Felder",
+      "changes": [
+        "Das Intro zeigt jetzt eine animierte 3D-Kolonieszene mit den im Spiel verwendeten Blender-Gebäuden und dem bewegten Solarit-Sammler.",
+        "Solarit-Vorkommen nutzen acht unterschiedliche Kristallcluster. Drei Detailstufen bilden den sichtbaren Abbau ab, ohne zusätzliche Draw Calls zu erzeugen.",
+        "Die vorhandene GPU-residente 3D-SubViewport- und Fahrzeug-Pose-Cache-Pipeline bleibt unverändert: 512×512, 4× MSAA und keine Readbacks während des Gefechts."
+      ]
+    },
     {
       "version": "0.38.2",
       "date": "10.10.2026",
