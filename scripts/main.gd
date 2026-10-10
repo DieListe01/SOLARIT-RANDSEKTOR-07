@@ -81,6 +81,7 @@ var faction := "forge"
 var difficulty := "normal"
 var paused := true
 var playing := false
+var vehicle_pose_warmup_active := false
 var ended := false
 var classic := false
 var crt := 0
@@ -1423,15 +1424,37 @@ func start_game() -> void:
 	renderer.camera=cores[0].pos if not cores.is_empty() else Vector2(320,320)
 	renderer.zoom=1.25
 	clamp_camera()
-	playing=true; paused=false; placement=""; renderer.placement=""
+	playing=true; paused=false; vehicle_pose_warmup_active=true; renderer.visual_paused=true; renderer.vehicle_cache_generation_frozen=false; placement=""; renderer.placement=""
 	online.set_authority(sim)
 	clear(overlay)
 	view_container.visible=true
 	build_hud()
 	music.start(sim)
 	music.cue("complete")
+	notify("Fahrzeugansichten werden vorbereitet …")
+	await prepare_starting_vehicle_views()
+	vehicle_pose_warmup_active=false; renderer.visual_paused=paused
 	save_game("user://autosave.json",false)
 	notify("1:1-Duell begonnen. Beide Spieler starten gleich. Zerstöre den feindlichen Baukern." if sim.online_mode=="versus" else str(db.mission.get("start_message","Einsatz begonnen.")))
+
+func prepare_starting_vehicle_views() -> void:
+	if renderer==null: return
+	renderer.vehicle_cache_generation_frozen=false
+	renderer.queue_redraw()
+	var stable_frames:=0
+	# Starting units are stationary while their first GPU-resident views are
+	# rendered. Gameplay remains paused until this short loading warm-up ends.
+	for _frame in 300:
+		await get_tree().process_frame
+		if renderer.vehicle_cache_queue.is_empty() and renderer.pending_pose_keys.is_empty():
+			stable_frames+=1
+			if stable_frames>=2: break
+		else:
+			stable_frames=0
+	# Building a 3D pose SubViewport can still stall the renderer even without a
+	# CPU readback. Keep novel poses pending during play and drain them only in
+	# loading or pause windows; the nearest resident GPU texture remains visible.
+	renderer.vehicle_cache_generation_frozen=true
 
 func connect_sim() -> void:
 	inspected=0
@@ -2370,17 +2393,19 @@ func _process(dt: float) -> void:
 			online_directory_message = "Öffentliche Lobby geschlossen · Mitspieler verbunden" if online.connected else "Öffentliche Lobby geschlossen"
 			public_lobby_closed_for_guest = true
 			if not online.connected: public_lobby_requested = false
-	if is_instance_valid(renderer): renderer.visual_paused=paused
+	if is_instance_valid(renderer): renderer.visual_paused=paused or vehicle_pose_warmup_active
 	if is_instance_valid(online_status_label) and online.active:
 		var connection_state := "● VERBUNDEN" if online.connected else ("… VERBINDET" if online.role == "client" else "○ WARTET AUF MITSPIELER")
 		online_status_label.text = connection_state + "  ·  UDP " + str(OnlineSession.DEFAULT_PORT) + ("  ·  PING %d MS" % online.ping_ms if online.ping_ms >= 0 else "")
 	monitor_frame_rate(dt)
-	if is_instance_valid(renderer): renderer.profile_sim_ms=0.0
+	if is_instance_valid(renderer):
+		renderer.profile_sim_ms=0.0
+		if sim!=null: sim.reset_profile_frame()
 	if is_instance_valid(connection_label):
 		var sync: String="SYNCHRON" if online.is_host() or (online.last_snapshot_at>0 and Time.get_ticks_msec()-online.last_snapshot_at<1500) else "WARTE AUF SPIELSTAND"
 		connection_label.text="%s · PING %s · %s"%["1:1" if online.is_versus() else "KOOP",str(online.ping_ms)+" ms" if online.ping_ms>=0 else "–",sync if online.connected else "GETRENNT"]
 	if not playing or sim==null: return
-	if paused or modal_overlay_active():
+	if paused or vehicle_pose_warmup_active or modal_overlay_active():
 		suppress_world_hover()
 		if paused and online.is_host(): online.advance_host(dt,sim)
 		return
@@ -2537,7 +2562,7 @@ func write_performance_event(event_type: String, duration: float, minimum_fps: f
 	var frame_ms:=1000.0/maxf(average_fps,0.01)
 	var unaccounted_ms:=maxf(0.0,frame_ms-process_ms-physics_ms)
 	var viewport_size:=renderer.get_viewport_rect().size
-	var values:Array = [Time.get_datetime_string_from_system(false),event_type,"%.1f"%sim.time,"%.2f"%duration,"%.2f"%average_fps,"%.2f"%minimum_fps,str(sim.entities.size()),str(total_units),str(total_buildings),str(friendly_units),str(enemy_units),str(friendly_buildings),str(enemy_buildings),str(renderer.visible_mobile_count),str(renderer.culled_mobile_fog_count),str(renderer.culled_mobile_offscreen_count),str(renderer.visible_building_count),str(renderer.active_vfx_count),str(sim.projectiles.size()),str(sim.effects.size()),str(renderer.combat_fx.particles.size()),str(renderer.tracks.size()),str(renderer.visual_bursts.size()),str(renderer.combat_fx.ruins.size()),str(renderer.combat_fx.craters.size()),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),"%.2f"%process_ms,"%.2f"%physics_ms,"%.2f"%frame_ms,"%.2f"%unaccounted_ms,"%.2f"%renderer.profile_total_ms,"%.2f"%renderer.profile_terrain_ms,"%.2f"%renderer.profile_ground_fx_ms,"%.2f"%renderer.profile_wrecks_ms,"%.2f"%renderer.profile_buildings_ms,"%.2f"%renderer.profile_vehicles_ms,"%.2f"%renderer.profile_tracks_ms,"%.2f"%renderer.profile_projectiles_ms,"%.2f"%renderer.profile_impacts_ms,"%.2f"%renderer.profile_explosions_ms,"%.2f"%renderer.profile_smoke_ms,"%.2f"%renderer.profile_fog_ms,"%.2f"%renderer.profile_sim_ms,"%.2f"%renderer.profile_ui_ms,str(renderer.vehicle_texture_cache.size()),str(renderer.vehicle_cache_queue.size()),str(renderer.vehicle_cache_pending.size()),str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses),str(renderer.building_texture_cache.size()),str(renderer.building_cache_queue.size()),str(renderer.building_cache_pending.size()),str(renderer.building_cache_hits),str(renderer.building_cache_misses),"%dx%d"%[roundi(viewport_size.x),roundi(viewport_size.y)],"%.2f"%renderer.zoom,str(renderer.vehicle_cache_capacity),str(renderer.vehicle_cache_new_poses_total),str(renderer.vehicle_cache_readbacks_total),"%.2f"%renderer.vehicle_cache_readback_ms_total,"%.2f"%renderer.vehicle_cache_render_wait_ms_total,str(renderer.vehicle_cache_active_subviewports),str(renderer.vehicle_cache_evictions_total),str(renderer.vehicle_cache_recreated_poses_total)]
+	var values:Array = [Time.get_datetime_string_from_system(false),event_type,"%.1f"%sim.time,"%.2f"%duration,"%.2f"%average_fps,"%.2f"%minimum_fps,str(sim.entities.size()),str(total_units),str(total_buildings),str(friendly_units),str(enemy_units),str(friendly_buildings),str(enemy_buildings),str(renderer.visible_mobile_count),str(renderer.culled_mobile_fog_count),str(renderer.culled_mobile_offscreen_count),str(renderer.visible_building_count),str(renderer.active_vfx_count),str(sim.projectiles.size()),str(sim.effects.size()),str(renderer.combat_fx.particles.size()),str(renderer.tracks.size()),str(renderer.visual_bursts.size()),str(renderer.combat_fx.ruins.size()),str(renderer.combat_fx.craters.size()),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),"%.2f"%process_ms,"%.2f"%physics_ms,"%.2f"%frame_ms,"%.2f"%unaccounted_ms,"%.2f"%renderer.profile_total_ms,"%.2f"%renderer.profile_terrain_ms,"%.2f"%renderer.profile_ground_fx_ms,"%.2f"%renderer.profile_wrecks_ms,"%.2f"%renderer.profile_buildings_ms,"%.2f"%renderer.profile_vehicles_ms,"%.2f"%renderer.profile_tracks_ms,"%.2f"%renderer.profile_projectiles_ms,"%.2f"%renderer.profile_impacts_ms,"%.2f"%renderer.profile_explosions_ms,"%.2f"%renderer.profile_smoke_ms,"%.2f"%renderer.profile_fog_ms,"%.2f"%renderer.profile_sim_ms,"%.2f"%renderer.profile_ui_ms,str(renderer.vehicle_texture_cache.size()),str(renderer.vehicle_cache_queue.size()),str(renderer.pending_pose_keys.size()),str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses),str(renderer.building_texture_cache.size()),str(renderer.building_cache_queue.size()),str(renderer.building_cache_pending.size()),str(renderer.building_cache_hits),str(renderer.building_cache_misses),"%dx%d"%[roundi(viewport_size.x),roundi(viewport_size.y)],"%.2f"%renderer.zoom,str(renderer.vehicle_cache_capacity),str(renderer.vehicle_cache_new_poses_total),str(renderer.vehicle_cache_readbacks_total),"%.2f"%renderer.vehicle_cache_readback_ms_total,"%.2f"%renderer.vehicle_cache_render_wait_ms_total,str(renderer.vehicle_cache_active_subviewports),str(renderer.vehicle_cache_evictions_total),str(renderer.vehicle_cache_recreated_poses_total)]
 	var row:=PackedStringArray()
 	for value in values: row.append(str(value))
 	file.store_line(",".join(row))
@@ -2622,7 +2647,7 @@ func show_pause() -> void:
 	for action in actions: button(p,action[0],Rect2(40,y,540,54),action[1]); y+=70
 
 func resume_game() -> void:
-	clear(overlay); paused=false; music.set_paused(false)
+	clear(overlay); paused=false; renderer.visual_paused=false; music.set_paused(false)
 
 func show_end() -> void:
 	if side_panel!=null:
@@ -3335,7 +3360,7 @@ func load_game(path: String = "") -> void:
 	sim=model; run_id=str(data.get("run_id","")); if run_id.is_empty(): run_id=create_run_id()
 	last_load_path=path
 	match_report_saved=false
-	connect_sim(); playing=true; paused=false; ended=false
+	connect_sim(); playing=true; paused=false; vehicle_pose_warmup_active=true; renderer.visual_paused=true; renderer.vehicle_cache_generation_frozen=false; ended=false
 	render_previous=capture_render_state(); render_current=render_previous.duplicate(true)
 	renderer.set_interpolation(render_previous,render_current,1.0)
 	renderer.combat_fx.ruins=local_visuals.ruins
@@ -3374,6 +3399,10 @@ func load_game(path: String = "") -> void:
 	if production_target_factory_id>0 and (not sim.entities.has(production_target_factory_id) or str(sim.entities[production_target_factory_id].kind)!="factory" or int(sim.entities[production_target_factory_id].owner)!=local_owner()): production_target_factory_id=0
 	accumulator=0; autosave_timer=120.0; clear(overlay); view_container.visible=true
 	build_hud()
+	if sim.result=="":
+		notify("Fahrzeugansichten werden vorbereitet …")
+		await prepare_starting_vehicle_views()
+		vehicle_pose_warmup_active=false; renderer.visual_paused=paused
 	# A loaded run needs a fresh recorder context; otherwise the eventual debrief can
 	# accidentally finish a recorder from a previous run or no recorder at all.
 	var opponent_name:="Gegner-KI"

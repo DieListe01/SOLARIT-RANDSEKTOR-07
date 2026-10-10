@@ -16,6 +16,11 @@ func capture(name_value: String) -> void:
 	await process_frame
 	root.get_texture().get_image().save_png("res://test-output/"+name_value+".png")
 
+func wait_for_vehicle_pose_warmup() -> void:
+	for _frame in 300:
+		if not game.vehicle_pose_warmup_active: return
+		await process_frame
+
 func mouse(local: Vector2, button_value: int = 1, pressed: bool = true) -> void:
 	var raw: Vector2 = root.get_final_transform()*game.get_global_transform_with_canvas()*local
 	var motion := InputEventMouseMotion.new()
@@ -69,6 +74,7 @@ func run() -> void:
 	game.start_game()
 	game.sim.ai_timer=99999
 	check(game.playing and not game.paused,"Start mission")
+	await wait_for_vehicle_pose_warmup()
 	check(game.minimap.get_parent()==game.ui and game.minimap.position.x>=1400 and game.minimap.position.y>=800 and game.minimap.size.x<=180,"Small minimap sits at the lower-right of the battlefield")
 	await process_frame
 	check(game.minimap.terrain_texture!=null and game.minimap.terrain_texture.get_width()==game.sim.grid.width and game.minimap.terrain_texture.get_height()==game.sim.grid.height,"Minimap terrain is rasterized to one map-sized texture")
@@ -214,6 +220,7 @@ func run() -> void:
 	game.category="buildings"
 	game.bookmarks.clear()
 	game.load_game()
+	await wait_for_vehicle_pose_warmup()
 	check(is_equal_approx(game.sim.credits[0],saved_credits),"Main-menu load restores saved credits")
 	check(game.selected==saved_selection and game.groups.has(1),"Load restores usable integer selection and control groups")
 	check(game.renderer.selected.has(game.selected[0]),"Loaded selection is highlighted")
@@ -222,6 +229,7 @@ func run() -> void:
 	game.show_load_dialog(game.show_pause)
 	check(game.overlay.get_node_or_null("LoadGamePanel")!=null,"Load command opens an explicit save-slot chooser")
 	game.load_game()
+	await wait_for_vehicle_pose_warmup()
 	game.show_pause()
 	var t: float = game.sim.time
 	game._process(0.5)
@@ -242,6 +250,7 @@ func run() -> void:
 	var rating_label: Label=debrief_labels.filter(func(item):return item.text.begins_with("BEWERTUNG"))[0]
 	check(not lost_buildings_label.get_global_rect().intersects(rating_label.get_global_rect()),"Debrief rating does not overlap the last match statistic")
 	game.start_game()
+	await wait_for_vehicle_pose_warmup()
 	game.sim.destroy(game.sim.buildings(0,"core")[0].id)
 	game.sim.check_objectives()
 	game._process(0.05)

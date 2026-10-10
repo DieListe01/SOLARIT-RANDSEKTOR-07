@@ -42,6 +42,19 @@ var movement_buckets: Dictionary = {}
 var movement_buckets_valid := false
 var building_ids: Array[int] = []
 var mobile_entity_count := 0
+var profile_enabled := false
+var profile_pathfinding_ms := 0.0
+var profile_separation_ms := 0.0
+var profile_ai_ms := 0.0
+var profile_target_search_ms := 0.0
+var profile_combat_ms := 0.0
+var profile_movement_ms := 0.0
+var profile_projectile_sim_ms := 0.0
+
+func reset_profile_frame() -> void:
+	if not profile_enabled: return
+	profile_pathfinding_ms=0.0; profile_separation_ms=0.0; profile_ai_ms=0.0
+	profile_target_search_ms=0.0; profile_combat_ms=0.0; profile_movement_ms=0.0; profile_projectile_sim_ms=0.0
 
 func unit_radius(kind: String) -> float:
 	return float(UNIT_RADII.get(kind,22.0))
@@ -58,6 +71,7 @@ func rebuild_movement_buckets() -> void:
 	movement_buckets_valid=true
 
 func unit_separation(e: Dictionary) -> Vector2:
+	var profile_started := Time.get_ticks_usec() if profile_enabled else 0
 	var force := Vector2.ZERO
 	var cell := Vector2i(floor(e.pos.x/80.0),floor(e.pos.y/80.0))
 	for y in range(-1,2):
@@ -78,6 +92,7 @@ func unit_separation(e: Dictionary) -> Vector2:
 				if distance<gap*0.65:
 					away=away.rotated(sin(float(mini(e.id,other.id)*7+maxi(e.id,other.id)*3))*0.5)
 				force+=away*(gap-distance)*(2.05 if combat_spread else 1.6)
+	if profile_enabled: profile_separation_ms+=float(Time.get_ticks_usec()-profile_started)/1000.0
 	return force
 
 func team_color(owner: int) -> Color:
@@ -487,7 +502,9 @@ func tick(dt: float) -> void:
 		var id: int = path_requests.pop_front()
 		if entities.has(id):
 			var e: Dictionary = entities[id]
+			var path_started := Time.get_ticks_usec() if profile_enabled else 0
 			e.path=grid.path(e.pos,e.path_goal)
+			if profile_enabled: profile_pathfinding_ms+=float(Time.get_ticks_usec()-path_started)/1000.0
 			e.path_pending=false
 	rebuild_movement_buckets()
 	for e in entities.values():
@@ -496,9 +513,16 @@ func tick(dt: float) -> void:
 			process_building(e,dt)
 		else:
 			if e.kind=="harvester": harvest(e,dt)
+			var movement_started := Time.get_ticks_usec() if profile_enabled else 0
 			move_unit(e,dt)
-		if e.complete: combat(e,dt)
+			if profile_enabled: profile_movement_ms+=float(Time.get_ticks_usec()-movement_started)/1000.0
+		if e.complete:
+			var combat_started := Time.get_ticks_usec() if profile_enabled else 0
+			combat(e,dt)
+			if profile_enabled: profile_combat_ms+=float(Time.get_ticks_usec()-combat_started)/1000.0
+	var projectile_started := Time.get_ticks_usec() if profile_enabled else 0
 	process_projectiles(dt)
+	if profile_enabled: profile_projectile_sim_ms=float(Time.get_ticks_usec()-projectile_started)/1000.0
 	for fx in effects: fx.life-=dt
 	effects=effects.filter(func(f):return f.life>0)
 	fog_timer-=dt
@@ -508,7 +532,10 @@ func tick(dt: float) -> void:
 	ai_timer-=dt
 	ai_production_timer-=dt
 	if ai_timer<=0:
-		if online_mode!="versus" and bool(db.mission.get("ai_enabled",true)): think_ai()
+		if online_mode!="versus" and bool(db.mission.get("ai_enabled",true)):
+			var ai_started := Time.get_ticks_usec() if profile_enabled else 0
+			think_ai()
+			if profile_enabled: profile_ai_ms=float(Time.get_ticks_usec()-ai_started)/1000.0
 		ai_timer=float(db.rules.ai_interval[difficulty])
 	if online_mode!="versus": process_mission_waves()
 	check_objectives()
@@ -739,6 +766,7 @@ func combat(e: Dictionary, dt: float) -> void:
 	if not target.is_empty() and e.order in ["move","guard","stop","hold"] and not definition(target).has("weapon"):
 		target={}; e.target=0
 	if target.is_empty():
+		var target_search_started := Time.get_ticks_usec() if profile_enabled else 0
 		var best := float(weapon.range)+100 if e.order=="attack_move" else float(weapon.range)
 		var best_score := INF
 		for other in entities.values():
@@ -749,6 +777,7 @@ func combat(e: Dictionary, dt: float) -> void:
 			if distance<best and distance>=float(weapon.minimum_range) and score<best_score:
 				best_score=score; target=other
 		if not target.is_empty(): e.target=target.id
+		if profile_enabled: profile_target_search_ms+=float(Time.get_ticks_usec()-target_search_started)/1000.0
 	if target.is_empty():
 		if not e.building and e.order=="attack_move" and e.path.is_empty() and not e.path_pending and e.pos.distance_to(e.destination)>25:
 			request_path(e,e.destination)

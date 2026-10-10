@@ -172,7 +172,7 @@ func emit_effect(kind: String, data: Dictionary, distance: float = 0.0) -> void:
 func draw_ground(c: WorldRenderer) -> void:
 	# Preserve detailed wrecks in ordinary play; trim only tiny debris marks when
 	# a dense battlefield would otherwise submit thousands of tiny draw commands.
-	var compact_wrecks := ruins.size()>12 or c.vfx_budget_tier>=1
+	var compact_wrecks := c.benchmark_compact_wrecks or ruins.size()>12 or c.vfx_budget_tier>=1
 	for mark in craters:
 		if not in_view(c,mark.pos) or not explored(c,mark.pos): continue
 		var fade := 1.0
@@ -187,7 +187,7 @@ func draw_ground(c: WorldRenderer) -> void:
 	var visible_ruin_count := 0
 	for visible_ruin in ruins:
 		if in_view(c,visible_ruin.pos) and explored(c,visible_ruin.pos): visible_ruin_count+=1
-	var very_dense_wrecks := visible_ruin_count>18 or c.vfx_budget_tier>=3
+	var very_dense_wrecks := c.benchmark_compact_wrecks or visible_ruin_count>18 or c.vfx_budget_tier>=3
 	for ruin in ruins:
 		if not in_view(c,ruin.pos) or not explored(c,ruin.pos): continue
 		var scorch := PackedVector2Array()
@@ -198,7 +198,7 @@ func draw_ground(c: WorldRenderer) -> void:
 		if not in_view(c,ruin.pos) or not explored(c,ruin.pos): continue
 		var r: float = ruin.get("radius",42.0 if ruin.building else 21.0)
 		var fade := 1.0
-		var aged_compact := (float(ruin.get("age",0.0))>18.0 and very_dense_wrecks) or (c.vfx_budget_tier>=2 and float(ruin.get("age",0.0))>30.0)
+		var aged_compact := c.benchmark_compact_wrecks or (float(ruin.get("age",0.0))>18.0 and very_dense_wrecks) or (c.vfx_budget_tier>=2 and float(ruin.get("age",0.0))>30.0)
 		if aged_compact:
 			if ruin.building:
 				var extent_simple := Vector2(ruin.footprint[0],ruin.footprint[1])*32.0*0.40

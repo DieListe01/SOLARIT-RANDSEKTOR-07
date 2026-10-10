@@ -9,6 +9,7 @@ const VEHICLE_CACHE_SIZE := 512
 const VEHICLE_CACHE_WORLD_SIZE := 81.92
 const VEHICLE_CACHE_MSAA := Viewport.MSAA_4X
 const VEHICLE_CACHE_CAPACITY := 640
+const VEHICLE_CACHE_PENDING_CAPACITY := 640
 const BuildingCachePainterScript = preload("res://scripts/building_cache_painter.gd")
 
 var sim: Simulation
@@ -22,6 +23,16 @@ var placement_rotation := 0
 var placement_cell := Vector2i.ZERO
 var debug := false
 var profile_enabled := false
+## Opt-in diagnostic switches used by the warm-render A/B harness only.
+## Empty by default; gameplay rendering is unchanged.
+var benchmark_disabled_categories: Array[String] = []
+## Temporary stress-test controls. Defaults reproduce regular gameplay exactly.
+var benchmark_vfx_tier_floor := -1
+var benchmark_vfx_tier_override := -1
+var benchmark_track_cap := 1800
+var benchmark_track_min_distance := 3.0
+var benchmark_track_lifetime := 50.0
+var benchmark_compact_wrecks := false
 var health_mode := "damaged"
 var selection_rect := Rect2()
 var selecting := false
@@ -70,9 +81,19 @@ var culled_mobile_offscreen_count := 0
 var active_vfx_count := 0
 var vfx_budget_tier := 0
 var vehicle_texture_cache: Dictionary = {}
-var vehicle_cache_pending: Dictionary = {}
+# In-flight cache keys are tracked separately so a formation never queues the
+# same missing pose once per vehicle/frame.
+var pending_pose_keys: Dictionary = {}
 var vehicle_cache_queue: Array[Dictionary] = []
 var vehicle_cache_worker_active := false
+## When true, cache misses only draw the nearest existing pose; no SubViewport
+## is rendered until the next loading/prewarm window.
+var vehicle_cache_generation_frozen := false
+## Keep rendered SubViewports alive so their ViewportTextures remain GPU-resident.
+## This avoids copying every newly rendered pose back to the CPU via get_image().
+var vehicle_cache_viewports: Dictionary = {}
+var vehicle_texture_last_used: Dictionary = {}
+var vehicle_cache_fallback_keys: Dictionary = {}
 ## Runtime overrides are only used by the repeatable cache A/B harness. Normal
 ## gameplay remains the unchanged 512x512 / 4x-MSAA reference configuration.
 var vehicle_cache_resolution := VEHICLE_CACHE_SIZE
@@ -164,14 +185,18 @@ func interpolated_entity(entity: Dictionary) -> Dictionary:
 	return visual
 
 func nearest_vehicle_texture(key: String) -> Texture2D:
+	var cached_fallback_key:=str(vehicle_cache_fallback_keys.get(key,""))
+	if not cached_fallback_key.is_empty() and vehicle_texture_cache.has(cached_fallback_key):
+		vehicle_texture_last_used[cached_fallback_key]=Time.get_ticks_usec()
+		return vehicle_texture_cache[cached_fallback_key]
 	var requested: PackedStringArray=key.split("|")
 	var best: Texture2D
+	var best_key: String=""
 	var best_distance:=2147483647
 	for candidate in vehicle_texture_cache:
 		var parts: PackedStringArray=str(candidate).split("|")
 		if parts.size()!=10 or requested.size()!=10: continue
 		if parts[0]!=requested[0] or parts[1]!=requested[1] or parts[2]!=requested[2] or parts[3]!=requested[3]: continue
-		if parts[6]!=requested[6]: continue
 		var heading_delta:=absi(int(parts[4])-int(requested[4]))
 		heading_delta=mini(heading_delta,VEHICLE_HEADING_FRAMES-heading_delta)
 		var turret_delta:=absi(int(parts[5])-int(requested[5]))
@@ -185,10 +210,18 @@ func nearest_vehicle_texture(key: String) -> Texture2D:
 		# Falling back to the live 2D painter here makes the harvester visibly pop.
 		var cargo_delta:=absi(int(parts[7])-int(requested[7]))
 		var state_delta:=0 if parts[8]==requested[8] else 12
-		var distance:=heading_delta*3+turret_delta+drive_delta*2+cargo_delta*2+state_delta
+		var damage_delta:=absi(int(parts[6])-int(requested[6]))
+		var distance:=heading_delta*3+turret_delta+drive_delta*2+cargo_delta*2+state_delta+damage_delta*8
 		if distance<best_distance:
 			best_distance=distance
 			best=vehicle_texture_cache[candidate]
+			best_key=str(candidate)
+	if best!=null:
+		vehicle_texture_last_used[best_key]=Time.get_ticks_usec()
+		# The texture corpus is stable during active play; remember the nearest
+		# ready pose so repeated misses do not scan and split every cache key each
+		# frame. New entries and evictions invalidate this derived index.
+		if vehicle_cache_fallback_keys.size()<4096: vehicle_cache_fallback_keys[key]=best_key
 	return best
 
 func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float, ratio: float) -> bool:
@@ -223,9 +256,9 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	if texture==null:
 		vehicle_cache_misses+=1
 		vehicle_cache_misses_total+=1
-		if not vehicle_cache_pending.has(key) and vehicle_cache_queue.size()<16:
+		if not pending_pose_keys.has(key) and vehicle_cache_queue.size()<VEHICLE_CACHE_PENDING_CAPACITY:
 			record_vehicle_cache_event("cache_miss_queued",key)
-			vehicle_cache_pending[key]=true
+			pending_pose_keys[key]=true
 			var snapshot:=entity.duplicate(true)
 			snapshot.angle=heading_angle
 			snapshot.drive_frame=drive_frame
@@ -234,12 +267,13 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 			snapshot.visual_cargo_state=cargo_state
 			snapshot.visual_damage_state=damage_state
 			vehicle_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner],"turret":turret_angle})
-			process_vehicle_cache_queue.call_deferred()
+			if not vehicle_cache_generation_frozen or visual_paused: process_vehicle_cache_queue.call_deferred()
 		texture=nearest_vehicle_texture(key)
 		if texture==null: return false
 	else:
 		vehicle_cache_hits+=1
 		vehicle_cache_hits_total+=1
+		vehicle_texture_last_used[key]=Time.get_ticks_usec()
 	var base := output*0.5-camera*scale_value+visual_offset*ratio
 	var screen_pos: Vector2=base+(entity.pos+combat_fx.hit_offset(entity.id))*scale_value
 	# Preserve the existing 81.92 world-pixel footprint and image anchor.
@@ -249,12 +283,32 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	return true
 
 func process_vehicle_cache_queue() -> void:
-	if vehicle_cache_worker_active or not is_inside_tree(): return
+	if vehicle_cache_worker_active or not is_inside_tree() or (vehicle_cache_generation_frozen and not visual_paused): return
 	vehicle_cache_worker_active=true
 	while not vehicle_cache_queue.is_empty():
+		if vehicle_cache_generation_frozen and not visual_paused: break
 		var request: Dictionary=vehicle_cache_queue.pop_front()
 		await _build_vehicle_texture(request.key,request.entity,request.team,request.faction,request.turret)
 	vehicle_cache_worker_active=false
+
+func evict_vehicle_cache_entry() -> void:
+	if vehicle_texture_cache.is_empty(): return
+	var oldest_key: String=""
+	var oldest_time:=9223372036854775807
+	for candidate in vehicle_texture_cache:
+		var used:=int(vehicle_texture_last_used.get(candidate,0))
+		if used<oldest_time:
+			oldest_time=used
+			oldest_key=str(candidate)
+	if oldest_key=="": oldest_key=str(vehicle_texture_cache.keys()[0])
+	vehicle_texture_cache.erase(oldest_key)
+	vehicle_texture_last_used.erase(oldest_key)
+	vehicle_cache_fallback_keys.clear()
+	if vehicle_cache_viewports.has(oldest_key):
+		var old_viewport: SubViewport=vehicle_cache_viewports[oldest_key]
+		vehicle_cache_viewports.erase(oldest_key)
+		if is_instance_valid(old_viewport): old_viewport.queue_free()
+	vehicle_cache_evictions_total+=1
 
 func building_cache_key(entity: Dictionary) -> String:
 	var rotation := posmod(int(entity.get("rotation",0)),4)
@@ -385,31 +439,34 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	await RenderingServer.frame_post_draw
 	if not is_instance_valid(viewport):
 		vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
-		vehicle_cache_pending.erase(key)
+		pending_pose_keys.erase(key)
 		return
 	vehicle_cache_last_render_wait_ms=float(Time.get_ticks_usec()-render_wait_started)/1000.0
 	vehicle_cache_render_wait_ms_total+=vehicle_cache_last_render_wait_ms
 	record_vehicle_cache_event("subviewport_render_complete",key,vehicle_cache_last_render_wait_ms)
-	var readback_started:=Time.get_ticks_usec()
-	record_vehicle_cache_event("get_image_start",key)
-	var image: Image=viewport.get_texture().get_image()
-	vehicle_cache_last_readback_ms=float(Time.get_ticks_usec()-readback_started)/1000.0
-	vehicle_cache_readback_ms_total+=vehicle_cache_last_readback_ms
-	vehicle_cache_readbacks_total+=1
-	record_vehicle_cache_event("get_image_end",key,vehicle_cache_last_readback_ms)
-	if image!=null:
-		if vehicle_texture_cache.size()>=vehicle_cache_capacity:
-			var evicted_key: String=vehicle_texture_cache.keys()[0]
-			vehicle_texture_cache.erase(evicted_key)
-			vehicle_cache_evictions_total+=1
-		vehicle_texture_cache[key]=ImageTexture.create_from_image(image)
+	# The viewport target itself is the cached Texture2D. Keep it GPU-resident
+	# and stop updating it after this single pose render; get_image() here caused
+	# a synchronous GPU→CPU readback and was the source of the combat frame spikes.
+	viewport.render_target_update_mode=SubViewport.UPDATE_DISABLED
+	var pose_texture: Texture2D=viewport.get_texture()
+	if pose_texture!=null:
+		if vehicle_texture_cache.size()>=vehicle_cache_capacity: evict_vehicle_cache_entry()
+		vehicle_texture_cache[key]=pose_texture
+		vehicle_cache_fallback_keys.clear()
+		vehicle_cache_viewports[key]=viewport
+		vehicle_texture_last_used[key]=Time.get_ticks_usec()
+		# The rendered image is retained by the SubViewport texture. Its 3D scene
+		# graph is no longer needed after UPDATE_DISABLED and can be released.
+		viewport.remove_child(painter)
+		painter.queue_free()
+		viewport.world_3d=null
 		if vehicle_cache_diagnostics_enabled:
 			if vehicle_cache_created_keys.has(key): vehicle_cache_recreated_poses_total+=1
 			elif vehicle_cache_created_keys.size()<4096: vehicle_cache_created_keys[key]=true
 		vehicle_cache_new_poses_total+=1
 		record_vehicle_cache_event("cache_entry_complete",key,float(Time.get_ticks_usec()-build_started)/1000.0)
-	vehicle_cache_pending.erase(key)
-	viewport.queue_free()
+	if not vehicle_cache_viewports.has(key): viewport.queue_free()
+	pending_pose_keys.erase(key)
 	vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
 
 func seed_mission_ground_details() -> void:
@@ -464,6 +521,7 @@ func _ready() -> void:
 
 func _process(dt: float) -> void:
 	if visual_paused: dt=0.0
+	if visual_paused and not vehicle_cache_queue.is_empty(): process_vehicle_cache_queue.call_deferred()
 	if not visual_paused:
 		elapsed+=dt
 		combat_fx.update(dt)
@@ -489,10 +547,10 @@ func _process(dt: float) -> void:
 			if float(previous_speeds.get(e.id,0))<8 and e.velocity.length()>25:
 				combat_fx.emit_effect("dust",{"pos":e.pos,"weapon":""})
 			previous_speeds[e.id]=e.velocity.length()
-			if old.distance_to(e.pos)>3 and old.distance_to(e.pos)<40:
-				tracks.append({"a":old,"b":e.pos,"angle":e.angle,"life":50.0})
+			if old.distance_to(e.pos)>benchmark_track_min_distance and old.distance_to(e.pos)<40:
+				tracks.append({"a":old,"b":e.pos,"angle":e.angle,"life":benchmark_track_lifetime})
 			previous_positions[e.id]=e.pos
-		while tracks.size()>1800: tracks.pop_front()
+		while tracks.size()>benchmark_track_cap: tracks.pop_front()
 	if sim!=null and sim.grid!=material_grid:
 		tracks.clear(); previous_positions.clear()
 		previous_speeds.clear()
@@ -669,6 +727,11 @@ func _draw() -> void:
 	impact_line_points_heavy.clear(); impact_line_colors_heavy.clear()
 	vehicle_cache_hits=0; vehicle_cache_misses=0
 	building_cache_hits=0; building_cache_misses=0
+	terrain_sprite.visible=not benchmark_disabled_categories.has("world")
+	terrain_detail.visible=not benchmark_disabled_categories.has("world")
+	if benchmark_disabled_categories.has("world"):
+		if profile_enabled: profile_total_ms=float(Time.get_ticks_usec()-profile_started)/1000.0
+		return
 	var output := get_viewport_rect().size
 	heat_layer.size=output
 	var ratio := output.x/logical_size.x
@@ -696,16 +759,19 @@ func _draw() -> void:
 	if live_fps>0 and live_fps<46: vfx_budget_tier=maxi(vfx_budget_tier,3)
 	elif live_fps>0 and live_fps<58: vfx_budget_tier=maxi(vfx_budget_tier,2)
 	elif live_fps>0 and live_fps<82: vfx_budget_tier=maxi(vfx_budget_tier,1)
+	if benchmark_vfx_tier_floor>=0: vfx_budget_tier=maxi(vfx_budget_tier,benchmark_vfx_tier_floor)
+	if benchmark_vfx_tier_override>=0: vfx_budget_tier=clampi(benchmark_vfx_tier_override,0,3)
 	visible_terrain_chunk_count=0
-	for chunk_y in range(maxi(0,floori(float(from.y)/DETAIL_CHUNK_SIZE)),mini(ceili(float(g.height)/DETAIL_CHUNK_SIZE),floori(float(to.y)/DETAIL_CHUNK_SIZE)+1)):
-		for chunk_x in range(maxi(0,floori(float(from.x)/DETAIL_CHUNK_SIZE)),mini(ceili(float(g.width)/DETAIL_CHUNK_SIZE),floori(float(to.x)/DETAIL_CHUNK_SIZE)+1)):
-			var chunk_key:=Vector2i(chunk_x,chunk_y)
-			var chunk_mesh: ArrayMesh=terrain_detail_chunks.get(chunk_key)
-			if chunk_mesh!=null:
-				draw_mesh(chunk_mesh,null)
-			var solarit_mesh: ArrayMesh=solarit_detail_chunks.get(chunk_key)
-			if solarit_mesh!=null: draw_mesh(solarit_mesh,solarit_atlas)
-			if chunk_mesh!=null: visible_terrain_chunk_count+=1
+	if not benchmark_disabled_categories.has("terrain_detail"):
+		for chunk_y in range(maxi(0,floori(float(from.y)/DETAIL_CHUNK_SIZE)),mini(ceili(float(g.height)/DETAIL_CHUNK_SIZE),floori(float(to.y)/DETAIL_CHUNK_SIZE)+1)):
+			for chunk_x in range(maxi(0,floori(float(from.x)/DETAIL_CHUNK_SIZE)),mini(ceili(float(g.width)/DETAIL_CHUNK_SIZE),floori(float(to.x)/DETAIL_CHUNK_SIZE)+1)):
+				var chunk_key:=Vector2i(chunk_x,chunk_y)
+				var chunk_mesh: ArrayMesh=terrain_detail_chunks.get(chunk_key)
+				if chunk_mesh!=null:
+					draw_mesh(chunk_mesh,null)
+				var solarit_mesh: ArrayMesh=solarit_detail_chunks.get(chunk_key)
+				if solarit_mesh!=null: draw_mesh(solarit_mesh,solarit_atlas)
+				if chunk_mesh!=null: visible_terrain_chunk_count+=1
 	for y in range(maxi(0,from.y),mini(g.height,to.y+1)):
 		for x in range(maxi(0,from.x),mini(g.width,to.x+1)):
 			var c := Vector2i(x,y)
@@ -720,22 +786,24 @@ func _draw() -> void:
 	var track_points := PackedVector2Array()
 	var track_colors := PackedColorArray()
 	var track_step:=1 if vfx_budget_tier==0 else (2 if vfx_budget_tier==1 else (3 if vfx_budget_tier==2 else 5))
-	for track_index in range(0,tracks.size(),track_step):
-		var track: Dictionary=tracks[track_index]
-		var offset := Vector2.from_angle(track.angle).orthogonal()*9
-		var shade := Color(0.10,0.12,0.10,0.18*track.life/50.0)
-		for sign_value in [-1,1]:
-			track_points.append(track.a+offset*sign_value); track_points.append(track.b+offset*sign_value)
-			track_colors.append(shade)
+	if not benchmark_disabled_categories.has("tracks"):
+		for track_index in range(0,tracks.size(),track_step):
+			var track: Dictionary=tracks[track_index]
+			var offset := Vector2.from_angle(track.angle).orthogonal()*9
+			var shade := Color(0.10,0.12,0.10,0.18*track.life/maxf(benchmark_track_lifetime,0.1))
+			for sign_value in [-1,1]:
+				track_points.append(track.a+offset*sign_value); track_points.append(track.b+offset*sign_value)
+				track_colors.append(shade)
 	if not track_points.is_empty(): draw_multiline_colors(track_points,track_colors,2.3,true)
 	if profile_enabled: profile_tracks_ms=float(Time.get_ticks_usec()-tracks_started)/1000.0
 	var ground_fx_started := Time.get_ticks_usec() if profile_enabled else 0
-	combat_fx.draw_ground(self)
+	if not benchmark_disabled_categories.has("wrecks"):
+		combat_fx.draw_ground(self)
 	var ground_batch_started:=Time.get_ticks_usec() if profile_enabled else 0
 	flush_impact_batch()
 	if profile_enabled:
 		profile_ground_fx_ms=float(Time.get_ticks_usec()-ground_fx_started)/1000.0
-		profile_wrecks_ms=combat_fx.profile_wrecks_ms+float(Time.get_ticks_usec()-ground_batch_started)/1000.0
+		profile_wrecks_ms=0.0 if benchmark_disabled_categories.has("wrecks") else combat_fx.profile_wrecks_ms+float(Time.get_ticks_usec()-ground_batch_started)/1000.0
 		profile_ruin_count=combat_fx.ruins.size()
 	for memory in sim.known[sim.view_owner].values():
 		if memory.building:
@@ -799,7 +867,7 @@ func _draw() -> void:
 	for render_item in sorted:
 		var e: Dictionary=render_item.entity
 		var visual: Dictionary=render_item.visual
-		if movement_vfx_enabled and not e.building and e.velocity.length()>8 and vfx_budget_tier<2:
+		if movement_vfx_enabled and not benchmark_disabled_categories.has("combat_vfx") and not e.building and e.velocity.length()>8 and vfx_budget_tier<2:
 			var heavy: bool = e.kind in ["harvester","siege","tank"]
 			var dust_count: int=(7 if heavy else 4) if vfx_budget_tier==0 else (3 if heavy else 2)
 			for i in dust_count:
@@ -808,14 +876,16 @@ func _draw() -> void:
 				paint_circle(pos,2+age*(10 if heavy else 5),Color(0.76,0.49,0.24,(1-age)*(0.14 if heavy else 0.09)))
 		if e.building:
 			if profile_enabled: object_profile_started=Time.get_ticks_usec()
-			if not draw_cached_building(e): draw_building(e)
+			if not benchmark_disabled_categories.has("buildings"):
+				if not draw_cached_building(e): draw_building(e)
 			if profile_enabled: profile_buildings_ms+=float(Time.get_ticks_usec()-object_profile_started)/1000.0
 		else:
 			if profile_enabled: object_profile_started=Time.get_ticks_usec()
-			if not draw_cached_vehicle(visual,output,scale_value,ratio):
-				industrial_art.simplified=zoom<0.68
-				draw_unit(visual)
-			draw_vehicle_damage(visual)
+			if not benchmark_disabled_categories.has("vehicles"):
+				if not draw_cached_vehicle(visual,output,scale_value,ratio):
+					industrial_art.simplified=zoom<0.68
+					draw_unit(visual)
+				draw_vehicle_damage(visual)
 			if profile_enabled: profile_vehicles_ms+=float(Time.get_ticks_usec()-object_profile_started)/1000.0
 		if combat_fx.flashes.has(e.id):
 			glow_at(visual.pos,45 if e.building else 22,Color(1,0.82,0.48,float(combat_fx.flashes[e.id])*2.8))
@@ -827,14 +897,14 @@ func _draw() -> void:
 				draw_arc(e.pos,float(sim.db.rules.build_radius)*g.tile,0,TAU,64,Color(0.5,0.9,0.8,0.15),1)
 	var combat_fx_started := Time.get_ticks_usec() if profile_enabled else 0
 	var projectile_started := Time.get_ticks_usec() if profile_enabled else 0
-	for p in sim.projectiles:
+	for p in ([] if benchmark_disabled_categories.has("combat_vfx") else sim.projectiles):
 		var c := g.cell(p.pos)
 		if not g.inside(c) or sim.fog[sim.view_owner][c.y*g.width+c.x]==0: continue
 		if profile_enabled: profile_projectile_count+=1
 		combat_fx.draw_projectile(self,p,vfx_budget_tier)
 	if profile_enabled: profile_projectiles_ms=float(Time.get_ticks_usec()-projectile_started)/1000.0
 	var impacts_started := Time.get_ticks_usec() if profile_enabled else 0
-	for fx in sim.effects:
+	for fx in ([] if benchmark_disabled_categories.has("combat_vfx") else sim.effects):
 		if fx.get("event_backed",false): continue
 		var c := g.cell(fx.pos)
 		if not g.inside(c) or sim.fog[sim.view_owner][c.y*g.width+c.x]==0: continue
@@ -843,7 +913,7 @@ func _draw() -> void:
 		draw_modern_explosion(fx.pos,fx.radius,age,vfx_budget_tier)
 	if profile_enabled: profile_impacts_ms=float(Time.get_ticks_usec()-impacts_started)/1000.0
 	flush_impact_batch()
-	for burst in visual_bursts:
+	for burst in ([] if benchmark_disabled_categories.has("combat_vfx") else visual_bursts):
 		if profile_enabled: profile_particle_count+=1
 		# At the emergency budget, keep completed-building pulses but drop the short-lived
 		# per-shot muzzle decoration. The projectile and hit effects remain untouched.
@@ -859,21 +929,22 @@ func _draw() -> void:
 			var q: Vector2 = burst.pos+direction*age*16
 			append_impact_line(q,q-direction*4,Color(1,0.91,0.62,(1-age)),1.2)
 	flush_impact_batch()
-	combat_fx.draw_effects(self)
+	if not benchmark_disabled_categories.has("combat_vfx"):
+		combat_fx.draw_effects(self)
 	flush_impact_batch()
 	if profile_enabled:
 		profile_combat_fx_ms=float(Time.get_ticks_usec()-combat_fx_started)/1000.0
-		profile_explosions_ms=combat_fx.profile_destroy_ms
-		profile_impacts_ms+=combat_fx.profile_hit_ms+combat_fx.profile_impact_ms
-		profile_projectiles_ms+=combat_fx.profile_shot_ms
-		profile_smoke_ms=combat_fx.profile_smoke_ms+combat_fx.profile_dust_ms
+		profile_explosions_ms=0.0 if benchmark_disabled_categories.has("combat_vfx") else combat_fx.profile_destroy_ms
+		profile_impacts_ms+=0.0 if benchmark_disabled_categories.has("combat_vfx") else combat_fx.profile_hit_ms+combat_fx.profile_impact_ms
+		profile_projectiles_ms+=0.0 if benchmark_disabled_categories.has("combat_vfx") else combat_fx.profile_shot_ms
+		profile_smoke_ms=0.0 if benchmark_disabled_categories.has("combat_vfx") else combat_fx.profile_smoke_ms+combat_fx.profile_dust_ms
 	if profile_enabled: profile_particle_count+=combat_fx.particles.size()
 	var wind_count:=18 if vfx_budget_tier==0 else (10 if vfx_budget_tier==1 else (5 if vfx_budget_tier==2 else 2))
 	for i in wind_count:
 		var wind := camera+Vector2(fposmod(elapsed*13+i*79,half.x*2)-half.x,fposmod(i*143.0,half.y*2)-half.y)
 		if combat_fx.visible(self,wind): draw_line(wind,wind+Vector2(18+i%4*5,2),Color(0.95,0.73,0.38,0.055),0.8,true)
 	var fog_started := Time.get_ticks_usec() if profile_enabled else 0
-	if fog_texture!=null:
+	if fog_texture!=null and not benchmark_disabled_categories.has("fog"):
 		draw_texture_rect(fog_texture,Rect2(Vector2.ZERO,Vector2(g.width,g.height)*g.tile),false)
 		draw_fog_dust(from,to)
 	if profile_enabled: profile_fog_ms=float(Time.get_ticks_usec()-fog_started)/1000.0
@@ -883,11 +954,11 @@ func _draw() -> void:
 	for render_item in sorted:
 		var e: Dictionary=render_item.entity
 		var visual: Dictionary=render_item.visual
-		if e.kind=="harvester" and e.owner==sim.view_owner and (float(e.get("cargo",0.0))>0.0 or selected.has(e.id) or int(e.id)==hovered_entity_id):
+		if not benchmark_disabled_categories.has("health_selection") and e.kind=="harvester" and e.owner==sim.view_owner and (float(e.get("cargo",0.0))>0.0 or selected.has(e.id) or int(e.id)==hovered_entity_id):
 			draw_harvester_cargo(e,visual)
-		if e.kind=="harvester" and e.harvest_state=="UNLOAD":
+		if not benchmark_disabled_categories.has("health_selection") and e.kind=="harvester" and e.harvest_state=="UNLOAD":
 			draw_unload_transfer(e,visual)
-		if selected.has(e.id) or health_mode=="always" or (health_mode=="damaged" and (e.hp<e.max_hp or int(e.id)==hovered_entity_id)):
+		if not benchmark_disabled_categories.has("health_selection") and (selected.has(e.id) or health_mode=="always" or (health_mode=="damaged" and (e.hp<e.max_hp or int(e.id)==hovered_entity_id))):
 			if health_mode!="off" or selected.has(e.id):
 				var w := 42.0 if e.building else 24.0
 				var elevation := float({"core":88,"power":74,"radar":80,"refinery":68,"factory":66,"repair":65,"armory":70}.get(e.kind,58)) if e.building else sim.unit_radius(e.kind)+11.0
@@ -902,9 +973,9 @@ func _draw() -> void:
 				occupied_bars.append(Rect2(p-Vector2(1,1),Vector2(w+2,5)))
 				draw_rect(Rect2(p-Vector2.ONE,Vector2(w+2,5)),INK)
 				draw_rect(Rect2(p,Vector2(w*clampf(e.hp/e.max_hp,0,1),3)),Color(TeamIdentity.health(e.hp/e.max_hp),0.85))
-		if e.owner==sim.view_owner and e.building:
+		if not benchmark_disabled_categories.has("health_selection") and e.owner==sim.view_owner and e.building:
 			draw_world_progress(e,visual)
-		if selected.has(e.id):
+		if not benchmark_disabled_categories.has("health_selection") and selected.has(e.id):
 			draw_selection(visual)
 			if e.owner==sim.view_owner and e.kind=="repair" and e.complete:
 				draw_arc(visual.pos,100,0,TAU,64,Color(sim.team_color(sim.view_owner),0.2),0.8,true)
@@ -912,7 +983,7 @@ func _draw() -> void:
 				draw_line(e.pos,e.rally,Color(0.5,0.95,0.75,0.45),1)
 				draw_line(e.rally,e.rally-Vector2(0,24),sim.team_color(e.owner),2)
 				smooth_polygon(PackedVector2Array([e.rally-Vector2(0,24),e.rally+Vector2(16,-19),e.rally-Vector2(0,14)]),sim.team_color(e.owner))
-		elif int(e.id)==hovered_entity_id:
+		elif not benchmark_disabled_categories.has("health_selection") and int(e.id)==hovered_entity_id:
 			draw_selection(visual,true)
 	if placement!="":
 		var d: Dictionary = sim.db.buildings[placement]
