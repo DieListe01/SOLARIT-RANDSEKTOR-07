@@ -58,6 +58,9 @@ jobs:
           & .\tools\Godot_v4.7.2-stable_win64_console.exe --headless --editor --path . --quit
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Install regression image tooling
+        run: python -m pip install --disable-pip-version-check -r requirements-test.txt
+
       - name: Run full regression suite
         shell: pwsh
         run: .\Test-Solarit.ps1
