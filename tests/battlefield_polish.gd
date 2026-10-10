@@ -13,6 +13,8 @@ func _initialize() -> void:
 	call_deferred("run")
 
 func run() -> void:
+	var terrain_shader := FileAccess.get_file_as_string("res://assets/terrain.gdshader")
+	check(terrain_shader.contains("terrain_cell=(world+warp*1.38*27.0)/32.0") and terrain_shader.contains("kind_at(TEXTURE,world,warp*1.38)") and terrain_shader.contains("world+vec2(0,7),warp*1.38") and terrain_shader.contains("world-vec2(0,5),warp*1.38"),"Terrain material sampling, edge mask and relief probes share the same domain warp")
 	var db := Catalog.new()
 	for count in [1,5,10,20,40]:
 		var model := Simulation.new(db)

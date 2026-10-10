@@ -37,10 +37,9 @@ void fragment() {
 	// Broad, slow domain warping breaks map-cell rectangles into irregular
 	// mineral and ash boundaries without another texture pass or geometry.
 	vec2 warp=vec2(noise(world*0.034),noise(world*0.034+91.0))-0.5;
-	// Keep this boundary field in lockstep with kind_at() so the transition
-	// follows the same warped material cells rather than exposing rectangular
-	// seams between differently distorted samples.
-	vec2 terrain_cell=(world+warp*27.0)/32.0;
+	// Match the scaled domain warp used by kind_at() so transition edges align
+	// with the sampled material cells instead of exposing rectangular seams.
+	vec2 terrain_cell=(world+warp*1.38*27.0)/32.0;
 	float kind=kind_at(TEXTURE,world,warp*1.38);
 	vec3 base=material(kind);
 	vec2 local=fract(terrain_cell);
@@ -67,8 +66,8 @@ void fragment() {
 		variation+=(rock.y-0.5)*0.075;
 		variation-=(1.0-smoothstep(0.0,0.025,rock.x))*0.085;
 		variation+=smoothstep(0.025,0.04,rock.x)*(1.0-smoothstep(0.04,0.09,rock.x))*0.02;
-		float south=kind_at(TEXTURE,world+vec2(0,7),warp);
-		float north=kind_at(TEXTURE,world-vec2(0,5),warp);
+		float south=kind_at(TEXTURE,world+vec2(0,7),warp*1.38);
+		float north=kind_at(TEXTURE,world-vec2(0,5),warp*1.38);
 		if(south==0.0 || south==2.0) variation-=0.10;
 		if(north==0.0 || north==2.0) variation+=0.08;
 		float dust=smoothstep(0.38,0.73,noise(world*0.012+13.0));

@@ -33,8 +33,10 @@ func load_profile() -> void:
 	load_warning = ""
 	if not FileAccess.file_exists(path):
 		return
-	var parsed = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if not parsed is Dictionary or int(parsed.get("profile_version", 0)) > PROFILE_VERSION:
+	var parser := JSON.new()
+	var parse_result := parser.parse(FileAccess.get_file_as_string(path))
+	var parsed: Variant = parser.data
+	if parse_result != OK or not parsed is Dictionary or int(parsed.get("profile_version", 0)) > PROFILE_VERSION:
 		load_warning = "Kommandantenakte konnte nicht gelesen werden."
 		return
 	var loaded: Dictionary = parsed
