@@ -22,7 +22,7 @@ static func add_optional_glb(parent: Node3D, resource_path: String, instance_nam
 	return true
 
 static func apply_team_tint(node: Node, team_color: Color) -> void:
-	if node is MeshInstance3D and (node.name=="TeamColor" or node.name.begins_with("TeamColor luminous column")):
+	if node is MeshInstance3D and node.name.begins_with("TeamColor"):
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance.mesh!=null:
 			for surface in mesh_instance.mesh.get_surface_count():

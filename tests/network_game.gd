@@ -22,6 +22,7 @@ var reconnected := false
 var guest_reconnected := false
 var own_unit_id := 0
 var checks := 0
+var capture_visuals := false
 
 func check(value: bool, message: String) -> bool:
 	checks+=1
@@ -34,6 +35,7 @@ func _initialize() -> void:
 	call_deferred("run")
 
 func run() -> void:
+	capture_visuals=OS.get_environment("SOLARIT_CAPTURE_MULTIPLAYER_SCREENSHOTS")=="1"
 	game=load("res://scenes/main.tscn").instantiate()
 	surface=SubViewport.new(); surface.name="TestSurface"
 	# Network assertions inspect scene state; draw the large test viewport only for captures.
@@ -105,7 +107,7 @@ func run() -> void:
 				finishing=true; probe.rpc_id(online.client_peer_id,"finish")
 			if probe.confirmed:
 				print("NETWORK GAME HOST: %d checks; lobby, chat, own commands, outcome and rematch passed"%checks)
-				online.leave(false); game.music.shutdown(); game.queue_free(); await process_frame; await create_timer(0.15).timeout; quit(0); return
+				online.leave(false); game.music.shutdown(); game.queue_free(); surface.queue_free(); await process_frame; await create_timer(0.15).timeout; quit(0); return
 		if mode=="host" and ending and not online.mission_started: rematching=true
 		await create_timer(0.025).timeout
 	check(false,"timeout in %s: snapshots=%d reports=%d ending=%s rematch=%s second=%s reconnected=%s"%[mode,snapshots,reports,ending,rematching,second_started,reconnected])
@@ -144,7 +146,7 @@ func on_snapshot(snapshot: Dictionary) -> void:
 			await create_timer(0.025).timeout
 		if not check(authoritative_report_received,"host sends the full versioned match report to the duel client"): return
 		await create_timer(0.12).timeout
-		if DisplayServer.get_name() != "headless":
+		if capture_visuals and DisplayServer.get_name() != "headless":
 			surface.render_target_update_mode=SubViewport.UPDATE_ONCE
 			game.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 			RenderingServer.force_draw(false)
@@ -166,7 +168,7 @@ func finish_client() -> void:
 	game.toggle_chat()
 	await process_frame
 	await create_timer(0.12).timeout
-	if DisplayServer.get_name() != "headless":
+	if capture_visuals and DisplayServer.get_name() != "headless":
 		surface.render_target_update_mode=SubViewport.UPDATE_ONCE
 		game.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 		RenderingServer.force_draw(false)
@@ -174,4 +176,4 @@ func finish_client() -> void:
 	probe.rpc_id(1,"confirm")
 	print("NETWORK GAME CLIENT: %d checks; %d filtered snapshots; chat and rematch verified"%[checks,snapshots])
 	await create_timer(0.3).timeout
-	game.online.leave(false); game.music.shutdown(); game.queue_free(); await process_frame; await create_timer(0.15).timeout; quit(0)
+	game.online.leave(false); game.music.shutdown(); game.queue_free(); surface.queue_free(); await process_frame; await create_timer(0.15).timeout; quit(0)

@@ -32,6 +32,16 @@ if ($LASTEXITCODE -ne 0) { throw 'Blender-Modelle für Fahrzeuge und Gebäude fe
 if ($LASTEXITCODE -ne 0) { throw 'Bauzustände und Gebäudeanimationen fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/authored_asset_gallery.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Beschriftete Modellgalerie fehlgeschlagen' }
+& $enginePath --path $gameRoot --script 'tests/faction_vehicle_contact_sheet.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Fraktionsvergleich der Fahrzeugmodelle fehlgeschlagen' }
+& $pythonPath (Join-Path $gameRoot 'tools\assemble_faction_vehicle_contact.py')
+if ($LASTEXITCODE -ne 0) { throw 'Fahrzeug-Kontaktblatt fehlgeschlagen' }
+& $enginePath --path $gameRoot --script 'tests/faction_building_contact_sheet.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Fraktionsvergleich der Gebäudemodelle fehlgeschlagen' }
+& $pythonPath (Join-Path $gameRoot 'tools\assemble_faction_building_contact.py')
+if ($LASTEXITCODE -ne 0) { throw 'Gebäude-Kontaktblatt fehlgeschlagen' }
+& $enginePath --headless --path $gameRoot --script 'tests/faction_vehicle_balance.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Multiplayer-Balance der Fahrzeugfamilien fehlgeschlagen' }
 & $enginePath --headless --path $gameRoot --script 'tests/campaign_units.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Kampagnenfreigaben und neue Einheiten fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/ui_integration.gd'

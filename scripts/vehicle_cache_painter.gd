@@ -45,9 +45,10 @@ func _ready() -> void:
 	camera.look_at(Vector3(0,0.7,0),Vector3.UP)
 	camera.current=true
 	_add_shadow()
+	var faction_asset_path := "res://assets/models/vehicles/factions/%s_%s.glb" % [faction,kind]
 	var asset_path := "res://assets/models/vehicles/%s.glb" % kind
-	if ModelAssets.add_optional_glb(self, asset_path, "Authored vehicle",team):
-		var imported_model := get_node("Authored vehicle") as Node3D
+	if ModelAssets.add_optional_glb(self, faction_asset_path, "Faction vehicle",team) or ModelAssets.add_optional_glb(self, asset_path, "Authored vehicle",team):
+		var imported_model := get_node("Faction vehicle") as Node3D if has_node("Faction vehicle") else get_node("Authored vehicle") as Node3D
 		var body_angle := float(entity.get("angle",0.0))
 		var body_yaw := LowpolyModelFactory.heading_yaw_for_screen_angle(body_angle)
 		imported_model.rotation.y=body_yaw

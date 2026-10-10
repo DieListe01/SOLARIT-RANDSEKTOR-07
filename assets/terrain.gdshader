@@ -29,16 +29,18 @@ vec2 stone(vec2 p) {
 	return vec2(second-first,identifier);
 }
 float kind_at(sampler2D terrain_map, vec2 world, vec2 warp) {
-	vec2 cell=(world+warp*18.0)/32.0;
+	vec2 cell=(world+warp*27.0)/32.0;
 	return floor(texture(terrain_map,(floor(cell)+0.5)/map_cells).r*8.0);
 }
 void fragment() {
 	vec2 world=UV*map_cells*32.0;
-	vec2 warp=vec2(noise(world*0.07),noise(world*0.07+91.0))-0.5;
+	// Broad, slow domain warping breaks map-cell rectangles into irregular
+	// mineral and ash boundaries without another texture pass or geometry.
+	vec2 warp=vec2(noise(world*0.034),noise(world*0.034+91.0))-0.5;
 	// Keep this boundary field in lockstep with kind_at() so the transition
 	// follows the same warped material cells rather than exposing rectangular
 	// seams between differently distorted samples.
-	vec2 terrain_cell=(world+warp*18.0)/32.0;
+	vec2 terrain_cell=(world+warp*27.0)/32.0;
 	float kind=kind_at(TEXTURE,world,warp*1.38);
 	vec3 base=material(kind);
 	vec2 local=fract(terrain_cell);

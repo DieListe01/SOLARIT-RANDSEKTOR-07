@@ -196,9 +196,11 @@ func building(target: CanvasItem, e: Dictionary, size_value: Vector2, team: Colo
 		if progress>=0.50:
 			var scan_y := h*0.32-fposmod(clock*14,h*0.62+24)
 			line(Vector2(-w*0.35,scan_y),Vector2(w*0.35,scan_y),Color(team,0.35),1.4)
-		if progress>=0.85:
+		if progress>=0.50:
+			# Role-specific machinery becomes visible during assembly instead of
+			# every building remaining a generic scaffold until commissioning.
 			var saved_opacity := opacity
-			opacity*=0.55+(progress-0.85)*3.0
+			opacity*=lerpf(0.24,0.72,smoothstep(0.50,0.90,progress))
 			role_details(e,w,h,team,faction)
 			opacity=saved_opacity
 		rect(Rect2(-w*0.3,0,w*0.6,5),RUBBER)

@@ -342,7 +342,12 @@ def design(kind):
             box("Service panel hinge",(side*.43,.78,.28+i*.13),(.035,.035,.055),"steel",.006)
     # A shared, high-contrast owner plate makes friend/enemy identity readable
     # on every role, including the minimal recon rover and hover skimmer.
-    box("TeamColor",(0,1.28,.57),(.42,.055,.20),"team",.012)
+    box("TeamColor",(0,1.28,.57),(.66,.07,.30),"team",.018)
+    # Side enamel plates remain visible when a unit is turned diagonally and
+    # give the owner color enough area to distinguish allied and hostile hulls.
+    side_mark_x={"scout":.55,"raider":.72,"tank":.91,"siege":.91,"lancer":.78,"scorcher":.78,"bulwark":1.02}[kind]
+    for side in (-1,1):
+        box("TeamColor flank identification plate",(side*side_mark_x,.77,.30),(.055,.20,.54),"team",.012)
     # Damage states are separate authored overlays. The existing cache toggles
     # these nodes from simulated hit points, so default renders remain pristine.
     for node_name, level, key in (("DamageLight",.035,"dark"),("DamageHeavy",-.03,"hazard")):

@@ -1,6 +1,17 @@
 {
-  "current_version": "0.38.3",
+  "current_version": "0.38.4",
   "entries": [
+    {
+      "version": "0.38.4",
+      "date": "10.10.2026",
+      "title": "Eigenständige Fraktionsmodelle",
+      "changes": [
+        "Wanderpakt und Prisma-Konklave erhalten für alle acht Fahrzeugrollen eigenständige Blender-Modelle mit eigener Formsprache und mechanischen Details.",
+        "Alle acht Gebäuderollen besitzen jetzt eigene Wanderpakt- und Prisma-Modelle statt fraktionsübergreifend dieselbe Kobalt-Basis zu verwenden.",
+        "Fraktionsmodelle durchlaufen dieselbe 3D-SubViewport-Pipeline; ein Kontaktblatt vergleicht die Fahrzeuge und Gebäude nebeneinander in Farbe und Graustufen.",
+        "Rollen-Hitboxen, Ziel- und Schussursprung sowie Sicht, Reichweite, Drehung und Bauzeit bleiben modellunabhängig. Das Balance-Audit dokumentiert die bestehenden Fraktionsboni und die 3D-Abmessungen jeder Fahrzeugrolle."
+      ]
+    },
     {
       "version": "0.38.3",
       "date": "10.10.2026",

@@ -15,9 +15,11 @@ OUT = ROOT / "assets" / "models" / "textures" / "industrial"
 SIZE = 512
 
 PALETTES = {
-    "ceramic": ((191, 165, 113), (220, 198, 145), (109, 88, 58)),
-    "graphite": ((38, 48, 45), (61, 72, 66), (16, 23, 22)),
-    "steel": ((92, 105, 96), (137, 145, 131), (48, 57, 54)),
+    # Warm armored enamel is intentionally a mid-value now: the previous
+    # near-ivory maps washed out the silhouettes and made every role read alike.
+    "ceramic": ((142, 123, 89), (183, 161, 119), (71, 62, 47)),
+    "graphite": ((27, 36, 34), (48, 59, 54), (11, 17, 16)),
+    "steel": ((72, 86, 80), (119, 132, 119), (36, 46, 43)),
     "enamel": ((20, 173, 153), (47, 214, 196), (8, 92, 84)),
     "safety": ((185, 119, 45), (225, 166, 73), (90, 57, 30)),
     "rubber": ((23, 29, 27), (44, 49, 43), (8, 12, 12)),

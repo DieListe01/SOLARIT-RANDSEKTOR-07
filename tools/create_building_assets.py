@@ -75,7 +75,7 @@ def mat(name, color, metallic=0.0, rough=0.5, emission=0.0, texture_key=""):
     return m
 
 M = {
-    "armor": mat("Ceramic armor · warm ivory", (.69,.60,.41), .32,.48,0,"ceramic"),
+    "armor": mat("Ceramic armor · weathered field enamel", (.50,.43,.31), .42,.56,0,"ceramic"),
     "dark": mat("Graphite structural steel", (.075,.09,.078), .68,.48,0,"graphite"),
     "steel": mat("Machined steel", (.29,.33,.29), .78,.38,0,"steel"),
     "team": mat("TeamColor · faction enamel", (.035,.82,.71), .25,.34,.85,"enamel"),
@@ -348,7 +348,7 @@ def base(kind,w=2.8,d=2.8):
     elif kind=="armory": contour=[(-w*.5,-d*.34),(-w*.34,-d*.5),(w*.34,-d*.5),(w*.5,-d*.34),(w*.5,d*.34),(w*.34,d*.5),(-w*.34,d*.5),(-w*.5,d*.34)]
     prism("Load-spreading cast foundation",contour,.02,.30,M["dark"],.045)
     inset=[(x*.92,z*.92) for x,z in contour]
-    prism("Replaceable ceramic deck",inset,.30,.41,M["armor"],.025)
+    prism("Replaceable graphite service deck",inset,.30,.41,M["steel"],.025)
     for index,(x,z) in enumerate(contour):
         cube("Foundation shear key %02d"%index,(x*.94,.18,z*.94),(.14,.35,.14),M["steel"],.024)
     # Visible service rails break up the edge only where mechanics need it.
@@ -357,6 +357,10 @@ def base(kind,w=2.8,d=2.8):
             for z in [-d*.33,d*.33]:
                 if kind=="factory" and z>0: continue
                 cube("Flush service rail",(side*w*.43,.34,z),(.10,.12,.25),M["hazard"],.02)
+    # A broad owner enamel panel makes allegiance legible at RTS zoom rather
+    # than relying on tiny lamps. It stays inside the footprint to avoid crop.
+    badge_y=0.56 if kind not in ["tower","radar"] else 0.72
+    cube("TeamColor faction identity shield",(0,badge_y,d*.465),(w*.30,.16,.055),M["team"],.022)
 
 def wall_panels(w,d,y=.85):
     for side in [-1,1]:

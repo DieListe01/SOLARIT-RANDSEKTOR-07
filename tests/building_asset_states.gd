@@ -24,6 +24,18 @@ func run() -> void:
 	var inactive_factory:String=game.renderer.building_cache_key(factory)
 	factory.queue.append({"kind":"tank"})
 	assert(game.renderer.building_cache_key(factory)!=inactive_factory,"An active vehicle-production queue must select its animated assembly pose")
+	factory.complete=false
+	var construction_time:=maxf(0.01,float(sim.definition(factory).time))
+	factory.build_progress=construction_time*0.20
+	var foundation_stage:String=game.renderer.building_cache_key(factory)
+	factory.build_progress=construction_time*0.50
+	var frame_stage:String=game.renderer.building_cache_key(factory)
+	factory.build_progress=construction_time*0.80
+	var assembly_stage:String=game.renderer.building_cache_key(factory)
+	factory.build_progress=construction_time*0.95
+	var commissioning_stage:String=game.renderer.building_cache_key(factory)
+	assert(foundation_stage!=frame_stage and frame_stage!=assembly_stage and assembly_stage!=commissioning_stage,"The four authored 3D construction phases must use distinct cached configurations")
+	factory.complete=true
 	var radar_id:=sim.spawn("radar",0,origin+Vector2(360,0),true)
 	var radar: Dictionary=sim.entities[radar_id]
 	game.renderer.elapsed=0.0
@@ -40,6 +52,6 @@ func run() -> void:
 	var repair_idle:String=game.renderer.building_cache_key(repair)
 	repair.repair=true
 	assert(game.renderer.building_cache_key(repair)!=repair_idle,"An operating repair hangar must select an active service pose")
-	print("Building cache-state audit: refinery unloading, vehicle production, rotating radar, turret aim and repair activity select authored poses")
+	print("Building cache-state audit: 3D construction phases, refinery unloading, vehicle production, rotating radar, turret aim and repair activity select authored poses")
 	game.music.shutdown(); game.queue_free(); await process_frame
 	quit()

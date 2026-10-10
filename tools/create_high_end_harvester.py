@@ -58,9 +58,9 @@ def make_material(name, color, metallic=0.0, roughness=0.55, noise=0.0, emission
 
 
 MAT = {
-    "armor": make_material("01 · Veyra enamel / warm ivory", (0.66, 0.57, 0.37), 0.42, 0.39, 0.12),
-    "shadow": make_material("02 · Graphite armor", (0.075, 0.092, 0.083), 0.58, 0.44, 0.17),
-    "steel": make_material("03 · Brushed machine steel", (0.27, 0.31, 0.28), 0.78, 0.31, 0.2),
+    "armor": make_material("01 · Veyra weathered field enamel", (0.48, 0.41, 0.29), 0.48, 0.48, 0.16),
+    "shadow": make_material("02 · Graphite armor", (0.052, 0.068, 0.063), 0.66, 0.48, 0.20),
+    "steel": make_material("03 · Brushed machine steel", (0.20, 0.25, 0.23), 0.82, 0.36, 0.22),
     "rubber": make_material("04 · Track elastomer", (0.032, 0.041, 0.039), 0.04, 0.82, 0.28),
     "track": make_material("05 · Track shoe manganese steel", (0.19, 0.22, 0.20), 0.75, 0.48, 0.24),
     "team": make_material("TeamColor · faction identification", (0.92, 0.95, 0.93), 0.24, 0.3, 0.05),
@@ -512,7 +512,9 @@ def create_animations(rig, head, cutter_actuator, cutter_rotor, conveyor):
     animate_location(move,rig,[(1,0.0),(6,0.12),(11,0.0),(16,-0.08),(21,0.0),(26,0.12),(31,0.0),(36,-0.08),(40,0.0)])
     actions.append(move)
     harvest=new_action("Harvest")
-    animate_rotation(harvest,cutter_actuator,[(1,0.0),(11,0.78),(21,0.0),(31,-0.78),(40,0.0)])
+    # Stronger work stroke and a steady powered drum make harvesting legible at
+    # gameplay scale. The authored cache still samples the same eight frames.
+    animate_rotation(harvest,cutter_actuator,[(1,0.0),(11,0.92),(21,0.0),(31,-0.92),(40,0.0)])
     animate_rotation(harvest,cutter_rotor,[(1,0.0),(11,math.pi*0.5),(21,math.pi),(31,math.pi*1.5),(40,math.tau)])
     for i,flight in enumerate(slats):
         animate_location(harvest,flight,[(1,-0.55+(i%2)*0.06),(11,-0.18+(i%2)*0.06),(21,0.18+(i%2)*0.06),(31,0.53+(i%2)*0.06),(40,-0.55+(i%2)*0.06)])

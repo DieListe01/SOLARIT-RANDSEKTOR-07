@@ -153,6 +153,24 @@ var profile_ruin_count := 0
 var profile_projectile_count := 0
 var profile_impact_count := 0
 var profile_particle_count := 0
+
+func _exit_tree() -> void:
+	# Cache entries hold references to SubViewport textures and their render
+	# targets. Drop those references explicitly when a match/renderer is torn
+	# down so OpenGL compatibility clients do not leave GPU textures behind.
+	vehicle_cache_generation_frozen=true
+	vehicle_cache_queue.clear()
+	pending_pose_keys.clear()
+	building_cache_queue.clear()
+	building_cache_pending.clear()
+	for viewport in vehicle_cache_viewports.values():
+		if is_instance_valid(viewport): viewport.queue_free()
+	vehicle_cache_viewports.clear()
+	vehicle_texture_cache.clear()
+	vehicle_texture_last_used.clear()
+	vehicle_cache_fallback_keys.clear()
+	building_texture_cache.clear()
+	building_texture_times.clear()
 var impact_disc_vertices := PackedVector3Array()
 var impact_disc_colors := PackedColorArray()
 var impact_disc_indices := PackedInt32Array()
@@ -285,7 +303,7 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 func process_vehicle_cache_queue() -> void:
 	if vehicle_cache_worker_active or not is_inside_tree() or (vehicle_cache_generation_frozen and not visual_paused): return
 	vehicle_cache_worker_active=true
-	while not vehicle_cache_queue.is_empty():
+	while not vehicle_cache_queue.is_empty() and is_inside_tree():
 		if vehicle_cache_generation_frozen and not visual_paused: break
 		var request: Dictionary=vehicle_cache_queue.pop_front()
 		await _build_vehicle_texture(request.key,request.entity,request.team,request.faction,request.turret)
@@ -318,7 +336,12 @@ func building_cache_key(entity: Dictionary) -> String:
 	var upgrade_stage:=int(entity.get("upgrade_level",0))
 	var unloading:=_refinery_receiving(entity) if entity.kind=="refinery" else false
 	var animation_frame:=_building_animation_frame(entity)
-	return "%s|%d|%s|%d|%d|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage,1 if unloading else 0,animation_frame]
+	var construction_stage:=5
+	if not entity.complete:
+		var total:=maxf(0.01,float(sim.definition(entity).time))
+		var ratio:=clampf(float(entity.get("build_progress",0.0))/total,0.0,1.0)
+		construction_stage=_construction_stage_index(ratio)
+	return "%s|%d|%s|%d|%d|%d|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage,1 if unloading else 0,animation_frame,construction_stage]
 
 func _building_animation_frame(entity: Dictionary) -> int:
 	if entity.kind in ["core", "radar"]: return posmod(int(elapsed*1.1),8)
@@ -336,13 +359,8 @@ func _refinery_receiving(refinery: Dictionary) -> bool:
 
 func draw_cached_building(entity: Dictionary) -> bool:
 	if classic: return false
-	# Construction stays live because its silhouette changes with build progress.
-	# Completed buildings, including those being upgraded, use a cached stable
-	# body; damage, repair and upgrade progress are drawn separately so combat
-	# cannot force an expensive full-art redraw on every frame.
-	if not entity.complete:
-		building_cache_misses+=1
-		return false
+	# Each authored 3D build phase has a separate stable cache entry. Fine-grained
+	# progress remains in the HUD bar, while phase transitions alter the model.
 	var key := building_cache_key(entity)
 	var texture: Texture2D=building_texture_cache.get(key)
 	if texture==null:
@@ -352,6 +370,11 @@ func draw_cached_building(entity: Dictionary) -> bool:
 			var snapshot: Dictionary=entity.duplicate(true)
 			snapshot.unloading=_refinery_receiving(entity) if entity.kind=="refinery" else false
 			snapshot.building_animation_frame=_building_animation_frame(entity)
+			snapshot.construction_stage=5
+			if not entity.complete:
+				var total:=maxf(0.01,float(sim.definition(entity).time))
+				var ratio:=clampf(float(entity.get("build_progress",0.0))/total,0.0,1.0)
+				snapshot.construction_stage=_construction_stage_index(ratio)
 			if entity.kind=="tower": snapshot.turret=float(posmod(roundi(float(entity.get("turret",0.0))*16.0/TAU),16))*TAU/16.0
 			building_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner]})
 			process_building_cache_queue.call_deferred()
@@ -365,7 +388,7 @@ func draw_cached_building(entity: Dictionary) -> bool:
 func process_building_cache_queue() -> void:
 	if building_cache_worker_active or not is_inside_tree(): return
 	building_cache_worker_active=true
-	while not building_cache_queue.is_empty():
+	while not building_cache_queue.is_empty() and is_inside_tree():
 		var request: Dictionary=building_cache_queue.pop_front()
 		await _build_building_texture(request.key,request.entity,request.team,request.faction)
 	building_cache_worker_active=false
@@ -396,6 +419,10 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 	viewport.add_child(painter)
 	add_child(viewport)
 	await RenderingServer.frame_post_draw
+	if not is_inside_tree():
+		building_cache_pending.erase(key)
+		if is_instance_valid(viewport): viewport.queue_free()
+		return
 	if not is_instance_valid(viewport): return
 	var image := viewport.get_texture().get_image()
 	if image!=null:
@@ -437,6 +464,11 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	var render_wait_started:=Time.get_ticks_usec()
 	record_vehicle_cache_event("subviewport_render_start",key)
 	await RenderingServer.frame_post_draw
+	if not is_inside_tree():
+		pending_pose_keys.erase(key)
+		vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
+		if is_instance_valid(viewport): viewport.queue_free()
+		return
 	if not is_instance_valid(viewport):
 		vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
 		pending_pose_keys.erase(key)
@@ -1013,6 +1045,13 @@ func _construction_phase(progress: float) -> String:
 	if progress < 0.85: return "MONTAGE"
 	if progress < 1.0: return "INBETRIEBNAHME"
 	return "BETRIEBSBEREIT"
+
+func _construction_stage_index(progress: float) -> int:
+	if progress<0.25: return 0
+	if progress<0.50: return 1
+	if progress<0.75: return 2
+	if progress<0.85: return 3
+	return 4
 
 func _world_progress_data(e: Dictionary) -> Dictionary:
 	if sim==null or e.owner!=sim.view_owner or not e.building: return {}

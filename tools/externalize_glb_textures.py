@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEXTURES = ROOT / "assets" / "models" / "textures" / "industrial"
 
 
-def externalize(source: Path, target: Path | None = None) -> int:
+def externalize(source: Path, target: Path | None = None, texture_root: Path | None = None) -> int:
     target = target or source
     data = source.read_bytes()
     if len(data) < 20:
@@ -52,7 +52,8 @@ def externalize(source: Path, target: Path | None = None) -> int:
             continue
         name = Path(image.get("name", "")).name
         map_name = name if name.lower().endswith(".png") else f"{name}.png"
-        texture_path = TEXTURES / map_name
+        override_path = texture_root / map_name if texture_root is not None else None
+        texture_path = override_path if override_path is not None and override_path.is_file() else TEXTURES / map_name
         if not texture_path.is_file():
             raise FileNotFoundError(f"No canonical PBR texture for {source.name}: {map_name}")
         image["uri"] = Path(os.path.relpath(texture_path, target.parent)).as_posix()
