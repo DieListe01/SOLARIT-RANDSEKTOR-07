@@ -94,7 +94,9 @@ func run() -> void:
 	check(game.selected.size()==1 and game.selected[0]==game.sim.buildings(0,"core")[0].id,"Engine mouse events select core")
 	var first_scout: Dictionary = game.sim.entities.values().filter(func(e):return e.owner==0 and e.kind=="scout")[0]
 	await click_world(first_scout.pos)
-	await process_frame
+	for _frame in 60:
+		if game.hovered_entity_id==first_scout.id and game.hover_panel.visible and game.hover_label.text.contains("Späher"): break
+		await process_frame
 	check(game.selected.size()==1 and game.selected[0]==first_scout.id,"Engine mouse events select unit")
 	check(game.hovered_entity_id==first_scout.id and game.hover_panel.visible and game.hover_label.text.contains("Späher"),"Unit hover reveals a selectable highlight and identity card")
 	var move_point: Vector2 = first_scout.pos+Vector2(0,120)
