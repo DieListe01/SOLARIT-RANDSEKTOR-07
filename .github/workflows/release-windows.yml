@@ -75,7 +75,9 @@ jobs:
           if (-not $setResolution) { throw 'Set-DisplayResolution is unavailable on this Windows runner.' }
           Set-DisplayResolution -Width 1920 -Height 1080 -Force
           Start-Sleep -Seconds 2
-          $resolution = (Get-DisplayResolution | Out-String).Trim()
+          $resolutionOutput = Get-DisplayResolution | Out-String
+          $resolution = -join ($resolutionOutput.ToCharArray() | Where-Object { [int]$_ -ne 0 })
+          $resolution = $resolution.Trim()
           Write-Host "Windows runner display resolution: $resolution"
           if ($resolution -notmatch '^1920\s*x\s*1080$') {
             throw "Windows runner display resolution is '$resolution', expected 1920x1080."
