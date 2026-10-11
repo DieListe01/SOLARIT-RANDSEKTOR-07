@@ -32,9 +32,10 @@ $env:LOCALAPPDATA = $env:APPDATA
 $env:SOLARIT_DISABLE_ONLINE_STATS = '1'
 
 $tests = [System.Collections.Generic.List[object]]::new()
-function Add-GodotTest([string]$GroupName, [string]$Name, [bool]$Headless = $true, [int]$TimeoutSeconds = 300) {
+function Add-GodotTest([string]$GroupName, [string]$Name, [bool]$Headless = $true, [int]$TimeoutSeconds = 300, [string]$RenderingMethod = '') {
     $args = @()
     if ($Headless) { $args += '--headless' }
+    if ($RenderingMethod) { $args += @('--rendering-method', $RenderingMethod) }
     $args += @('--path', ('"{0}"' -f $gameRoot), '--script', "tests/$Name.gd")
     $tests.Add([pscustomobject]@{ Group=$GroupName; Name="$Name.gd"; File="tests/$Name.gd"; Kind='Godot'; Executable=$enginePath; Arguments=$args; TimeoutSeconds=$TimeoutSeconds })
 }
@@ -72,7 +73,7 @@ Add-GodotTest 'Mission' 'campaign_units' $true 300
 
 Add-GodotTest 'Audio' 'audio_integration' $true 300
 
-Add-GodotTest 'UI' 'ui_integration' $false 300
+Add-GodotTest 'UI' 'ui_integration' $false 300 'mobile'
 Add-GodotTest 'UI' 'frontend' $false 600
 Add-GodotTest 'UI' 'intro_cinematic' $false 600
 Add-GodotTest 'UI' 'update_info' $false 300
