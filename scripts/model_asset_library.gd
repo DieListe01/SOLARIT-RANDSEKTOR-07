@@ -49,8 +49,10 @@ static func apply_building_pose(root: Node3D, entity: Dictionary) -> void:
 	_set_yaw(root, "RadarRotor", float(frame) * TAU / 8.0)
 	_set_yaw(root, "TurretPivot", float(entity.get("turret", 0.0)))
 	_set_yaw(root, "ProductionCrane", sin(float(frame) * TAU / 4.0) * 0.34)
-	_set_yaw(root, "AssemblyArmLeft", -0.10 - float(frame % 3) * 0.10)
-	_set_yaw(root, "AssemblyArmRight", 0.10 + float(frame % 3) * 0.10)
+	_set_yaw(root, "AssemblyArmLeft", -0.10 - float(frame % 4) * 0.12)
+	_set_yaw(root, "AssemblyArmRight", 0.10 + float(frame % 4) * 0.12)
+	if str(entity.get("kind", "")) == "factory" and (not entity.get("queue", []).is_empty() or int(entity.get("production_exit_unit",0))>0):
+		_apply_factory_mechanism_pose(root, str(entity.get("faction", "forge")), frame)
 	_set_yaw(root, "RepairArmLeft", -0.30 if frame > 0 else 0.0)
 	_set_yaw(root, "RepairArmRight", 0.30 if frame > 0 else 0.0)
 	_set_yaw(root, "OrdnanceLift", sin(float(frame) * TAU / 4.0) * 0.22)
@@ -60,6 +62,25 @@ static func apply_building_pose(root: Node3D, entity: Dictionary) -> void:
 	var upgrade := root.find_child("UpgradeStage2", true, false)
 	if upgrade != null:
 		upgrade.visible = int(entity.get("upgrade_level", 0)) >= 1
+
+## Move each faction's authored production mechanism through the existing four
+## cached working poses. All moving parts use nodes from that faction's GLB.
+static func _apply_factory_mechanism_pose(root: Node3D, faction: String, frame: int) -> void:
+	var phase := sin(float(frame) * TAU / 4.0)
+	if faction == "forge":
+		_set_yaw(root, "ProductionCrane", phase * 0.34)
+		var ramp := root.find_child("Hydraulic deployment ramp", true, false) as Node3D
+		if ramp != null: ramp.rotation.x = -0.04 - float(frame) * 0.035
+	elif faction == "drift":
+		var roller := root.find_child("Drive-in roller", true, false) as Node3D
+		if roller != null: roller.position.x += phase * 0.28
+		var skid := root.find_child("Vehicle assembly skid", true, false) as Node3D
+		if skid != null: skid.position.z += phase * 0.12
+	else:
+		var trolley := root.find_child("Prismatic assembly trolley", true, false) as Node3D
+		if trolley != null: trolley.position.x += phase * 0.18
+		var slab := root.find_child("Floating central armor slab", true, false) as Node3D
+		if slab != null: slab.position.y += 0.10 + absf(phase) * 0.08
 
 static func _set_yaw(root: Node, node_name: String, yaw: float) -> void:
 	var node := root.find_child(node_name, true, false) as Node3D
@@ -102,3 +123,109 @@ static func apply_cached_animation(root: Node, entity: Dictionary) -> StringName
 	player.seek(pose_time,true)
 	player.pause()
 	return animation_name
+
+## Collapse the authored vehicle mesh into its post-destruction state before an
+## offline 3D wreck atlas render. The intact role-specific model and its
+## authored heavy-damage modules remain visible, so the final wreck is derived
+## from the actual faction/role asset rather than a generic canvas silhouette.
+static func apply_vehicle_destruction_pose(root: Node3D, entity: Dictionary) -> void:
+	var wreck_entity:=entity.merged({"visual_damage_state":2},true)
+	if str(entity.get("kind",""))=="harvester": wreck_entity["visual_cargo_state"]=8
+	apply_cached_animation(root,wreck_entity)
+	_apply_burnt_materials(root)
+	root.scale*=Vector3(1.0,0.40,1.0)
+	root.rotation.z+=0.24
+	var turret:=root.find_child("Turret",true,false) as Node3D
+	if turret!=null:
+		# The detached and canted weapon assembly remains recognizable at RTS zoom.
+		turret.position+=Vector3(0.62,-0.34,0.64)
+		turret.rotation.x+=0.44
+		turret.rotation.z+=0.56
+	var cutter:=root.find_child("CutterDrumRotor",true,false) as Node3D
+	if cutter!=null:
+		cutter.position+=Vector3(0.16,-0.08,0.30)
+		cutter.rotation.x+=0.72
+	for module_name in ["ProductionCrane","UnloadGate","RadarRotor","CommandSensorPivot","OrdnanceLift"]:
+		var module:=root.find_child(module_name,true,false) as Node3D
+		if module!=null:
+			module.position.y-=0.18
+			module.rotation.x+=0.72
+			module.rotation.z+=0.38
+	# Reuse the model's authored heavy-damage panel mesh as displaced wreckage,
+	# keeping this tied to the source model instead of replacing it with generic
+	# debris primitives.
+	var damage_panel:=root.find_child("DamageHeavy overlay",true,false) as MeshInstance3D
+	if damage_panel!=null and damage_panel.mesh!=null:
+		for index in 2:
+			var fragment:=MeshInstance3D.new()
+			fragment.name="Detached authored armor fragment %d"%index
+			fragment.mesh=damage_panel.mesh
+			var panel_material:=damage_panel.get_active_material(0)
+			if panel_material==null:
+				var shard_material:=StandardMaterial3D.new()
+				shard_material.albedo_color=Color("55483b")
+				shard_material.roughness=0.9
+				fragment.material_override=shard_material
+			else: fragment.material_override=panel_material
+			fragment.scale=Vector3(0.58,0.58,0.58)
+			fragment.position=Vector3(-0.78+index*1.48,0.07,0.42-index*0.83)
+			fragment.rotation=Vector3(0.50+index*0.25,0.45,-0.70+index*0.9)
+			root.add_child(fragment)
+	_add_3d_rubble(root,3.6 if str(entity.get("kind","")) in ["siege","harvester","bulwark"] else 2.8)
+
+## Building wrecks likewise retain the authored building's machinery and
+## silhouette, while the known animated pivots receive a role-specific failure
+## pose. These are static snapshots after baking and add no runtime animation.
+static func apply_building_destruction_pose(root: Node3D, kind: String) -> void:
+	_apply_burnt_materials(root)
+	root.scale*=Vector3(1.08,0.43,1.08)
+	root.rotation.z=0.13
+	var failure_pivot: String=""
+	match kind:
+		"refinery": failure_pivot="UnloadGate"
+		"factory": failure_pivot="ProductionCrane"
+		"radar": failure_pivot="RadarRotor"
+		"power": failure_pivot="ReactorRotor"
+		"tower": failure_pivot="TurretPivot"
+		"core": failure_pivot="CommandSensorPivot"
+		"repair": failure_pivot="RepairArmLeft"
+		"armory": failure_pivot="OrdnanceLift"
+	if failure_pivot!="":
+		var pivot:=root.find_child(failure_pivot,true,false) as Node3D
+		if pivot!=null:
+			pivot.position.y-=0.28
+			pivot.rotation.x+=0.92
+			pivot.rotation.z+=0.64
+	_add_3d_rubble(root,3.4)
+
+static func _apply_burnt_materials(root: Node) -> void:
+	for node in root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance:=node as MeshInstance3D
+		if mesh_instance.mesh==null: continue
+		for surface in mesh_instance.mesh.get_surface_count():
+			var source:=mesh_instance.get_active_material(surface) as BaseMaterial3D
+			if source==null: continue
+			var charred:=source.duplicate() as BaseMaterial3D
+			var glow_part:=mesh_instance.name.begins_with("TeamColor")
+			var darkening:=0.56 if glow_part else 0.76
+			charred.albedo_color=source.albedo_color.lerp(Color("211d19"),darkening)
+			charred.roughness=0.96
+			charred.emission_enabled=false
+			mesh_instance.set_surface_override_material(surface,charred)
+
+static func _add_3d_rubble(root: Node3D, span: float) -> void:
+	for index in 3:
+		var shard:=MeshInstance3D.new()
+		shard.name="Collapsed 3D armor and structure %d"%index
+		var mesh:=BoxMesh.new()
+		mesh.size=Vector3(0.62+0.20*float(index%2),0.18+0.05*float(index),1.0-0.14*float(index))
+		shard.mesh=mesh
+		shard.position=Vector3(-span*0.45+float(index)*span*0.45,0.08,-0.48+0.46*float(index))
+		shard.rotation=Vector3(0.16+0.36*float(index),0.35*float(index),-0.68+0.54*float(index))
+		var material:=StandardMaterial3D.new()
+		material.albedo_color=[Color("292b29"),Color("534639"),Color("79715f")][index]
+		material.roughness=0.94
+		material.metallic=0.48
+		shard.material_override=material
+		shard.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(shard)

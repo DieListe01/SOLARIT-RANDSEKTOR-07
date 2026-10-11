@@ -46,5 +46,8 @@ func _initialize() -> void:
 	check(Protocol.state_hash(ordered_a)==Protocol.state_hash(ordered_b),"state fingerprint ignores dictionary insertion order")
 	ordered_b.a.b=4
 	check(Protocol.state_hash(ordered_a)!=Protocol.state_hash(ordered_b),"state fingerprint detects changed values")
+	# Session.new() is an unattached Node in this unit test; free it explicitly
+	# so the test process does not retain OnlineSession's script/resource at exit.
+	session.free()
 	print("NETWORK PROTOCOL: %d checks, %d failures" % [checks,failures])
 	quit(1 if failures else 0)

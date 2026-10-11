@@ -28,8 +28,16 @@ foreach ($testScript in @('regression', 'mission_system', 'playthrough', 'perfor
 if ($LASTEXITCODE -ne 0) { throw '2.5D-Fahrzeug- und Gebäudemodelle fehlgeschlagen' }
 & $enginePath --headless --path $gameRoot --script 'tests/authored_assets.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Blender-Modelle für Fahrzeuge und Gebäude fehlgeschlagen' }
+& $enginePath --headless --path $gameRoot --script 'tests/destruction_assets.gd'
+if ($LASTEXITCODE -ne 0) { throw '3D-Zerstörungsatlanten fehlgeschlagen' }
 & $enginePath --headless --path $gameRoot --script 'tests/building_asset_states.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Bauzustände und Gebäudeanimationen fehlgeschlagen' }
+& $enginePath --headless --path $gameRoot --script 'tests/factory_production.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Fahrzeugwerftproduktion fehlgeschlagen' }
+& $enginePath --headless --path $gameRoot --script 'tests/factory_production_visuals.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Visuelle Fahrzeugwerftproduktion fehlgeschlagen' }
+& $enginePath --headless --path $gameRoot --script 'tests/factory_production_preview_cache.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Vorbereitung der Fahrzeugwerftansichten fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/authored_asset_gallery.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Beschriftete Modellgalerie fehlgeschlagen' }
 & $enginePath --path $gameRoot --script 'tests/faction_vehicle_contact_sheet.gd'

@@ -1,6 +1,17 @@
 {
-  "current_version": "0.38.9",
+  "current_version": "0.38.10",
   "entries": [
+    {
+      "version": "0.38.10",
+      "date": "11.10.2026",
+      "title": "Fahrzeugproduktion in der Werft sichtbar",
+      "changes": [
+        "Die Fahrzeugwerft arbeitet jetzt sichtbar: ihre Montagemechanik bewegt sich fraktionsspezifisch, und das produzierte Fahrzeug wird in den letzten Bauphasen im Ausfahrbereich eingeblendet.",
+        "Fertige Einheiten entstehen zum korrekten Simulationszeitpunkt innerhalb der Werft und fahren selbstständig zu einem sicheren Außenpunkt, bevor sie ihren Rally-Befehl ausführen.",
+        "Blockierte Ausfahrten warten und suchen nach längerem Stillstand erreichbare freie Zellen. Fahrzeuggröße, Queue, Zerstörung der Werft und Speichern/Laden bleiben berücksichtigt.",
+        "Die Vorschauansichten aller Rollen, Fraktionen und Werftausrichtungen werden während des Ladens vorbereitet. Im Gefecht werden dafür keine neuen Pose-SubViewports erzeugt und keine GPU-Readbacks ausgeführt."
+      ]
+    },
     {
       "version": "0.38.9",
       "date": "11.10.2026",

@@ -63,4 +63,6 @@ func run() -> void:
 	if FileAccess.file_exists("res://test-output/performance_monitor_test.csv"):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path("res://test-output/performance_monitor_test.csv"))
 	print("PERFORMANCE MONITOR: %d checks, %d failures" % [checks,failures])
+	# Let the async run() stack unwind before engine shutdown so temporary
+	# RefCounted test objects are released before Godot checks ObjectDB.
 	quit(1 if failures else 0)

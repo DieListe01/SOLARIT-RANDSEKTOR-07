@@ -19,22 +19,22 @@ func run() -> void:
 	await process_frame
 	game.skip_intro(); game.set_classic(false)
 	check(game.menu_buttons.has("start") and game.update_button.disabled and game.update_button.text=="UPDATES AB RELEASE","unpublished local build explains that the release feed is not configured")
-	check(game.update_history.current_version=="0.38.9","Central current version")
-	check(game.update_history.entries.size()==81,"Every archived version plus new release")
-	check(FileAccess.get_file_as_string("res://export_presets.cfg").contains("0.38.9.0") and FileAccess.get_file_as_string("res://installer/SOLARIT-RANDSEKTOR-07.iss").contains("AppVersion \"0.38.9\""),"Export and installer versions match displayed history")
-	game.show_available_update({"version":"0.38.9","notes":"Test release notes."})
+	check(game.update_history.current_version=="0.38.10","Central current version")
+	check(game.update_history.entries.size()==82,"Every archived version plus new release")
+	check(FileAccess.get_file_as_string("res://export_presets.cfg").contains("0.38.10.0") and FileAccess.get_file_as_string("res://installer/SOLARIT-RANDSEKTOR-07.iss").contains("AppVersion \"0.38.10\""),"Export and installer versions match displayed history")
+	game.show_available_update({"version":"0.38.10","notes":"Test release notes."})
 	await process_frame
 	var offer_panel: Control = game.overlay.get_child(0)
-	check(offer_panel.get_node("InstalledVersion").text=="v0.38.9","Update offer clearly shows installed version")
-	check(offer_panel.get_node("NewVersion").text=="v0.38.9","Update offer clearly shows the new version")
+	check(offer_panel.get_node("InstalledVersion").text=="v0.38.10","Update offer clearly shows installed version")
+	check(offer_panel.get_node("NewVersion").text=="v0.38.10","Update offer clearly shows the new version")
 	await capture("update_available_versions")
 	for child in offer_panel.get_children():
 		if child is Button and child.text=="SPÄTER": child.pressed.emit(); break
 	game.update_check_manual = true
-	game._on_update_check_finished({"ok":true,"available":false,"version":"0.38.9"})
+	game._on_update_check_finished({"ok":true,"available":false,"version":"0.38.10"})
 	await process_frame
 	var current_dialog: Control = game.overlay.get_node("UpdateCurrentDialog")
-	check(current_dialog.get_node("CurrentVersion").text=="Installierte Version: v0.38.9" and current_dialog.find_children("*", "Button", true, false).size()==1,"Manual check opens a current-version popup with an OK button")
+	check(current_dialog.get_node("CurrentVersion").text=="Installierte Version: v0.38.10" and current_dialog.find_children("*", "Button", true, false).size()==1,"Manual check opens a current-version popup with an OK button")
 	for child in current_dialog.get_children():
 		if child is Button: child.pressed.emit(); break
 	var seen := {}
@@ -47,7 +47,12 @@ func run() -> void:
 	var versions: ItemList = panel.get_node("Versions")
 	var details: RichTextLabel = panel.get_node("UpdateDetails")
 	var latest_details_lower := details.text.to_lower()
-	check(versions.item_count==81 and details.text.contains("0.38.9") and details.text.contains("11.10.2026") and latest_details_lower.contains("2d full hd") and latest_details_lower.contains("640×360") and latest_details_lower.contains("3d full hd"),"Latest release notes describe all three switchable display modes")
+	check(versions.item_count==82 and details.text.contains("0.38.10") and details.text.contains("11.10.2026") and latest_details_lower.contains("werft") and latest_details_lower.contains("ausfahrt"),"Latest release notes describe the visible factory production and exit sequence")
+	var display_mode_entry: Dictionary={}
+	for entry in game.update_history.entries:
+		if str(entry.version)=="0.38.9": display_mode_entry=entry; break
+	var display_mode_notes:=str(display_mode_entry.get("changes",[])).to_lower()
+	check(display_mode_notes.contains("2d retro") and display_mode_notes.contains("2d full hd") and display_mode_notes.contains("3d full hd"),"Previous release preserves the complete 2D/3D display-mode update info")
 	check(details.scroll_active,"Latest release details open in the scrollable history")
 	var private_lobby_index:=index_for_version(versions,"0.36.13")
 	versions.select(private_lobby_index); versions.item_selected.emit(private_lobby_index)

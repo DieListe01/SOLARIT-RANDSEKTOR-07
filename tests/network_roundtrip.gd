@@ -15,6 +15,8 @@ var mode := ""
 var port := 24651
 var game_started := false
 var test_unit_id := 0
+var production_exit_fixture_id := 0
+var saw_production_exit_sync := false
 var snapshots := 0
 var reports := 0
 var expected: Dictionary = {}
@@ -48,6 +50,26 @@ func make_sim() -> void:
 	var units := sim.entities.values().filter(func(e):return int(e.owner)==0 and not bool(e.building))
 	test_unit_id=int(units[0].id)
 	initial_position=sim.entities[test_unit_id].pos
+	# Keep one authoritative factory exit active during the real host/client
+	# snapshot roundtrip so the newly serialized handoff state is exercised.
+	# Make the production-exit entity belong to the client and place it by the
+	# client's starting base; otherwise fog correctly hides the fixture from the
+	# remote owner and the test cannot verify this private production state.
+	var client_start: Array=sim.db.mission.player_starts[1]
+	var factory_cell:=Vector2i(int(client_start[0])-3,int(client_start[1])+2)
+	var factory_id := sim.spawn("factory",1,sim.grid.center(factory_cell),true)
+	if factory_id>0:
+		var factory: Dictionary=sim.entities[factory_id]
+		factory.queue=[{"kind":"tank","paid":440}]
+		factory.progress=float(sim.db.units.tank.time)
+		sim.process_building(factory,1.0)
+		production_exit_fixture_id=int(factory.get("production_exit_unit",0))
+		if production_exit_fixture_id>0:
+			sim.entities[production_exit_fixture_id].production_exit_to+=Vector2(180,0)
+		else:
+			push_error("NETWORK ROUNDTRIP: factory did not produce an active exit fixture")
+	else:
+		push_error("NETWORK ROUNDTRIP: failed to place the production fixture")
 
 func run() -> void:
 	make_sim()
@@ -79,7 +101,10 @@ func run() -> void:
 		if session.join("127.0.0.1",port,"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")!=OK: fail("invalid password attempt failed to start"); return
 	for frame in 1500:
 		if mode=="host":
-			sim.tick(1.0/30.0)
+			# The in-game clock starts with the mission, not while the host waits
+			# in the lobby. Keep the active factory-exit fixture alive until the
+			# client has received its first authoritative mission snapshot.
+			if session.mission_started: sim.tick(1.0/30.0)
 			var before := session.snapshot_sequence
 			session.advance_host(1.0/30.0,sim)
 			if expected.size()>2: fail("snapshot queue grew while client polling was stalled"); return
@@ -128,9 +153,34 @@ func _on_snapshot(snapshot: Dictionary) -> void:
 	previous_time=float(snapshot.time)
 	if sim.restore(snapshot)!=OK: fail("client rejected snapshot"); return
 	var received_hash := state_hash(snapshot)
-	var restored_hash := state_hash(sim.snapshot())
+	var restored_snapshot := sim.snapshot()
+	var restored_hash := state_hash(restored_snapshot)
 	if received_hash!=restored_hash:
+		print("NETWORK HASH MISMATCH received=%s restored=%s entities=%d/%d projectiles=%d/%d"%[received_hash,restored_hash,snapshot.entities.size(),restored_snapshot.entities.size(),snapshot.projectiles.size(),restored_snapshot.projectiles.size()])
+		for top_field in snapshot:
+			if JSON.stringify(snapshot[top_field])!=JSON.stringify(restored_snapshot.get(top_field,"<missing>")):
+				print("NETWORK TOP DIFFERENCE field=%s received=%s restored=%s"%[top_field,JSON.stringify(snapshot[top_field]) if top_field not in ["entities","projectiles","known","explored"] else "<collection>",JSON.stringify(restored_snapshot.get(top_field,"<missing>")) if top_field not in ["entities","projectiles","known","explored"] else "<collection>"])
+				if top_field=="explored":
+					for side in 2:
+						var differing_cells: Array=[]
+						for cell_index in snapshot.explored[side].size():
+							if snapshot.explored[side][cell_index]!=restored_snapshot.explored[side][cell_index] and differing_cells.size()<12: differing_cells.append([cell_index,snapshot.explored[side][cell_index],restored_snapshot.explored[side][cell_index]])
+						if not differing_cells.is_empty(): print("NETWORK EXPLORED DIFFERENCE side=%d samples=%s"%[side,str(differing_cells)])
+		var received_ids: Array=[]
+		var restored_ids: Array=[]
+		for entity in snapshot.entities: received_ids.append(int(entity.id))
+		for entity in restored_snapshot.entities: restored_ids.append(int(entity.id))
+		if received_ids!=restored_ids: print("NETWORK ENTITY IDS received=%s restored=%s"%[str(received_ids),str(restored_ids)])
+		for entity_index in mini(snapshot.entities.size(),restored_snapshot.entities.size()):
+			var received_entity: Dictionary=snapshot.entities[entity_index]
+			var restored_entity: Dictionary=restored_snapshot.entities[entity_index]
+			for field in received_entity:
+				if not restored_entity.has(field) or JSON.stringify(received_entity[field])!=JSON.stringify(restored_entity[field]):
+					printerr("NETWORK SNAPSHOT DIFFERENCE id=%s field=%s received=%s restored=%s"%[received_entity.get("id",-1),field,JSON.stringify(received_entity[field]),JSON.stringify(restored_entity.get(field,"<missing>"))])
+					break
 		fail("restored state differs from received state"); return
+	if snapshots<5 and sim.entities.has(production_exit_fixture_id):
+		saw_production_exit_sync=saw_production_exit_sync or bool(sim.entities[production_exit_fixture_id].get("production_exit_active",false))
 	snapshots+=1
 	var unit: Dictionary=sim.entities[test_unit_id]
 	var order := str(unit.order)
@@ -180,6 +230,7 @@ func _on_report(mission: int, sequence: int, hash_value: String, order: String, 
 		session.begin_mission(CONFIG)
 
 func _on_finished() -> void:
+	if not saw_production_exit_sync: fail("active production exit was not replicated to the client"); return
 	print("NETWORK ROUNDTRIP CLIENT: %d snapshots restored and confirmed"%snapshots)
 	# The SceneTree stays alive to deliver the reliable finish acknowledgement.
 	await create_timer(0.3).timeout

@@ -384,7 +384,7 @@ func command(ids: Array, point: Vector2, order: String = "move", target: int = 0
 		if order in ["stop","hold","guard"]:
 			e.path=[]
 			e.destination=e.pos
-		elif not (e.kind=="harvester" and order in ["harvest","return"]):
+		elif not bool(e.get("production_exit_active",false)) and not (e.kind=="harvester" and order in ["harvest","return"]):
 			request_path(e,e.destination)
 		if e.kind=="harvester":
 			if order=="harvest":
@@ -512,7 +512,7 @@ func tick(dt: float) -> void:
 		if e.building:
 			process_building(e,dt)
 		else:
-			if e.kind=="harvester": harvest(e,dt)
+			if e.kind=="harvester" and not bool(e.get("production_exit_active",false)): harvest(e,dt)
 			var movement_started := Time.get_ticks_usec() if profile_enabled else 0
 			move_unit(e,dt)
 			if profile_enabled: profile_movement_ms+=float(Time.get_ticks_usec()-movement_started)/1000.0
@@ -559,6 +559,12 @@ func process_building(e: Dictionary, dt: float) -> void:
 			e.upgrade_progress=0.0
 			event.emit("upgrade_complete",e.pos,definition(e).name+" · Stufe %d einsatzbereit"%e.upgrade_level)
 		return
+	if e.kind=="factory":
+		var exiting_id:=int(e.get("production_exit_unit",0))
+		if exiting_id>0:
+			if entities.has(exiting_id) and bool(entities[exiting_id].get("production_exit_active",false)):
+				return
+			e.erase("production_exit_unit")
 	if e.get("included_harvester",false):
 		var p := exit_cell(e)
 		if p.x>=0: spawn("harvester",e.owner,grid.center(p),false); e.included_harvester=false
@@ -569,7 +575,19 @@ func process_building(e: Dictionary, dt: float) -> void:
 		if e.progress>=production_time:
 			var p := exit_cell(e)
 			if p.x>=0:
-				var id := spawn(job.kind,e.owner,grid.center(p),false)
+				var exit_world:=grid.center(p)
+				var exit_direction: Vector2=(exit_world-e.pos).normalized()
+				var door_world: Vector2=e.pos+exit_direction*maxf(26.0,float(maxi(int(footprint(e)[0]),int(footprint(e)[1]))*grid.tile)*0.34)
+				var id := spawn(job.kind,e.owner,door_world,false)
+				var unit: Dictionary=entities[id]
+				unit.angle=exit_direction.angle()
+				unit.turret=unit.angle
+				unit.production_exit_active=true
+				unit.production_exit_from=door_world
+				unit.production_exit_to=exit_world
+				unit.production_exit_factory=int(e.id)
+				e.production_exit_unit=id
+				e.production_exit_kind=str(job.kind)
 				if job.kind!="harvester": command([id],e.rally)
 				e.queue.pop_front()
 				e.progress=0.0
@@ -609,6 +627,9 @@ func repair_entity(e: Dictionary, owner: int, dt: float) -> void:
 	e.hp+=amount
 
 func move_unit(e: Dictionary, dt: float) -> void:
+	if bool(e.get("production_exit_active",false)):
+		_move_production_exit(e,dt)
+		return
 	if e.path.is_empty():
 		e.velocity=Vector2.ZERO
 		var settle := unit_separation(e).limit_length(18.0)*dt
@@ -642,6 +663,116 @@ func move_unit(e: Dictionary, dt: float) -> void:
 		if e.pos.distance_to(e.last_pos)<6: request_path(e,e.path_goal)
 		e.last_pos=e.pos
 		e.stuck=0.0
+
+func _move_production_exit(e: Dictionary, dt: float) -> void:
+	var preferred: Vector2=e.get("production_exit_to",e.pos)
+	var target_cell:=grid.cell(preferred)
+	if not _production_exit_cell_available(target_cell,e):
+		var blocked_for := float(e.get("production_exit_blocked_for",0.0))+dt
+		var search_radius := 4
+		var fallback_level := int(e.get("production_exit_fallback_level",0))
+		var expanded_search := false
+		if blocked_for>=3.0 and fallback_level<2:
+			search_radius=18; expanded_search=true; fallback_level=2
+		elif blocked_for>=1.0 and fallback_level<1:
+			search_radius=10; expanded_search=true; fallback_level=1
+		target_cell=_nearest_reachable_production_exit_cell(target_cell,e,search_radius)
+		if target_cell.x<0:
+			e.production_exit_blocked_for=blocked_for
+			if expanded_search: e.production_exit_fallback_level=fallback_level
+			return
+		preferred=grid.center(target_cell)
+		e.production_exit_to=preferred
+	var direction: Vector2=preferred-e.pos
+	var distance:=direction.length()
+	var exit_speed:=float(definition(e).speed)*float(db.factions[factions[e.owner]].speed)
+	if distance<=maxf(0.1,exit_speed*dt):
+		e.pos=preferred
+		e.production_exit_active=false
+		e.production_exit_blocked_for=0.0
+		e.production_exit_fallback_level=0
+		var factory_id:=int(e.get("production_exit_factory",0))
+		e.erase("production_exit_from")
+		e.erase("production_exit_to")
+		e.erase("production_exit_factory")
+		if entities.has(factory_id) and int(entities[factory_id].get("production_exit_unit",0))==int(e.id):
+			entities[factory_id].erase("production_exit_unit")
+			entities[factory_id].erase("production_exit_kind")
+		if e.order not in ["stop","hold","guard"] and not (e.kind=="harvester" and e.order in ["harvest","return"]):
+			request_path(e,e.destination)
+		return
+	if distance<=0.01: return
+	var step:=minf(distance,exit_speed*dt)
+	var proposed: Vector2=e.pos+direction/distance*step
+	if not _production_exit_path_clear(proposed,e):
+		var blocked_for := float(e.get("production_exit_blocked_for",0.0))+dt
+		var search_radius := 4
+		var fallback_level := int(e.get("production_exit_fallback_level",0))
+		var expanded_search := false
+		if blocked_for>=3.0 and fallback_level<2:
+			search_radius=18; expanded_search=true; fallback_level=2
+		elif blocked_for>=1.0 and fallback_level<1:
+			search_radius=10; expanded_search=true; fallback_level=1
+		if expanded_search:
+			var alternate := _nearest_reachable_production_exit_cell(grid.cell(preferred),e,search_radius)
+			if alternate.x>=0 and grid.center(alternate).distance_to(preferred)>0.1:
+				e.production_exit_to=grid.center(alternate)
+				e.production_exit_blocked_for=0.0
+				e.production_exit_fallback_level=0
+				return
+		e.production_exit_blocked_for=blocked_for
+		if expanded_search: e.production_exit_fallback_level=fallback_level
+		return
+	e.production_exit_blocked_for=0.0
+	e.production_exit_fallback_level=0
+	e.angle=direction.angle()
+	e.velocity=direction/distance*exit_speed
+	e.pos=proposed
+
+func _production_exit_cell_available(cell: Vector2i,e: Dictionary) -> bool:
+	if not grid.is_free(cell): return false
+	for other in entities.values():
+		if other.id==e.id or other.building: continue
+		var clearance:=maxf(24.0,(unit_radius(e.kind)+unit_radius(other.kind))*0.72)
+		if other.pos.distance_to(grid.center(cell))<clearance: return false
+	return true
+
+func _nearest_production_exit_cell(origin: Vector2i,e: Dictionary, max_radius: int = 4) -> Vector2i:
+	for radius in range(1,maxi(1,max_radius)+1):
+		for y in range(-radius,radius+1):
+			for x in range(-radius,radius+1):
+				if abs(x)!=radius and abs(y)!=radius: continue
+				var candidate:=origin+Vector2i(x,y)
+				if _production_exit_cell_available(candidate,e): return candidate
+	return Vector2i(-1,-1)
+
+func _nearest_reachable_production_exit_cell(origin: Vector2i,e: Dictionary,max_radius: int) -> Vector2i:
+	for radius in range(0,maxi(1,max_radius)+1):
+		for y in range(-radius,radius+1):
+			for x in range(-radius,radius+1):
+				if radius>0 and abs(x)!=radius and abs(y)!=radius: continue
+				var candidate:=origin+Vector2i(x,y)
+				if not _production_exit_cell_available(candidate,e): continue
+				if _production_exit_route_clear(grid.center(candidate),e): return candidate
+	return Vector2i(-1,-1)
+
+func _production_exit_route_clear(target: Vector2,e: Dictionary) -> bool:
+	var delta_pos: Vector2=target-e.pos
+	var steps:=maxi(1,ceili(delta_pos.length()/maxf(1.0,grid.tile*0.35)))
+	for step in range(1,steps+1):
+		if not _production_exit_path_clear(e.pos+delta_pos*(float(step)/float(steps)),e): return false
+	return true
+
+func _production_exit_path_clear(position: Vector2,e: Dictionary) -> bool:
+	var cell:=grid.cell(position)
+	if not grid.is_free(cell):
+		var factory_id:=int(e.get("production_exit_factory",0))
+		if factory_id<=0 or int(grid.occupancy.get(grid.key(cell),-1))!=factory_id: return false
+	for other in entities.values():
+		if other.id==e.id or other.building: continue
+		var clearance:=maxf(18.0,(unit_radius(e.kind)+unit_radius(other.kind))*0.55)
+		if other.pos.distance_to(position)<clearance: return false
+	return true
 
 func nearest_building(e: Dictionary, kind: String) -> Dictionary:
 	var found: Dictionary = {}
@@ -838,13 +969,19 @@ func destroy(id: int) -> void:
 	if not entities.has(id): return
 	var e: Dictionary = entities[id]
 	if e.building: grid.reserve(e.cell,footprint(e),id,false)
+	if e.building and e.kind=="factory":
+		for exiting in entities.values():
+			if bool(exiting.get("production_exit_active",false)) and int(exiting.get("production_exit_factory",0))==id:
+				exiting.production_exit_factory=0
+				var target_cell:=_nearest_production_exit_cell(grid.cell(exiting.get("production_exit_to",exiting.pos)),exiting)
+				if target_cell.x>=0: exiting.production_exit_to=grid.center(target_cell)
 	if e.building: side_stats[e.owner].buildings_lost+=1
 	else: side_stats[e.owner].lost+=1
 	if e.building: building_ids.erase(id)
 	else: mobile_entity_count=maxi(0,mobile_entity_count-1)
 	side_stats[1-e.owner].kills+=1
 	effects.append({"pos":e.pos,"life":0.8,"max_life":0.8,"radius":55.0 if e.building else 30.0,"event_backed":true})
-	presentation.emit("destroy",{"id":e.id,"pos":e.pos,"owner":e.owner,"building":e.building,"kind":e.kind,"angle":float(e.get("rotation",0))*PI/2 if e.building else e.angle,"visual_footprint":footprint(e) if e.building else [1,1],"visual_size":maxf(float(footprint(e)[0]),float(footprint(e)[1])) if e.building else 1.0})
+	presentation.emit("destroy",{"id":e.id,"pos":e.pos,"owner":e.owner,"faction":str(e.get("faction_id",factions[e.owner])),"building":e.building,"kind":e.kind,"angle":float(e.get("rotation",0))*PI/2 if e.building else e.angle,"visual_footprint":footprint(e) if e.building else [1,1],"visual_size":maxf(float(footprint(e)[0]),float(footprint(e)[1])) if e.building else 1.0})
 	event.emit("explosion",e.pos,"")
 	entities.erase(id)
 	for other in entities.values():
@@ -1050,6 +1187,8 @@ func snapshot() -> Dictionary:
 	for e in entities.values():
 		var copy: Dictionary = e.duplicate(true)
 		for field in ["pos","destination","path_goal","rally","last_pos","velocity"]: copy[field]=[e[field].x,e[field].y]
+		for field in ["production_exit_from","production_exit_to"]:
+			if e.has(field): copy[field]=[e[field].x,e[field].y]
 		if e.building: copy.cell=[e.cell.x,e.cell.y]
 		copy.path=[]
 		for p in e.path: copy.path.append([p.x,p.y])
@@ -1117,6 +1256,8 @@ func restore(save: Dictionary) -> Error:
 		if e.building and not vector_valid(e.get("cell")): return ERR_INVALID_DATA
 		if e.has("rotation") and (not number(e.rotation) or float(e.rotation)!=floor(float(e.rotation)) or int(e.rotation) not in [0,1,2,3]): return ERR_INVALID_DATA
 		if not e.path is Array or not e.queue is Array: return ERR_INVALID_DATA
+		if bool(e.get("production_exit_active",false)):
+			if e.building or not vector_valid(e.get("production_exit_from")) or not vector_valid(e.get("production_exit_to")) or not number(e.get("production_exit_factory",0)): return ERR_INVALID_DATA
 		for p in e.path:
 			if not vector_valid(p): return ERR_INVALID_DATA
 		for j in e.queue:
@@ -1145,6 +1286,8 @@ func restore(save: Dictionary) -> Error:
 	for raw in save.entities:
 		var e: Dictionary = raw.duplicate(true)
 		for field in ["pos","destination","path_goal","rally","last_pos","velocity"]: e[field]=Vector2(e[field][0],e[field][1])
+		for field in ["production_exit_from","production_exit_to"]:
+			if e.has(field): e[field]=Vector2(e[field][0],e[field][1])
 		var points: Array = []
 		for p in e.path: points.append(Vector2(p[0],p[1]))
 		e.path=points

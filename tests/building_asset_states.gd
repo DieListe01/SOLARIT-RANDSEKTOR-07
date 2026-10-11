@@ -24,6 +24,23 @@ func run() -> void:
 	var inactive_factory:String=game.renderer.building_cache_key(factory)
 	factory.queue.append({"kind":"tank"})
 	assert(game.renderer.building_cache_key(factory)!=inactive_factory,"An active vehicle-production queue must select its animated assembly pose")
+	var factory_pose_keys: Array[String] = []
+	for frame in 8:
+		game.renderer.elapsed = float(frame) / 2.0
+		factory_pose_keys.append(game.renderer.building_cache_key(factory))
+	var unique_factory_pose_keys: Dictionary = {}
+	for key in factory_pose_keys: unique_factory_pose_keys[key] = true
+	assert(unique_factory_pose_keys.size()==4,"Vehicle production cycles through four reusable, distinct mechanism poses")
+	var duration:=float(sim.db.units.tank.time)
+	var expected_stages: Array[int] = [1,2,3]
+	for index in expected_stages.size():
+		var progress_ratio: float=[0.25,0.65,0.90][index]
+		factory.progress=duration*progress_ratio
+		assert(game.renderer._factory_visual_stage(factory)==expected_stages[index],"Factory display distinguishes visual production progress stage %d" % index)
+	factory.production_exit_unit=999
+	assert(game.renderer._factory_visual_stage(factory)==4,"Factory display distinguishes the release sequence from in-progress assembly")
+	factory.erase("production_exit_unit")
+	factory.progress=0.0
 	factory.complete=false
 	var construction_time:=maxf(0.01,float(sim.definition(factory).time))
 	factory.build_progress=construction_time*0.20

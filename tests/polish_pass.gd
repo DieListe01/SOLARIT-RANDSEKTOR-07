@@ -15,6 +15,14 @@ func capture(name_value: String) -> void:
 	await process_frame
 	root.get_texture().get_image().save_png("res://test-output/"+name_value+".png")
 
+func wait_for_window_state(window: Window, expected_mode: int, expected_borderless: bool, timeout_seconds: float = 2.0) -> bool:
+	var deadline := Time.get_ticks_msec() + int(timeout_seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if window.mode == expected_mode and window.borderless == expected_borderless:
+			return true
+		await create_timer(0.05).timeout
+	return window.mode == expected_mode and window.borderless == expected_borderless
+
 func run() -> void:
 	var game: Control = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
@@ -114,36 +122,41 @@ func run() -> void:
 	# Exercise the real OS transitions on local desktops where they are observable.
 	if OS.get_environment("GITHUB_ACTIONS")!="true":
 		resolution_option.select(0); resolution_option.item_selected.emit(0)
+		await create_timer(0.1).timeout
 		check(game.get_window().size==Vector2i(1920,1080),"Resolution dropdown applies Full HD")
 		var original_resolution_index := 0
 		for i in resolution_option.item_count:
 			if resolution_option.get_item_text(i)=="%d × %d" % [original_size.x,original_size.y]: original_resolution_index=i
 		resolution_option.select(original_resolution_index); resolution_option.item_selected.emit(original_resolution_index)
 		mode_option.select(1); mode_option.item_selected.emit(1)
-		check(game.get_window().mode==Window.MODE_WINDOWED and game.get_window().borderless,"Borderless window mode applies")
+		var borderless_applied := await wait_for_window_state(game.get_window(),Window.MODE_WINDOWED,true)
+		check(borderless_applied,"Borderless window mode applies")
 		mode_option.select(2); mode_option.item_selected.emit(2)
-		check(game.get_window().mode==Window.MODE_FULLSCREEN,"Fullscreen mode applies from the options dropdown")
+		var fullscreen_applied := await wait_for_window_state(game.get_window(),Window.MODE_FULLSCREEN,false)
+		check(fullscreen_applied,"Fullscreen mode applies from the options dropdown")
 		var restore_mode_index := 2 if original_mode==Window.MODE_FULLSCREEN else (1 if original_borderless else 0)
 		mode_option.select(restore_mode_index); mode_option.item_selected.emit(restore_mode_index)
-		# Some Windows/Vulkan drivers report EXCLUSIVE_FULLSCREEN (4) for a
-		# frame after leaving fullscreen even though the dropdown requested
-		# MODE_WINDOWED. Restore the captured native state explicitly before the
-		# assertion so the test cannot leave the desktop in its test mode.
+		# A display-mode switch crosses the native window-system boundary and is
+		# asynchronous on Windows/Vulkan. Restore the captured state explicitly,
+		# then wait for the OS to report that state before asserting it.
 		game.get_window().mode=original_mode
 		game.get_window().borderless=original_borderless
 		game.persist_settings()
-		await create_timer(0.25).timeout
-		check(game.get_window().mode==original_mode and game.get_window().borderless==original_borderless,"Window mode restores after test ("+str(original_mode)+" → "+str(game.get_window().mode)+")")
+		var state_restored := await wait_for_window_state(game.get_window(),original_mode,original_borderless,3.0)
+		check(state_restored,"Window mode restores after test ("+str(original_mode)+" → "+str(game.get_window().mode)+")")
 	else:
 		check(true,"Display controls are present; native mode switching is covered on local desktops")
-	var original_classic:bool=game.classic
+	var original_display_mode:int=game._display_mode_index()
 	var previous_launcher_override:String=OS.get_environment("SOLARIT_LAUNCH_FULL_HD")
 	OS.set_environment("SOLARIT_LAUNCH_FULL_HD","1")
-	game._apply_launcher_display_override()
-	check(game.get_window().content_scale_size==Vector2i(1920,1080) and game.get_window().mode==Window.MODE_FULLSCREEN and not game.classic,"Launcher forces a Full HD Modern canvas in fullscreen over saved display preferences")
+	for display_mode in 3:
+		game.set_display_mode(display_mode)
+		game._apply_launcher_display_override()
+		var expected_canvas_size:=Vector2i(640,360) if display_mode==0 else Vector2i(1920,1080)
+		check(game.get_window().content_scale_size==expected_canvas_size and game.get_window().size==Vector2i(1920,1080) and game.get_window().mode==Window.MODE_FULLSCREEN and game._display_mode_index()==display_mode,"Full HD launcher preserves display style %d"%display_mode)
 	if previous_launcher_override.is_empty(): OS.unset_environment("SOLARIT_LAUNCH_FULL_HD")
 	else: OS.set_environment("SOLARIT_LAUNCH_FULL_HD",previous_launcher_override)
-	game.set_classic(original_classic)
+	game.set_display_mode(original_display_mode)
 	game.get_window().size=original_size
 	game.get_window().mode=original_mode
 	game.get_window().borderless=original_borderless

@@ -11,8 +11,10 @@ const VEHICLE_CACHE_MSAA := Viewport.MSAA_4X
 const VEHICLE_CACHE_CAPACITY := 640
 const VEHICLE_CACHE_PENDING_CAPACITY := 640
 const BuildingCachePainterScript = preload("res://scripts/building_cache_painter.gd")
+const ProductionPreviewCacheScript = preload("res://scripts/production_preview_cache.gd")
 
 var sim: Simulation
+var production_preview_cache: Node
 var camera := Vector2(400,1450)
 var zoom := 1.0
 var logical_size := Vector2(1560,960)
@@ -259,6 +261,18 @@ func nearest_vehicle_texture(key: String) -> Texture2D:
 		if vehicle_cache_fallback_keys.size()<4096: vehicle_cache_fallback_keys[key]=best_key
 	return best
 
+func prepare_factory_preview_cache() -> void:
+	if sim == null or classic: return
+	if production_preview_cache != null and production_preview_cache.sim != sim:
+		production_preview_cache.queue_free()
+		production_preview_cache = null
+	if production_preview_cache == null:
+		production_preview_cache = ProductionPreviewCacheScript.new()
+		production_preview_cache.name = "Production preview cache"
+		add_child(production_preview_cache)
+	production_preview_cache.sim = sim
+	await production_preview_cache.prewarm_all()
+
 func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float, ratio: float) -> bool:
 	if classic: return false
 	var relative := wrapf(entity.turret-entity.angle,-PI,PI)
@@ -349,7 +363,7 @@ func building_cache_key(entity: Dictionary) -> String:
 	var rotation := posmod(int(entity.get("rotation",0)),4)
 	var turret_frame := posmod(roundi(float(entity.get("turret",0.0))*16.0/TAU),16) if entity.kind=="tower" else 0
 	var faction: String=sim.factions[entity.owner]
-	var active := 1 if entity.kind=="factory" and not entity.get("queue",[]).is_empty() else 0
+	var active := 1 if entity.kind=="factory" and (not entity.get("queue",[]).is_empty() or int(entity.get("production_exit_unit",0))>0) else 0
 	var upgrade_stage:=int(entity.get("upgrade_level",0))
 	var unloading:=_refinery_receiving(entity) if entity.kind=="refinery" else false
 	var animation_frame:=_building_animation_frame(entity)
@@ -363,10 +377,21 @@ func building_cache_key(entity: Dictionary) -> String:
 func _building_animation_frame(entity: Dictionary) -> int:
 	if entity.kind in ["core", "radar"]: return posmod(int(elapsed*1.1),8)
 	if entity.kind=="power": return posmod(int(elapsed*1.8),4)
-	if entity.kind=="factory" and not entity.get("queue",[]).is_empty(): return posmod(int(elapsed*2.0),4)
+	if entity.kind=="factory" and (not entity.get("queue",[]).is_empty() or int(entity.get("production_exit_unit",0))>0): return posmod(int(elapsed*2.0),4)
 	if entity.kind=="repair" and bool(entity.get("repair",false)): return posmod(int(elapsed*3.0),4)
 	if entity.kind=="armory" and not entity.get("queue",[]).is_empty(): return posmod(int(elapsed*1.5),4)
 	return 0
+
+func _factory_visual_stage(entity: Dictionary) -> int:
+	if int(entity.get("production_exit_unit",0))>0: return 4
+	if entity.get("queue",[]).is_empty(): return 0
+	var job: Dictionary=entity.queue[0]
+	var unit_time:=maxf(0.01,float(sim.db.units.get(str(job.get("kind","tank")),{}).get("time",1.0)))
+	var duration:=unit_time*(0.85 if int(entity.get("upgrade_level",0))>0 else 1.0)
+	var ratio:=clampf(float(entity.get("progress",0.0))/duration,0.0,1.0)
+	if ratio>=0.80: return 3
+	if ratio>=0.50: return 2
+	return 1
 
 func _refinery_receiving(refinery: Dictionary) -> bool:
 	for candidate in sim.entities.values():
@@ -402,6 +427,75 @@ func draw_cached_building(entity: Dictionary) -> bool:
 	industrial_art.building_damage_overlay(self,entity,Vector2(footprint[0],footprint[1])*sim.grid.tile,elapsed)
 	return true
 
+## Production previews reuse mission-warmed vehicle textures. The visual proxy
+## is a pure CanvasItem: it has no entity, collision, target, or sim/network state.
+func draw_factory_production_proxy(factory: Dictionary, output: Vector2, scale_value: float, ratio: float) -> void:
+	if classic or factory.kind!="factory": return
+	var stage := _factory_visual_stage(factory)
+	var faction := str(sim.factions[factory.owner])
+	var exit_direction := Vector2.DOWN.rotated(float(factory.get("rotation",0))*PI*0.5)
+	var footprint := sim.building_footprint("factory",int(factory.get("rotation",0)))
+	var door_offset := maxf(26.0,float(maxi(int(footprint[0]),int(footprint[1]))*sim.grid.tile)*0.34)
+	var door_world: Vector2=factory.pos+exit_direction*door_offset
+	var accent := Color("e7bb70") if faction=="forge" else (Color("ef7956") if faction=="drift" else Color("82eaf2"))
+	var pulse := 0.55+0.45*sin(elapsed*4.0)
+	if stage==1:
+		# Exterior work lights communicate early production without showing an
+		# unassembled vehicle or creating another 3D cache state.
+		if faction=="lumen":
+			draw_arc(factory.pos,19.0+pulse*2.0,0,TAU,20,Color(accent,0.34),1.6,true)
+		else:
+			glow_at(door_world,9.0+pulse*2.0,Color(accent,0.28))
+		return
+	if stage==4:
+		# Fraktion-specific release cues remain lightweight and reuse the factory's
+		# already-cached 3D working pose; the actual unit is rendered below.
+		var side := Vector2(-exit_direction.y,exit_direction.x)
+		if faction=="forge":
+			draw_line(factory.pos+exit_direction*15.0,door_world,Color(accent,0.72),3.0,true)
+			for warning in 3:
+				var point := door_world+side*(float(warning)-1.0)*9.0
+				glow_at(point,3.0+pulse*1.4,Color("ffe0a0",0.75))
+		elif faction=="drift":
+			for spark in 5:
+				var phase := elapsed*8.0+float(spark)*TAU/5.0
+				var point := door_world+exit_direction*(sin(phase)*6.0)+side*(cos(phase)*13.0)
+				draw_line(point,point+Vector2(2.0,-4.0),Color(accent,0.55),1.4,true)
+		else:
+			draw_arc(door_world,13.0+pulse*4.0,0,TAU,28,Color(accent,0.58),1.5,true)
+			draw_line(door_world-exit_direction*12.0,door_world+exit_direction*16.0,Color(accent,0.66),1.6,true)
+		return
+	if factory.queue.is_empty(): return
+	var job: Dictionary=factory.queue[0]
+	var kind := str(job.get("kind",""))
+	if not sim.db.units.has(kind): return
+	var texture: Texture2D=production_preview_cache.texture_for(kind,int(factory.owner),exit_direction.angle()) if production_preview_cache!=null else null
+	if texture==null: return
+	var base := output*0.5-camera*scale_value+visual_offset*ratio
+	var screen_pos: Vector2=base+door_world*scale_value
+	var proxy_scale := 0.58 if stage==2 else 1.0
+	var alpha := 0.58 if stage==2 else 1.0
+	var texture_size: Vector2=texture.get_size()
+	draw_set_transform(screen_pos,0.0,Vector2.ONE*(scale_value*VEHICLE_CACHE_WORLD_SIZE/texture_size.x*proxy_scale))
+	draw_texture(texture,-texture_size*0.5,Color(1,1,1,alpha))
+	draw_set_transform(base,0.0,Vector2.ONE*scale_value)
+	if faction=="lumen":
+		draw_arc(door_world,24.0+pulse*4.0,0,TAU,24,Color(accent,0.46),1.3,true)
+	else:
+		glow_at(door_world,14.0+pulse*3.0,Color(accent,0.36))
+
+func draw_production_exit_vehicle(entity: Dictionary, output: Vector2, scale_value: float, ratio: float) -> bool:
+	if production_preview_cache==null: return false
+	var texture: Texture2D=production_preview_cache.texture_for(str(entity.kind),int(entity.owner),float(entity.angle))
+	if texture==null: return false
+	var texture_size: Vector2=texture.get_size()
+	var base := output*0.5-camera*scale_value+visual_offset*ratio
+	var screen_pos: Vector2=base+(entity.pos+combat_fx.hit_offset(entity.id))*scale_value
+	draw_set_transform(screen_pos,0.0,Vector2.ONE*(scale_value*VEHICLE_CACHE_WORLD_SIZE/texture_size.x))
+	draw_texture(texture,-texture_size*0.5)
+	draw_set_transform(base,0.0,Vector2.ONE*scale_value)
+	return true
+
 func process_building_cache_queue() -> void:
 	if building_cache_worker_active or not is_inside_tree(): return
 	building_cache_worker_active=true
@@ -425,6 +519,7 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 	painter.art=IndustrialArt.new()
 	painter.entity=source.duplicate(true)
 	painter.entity.pos=Vector2.ZERO
+	painter.entity.faction=faction
 	# Cache only the stable structure body. Live damage and repair effects are
 	# composited in draw_cached_building, without rerasterizing the machinery.
 	painter.entity.hp=painter.entity.max_hp
@@ -927,11 +1022,14 @@ func _draw() -> void:
 			if profile_enabled: object_profile_started=Time.get_ticks_usec()
 			if not benchmark_disabled_categories.has("buildings"):
 				if not draw_cached_building(e): draw_building(e)
+				draw_factory_production_proxy(e,output,scale_value,ratio)
 			if profile_enabled: profile_buildings_ms+=float(Time.get_ticks_usec()-object_profile_started)/1000.0
 		else:
 			if profile_enabled: object_profile_started=Time.get_ticks_usec()
 			if not benchmark_disabled_categories.has("vehicles"):
-				if not draw_cached_vehicle(visual,output,scale_value,ratio):
+				if bool(visual.get("production_exit_active",false)) and draw_production_exit_vehicle(visual,output,scale_value,ratio):
+					pass
+				elif not draw_cached_vehicle(visual,output,scale_value,ratio):
 					industrial_art.simplified=zoom<0.68
 					draw_unit(visual)
 				draw_vehicle_damage(visual)

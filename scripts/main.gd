@@ -1456,11 +1456,15 @@ func prepare_starting_vehicle_views() -> void:
 	# CPU readback. Keep novel poses pending during play and drain them only in
 	# loading or pause windows; the nearest resident GPU texture remains visible.
 	renderer.vehicle_cache_generation_frozen=true
+	# Factory production uses its own bounded GPU-resident views. Prepare them
+	# before input/gameplay is resumed so no production pose is baked in combat.
+	await renderer.prepare_factory_preview_cache()
 
 func connect_sim() -> void:
 	inspected=0
 	renderer.sim=sim
 	renderer.combat_fx.reset()
+	renderer.combat_fx.prepare_destruction_atlases()
 	renderer.preserve_loaded_visuals=false
 	sim.presentation.connect(on_presentation)
 	renderer.visual_bursts.clear()
@@ -3655,6 +3659,8 @@ func set_display_mode(mode: int) -> void:
 	classic=normalized_mode<2
 	classic_hd=normalized_mode==1
 	renderer.classic=classic; renderer.crt=crt
+	if playing and not classic and renderer.production_preview_cache==null:
+		renderer.call_deferred("prepare_factory_preview_cache")
 	var window := get_window()
 	var retro := _is_classic_retro()
 	window.content_scale_mode=Window.CONTENT_SCALE_MODE_VIEWPORT if retro else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
@@ -3700,7 +3706,8 @@ func _apply_launcher_display_override() -> void:
 	window.size=MINIMUM_WINDOW_RESOLUTION
 	window.borderless=false
 	window.mode=Window.MODE_FULLSCREEN
-	set_classic(false)
+	# The launcher guarantees Full HD output but does not override the user's
+	# saved choice between Classic 2D, 2D Full HD and Modern 3D Full HD.
 	persist_settings()
 
 static func _normalize_window_resolution(size: Vector2i) -> Vector2i:

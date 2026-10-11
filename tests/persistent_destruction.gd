@@ -31,6 +31,9 @@ func run() -> void:
 			game.sim.process_projectiles(1.0/30)
 		fx.update(1.0/30)
 	check(not game.sim.entities.has(foe) and fx.ruins.size()==1,"Actual tank shot leaves confirmed wreck")
+	check(str(fx.ruins[0].get("faction",""))==game.sim.factions[1],"Vehicle wreck retains the destroyed unit's faction model family")
+	check(fx.destruction_atlases.has("vehicles|"+game.sim.factions[1]),"Faction 3D vehicle wreck atlas is resident before the battle")
+	check(fx.destruction_atlases.has("buildings|"+game.sim.factions[1]),"Faction 3D building ruin atlas is resident before the battle")
 	check(not game.selected.has(foe) and not game.renderer.selected.has(foe),"Dead selection cleared in death event")
 	check(fx.smoke_strength(fx.ruins[0])>0,"Warm vehicle wreck still smokes")
 	fx.update(60)
@@ -45,7 +48,9 @@ func run() -> void:
 	fx.emit_effect("impact",{"pos":Vector2(740,1550),"weapon":"mortar"})
 	game.renderer.camera=Vector2(750,1460); game.renderer.zoom=1.5; game.renderer.fog_timer=0
 	game.selected=[tank]; game.update_hud()
-	fx.update(0.42)
+	# Let transient blasts and smoke decay so the capture verifies the persistent
+	# static 3D vehicle wreck and faction building/core ruins at game zoom.
+	fx.update(6.0)
 	await capture("persistence_destruction_modern")
 	fx.update(900)
 	check(fx.ruins.size()==3 and fx.craters.size()==1 and fx.particles.is_empty(),"Fifteen minute battlefield keeps wrecks, ruins and crater")

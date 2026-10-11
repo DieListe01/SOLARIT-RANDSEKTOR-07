@@ -27,6 +27,19 @@ const MAX_RUINS := 128
 const MAX_CRATERS := 80
 const DENSE_WRECK_LOD_THRESHOLD := 12
 const OBJECT_KINDS := ["core", "power", "refinery", "factory", "radar", "repair", "armory", "tower", "scout", "tank", "siege", "harvester", "raider", "lancer", "scorcher", "bulwark"]
+const VEHICLE_KINDS := ["scout", "raider", "tank", "siege", "harvester", "lancer", "scorcher", "bulwark"]
+const BUILDING_KINDS := ["power", "refinery", "factory", "tower", "radar", "repair", "armory", "core"]
+const FACTION_IDS := ["forge", "drift", "lumen"]
+const DESTRUCTION_ATLAS_TILE := 256
+const DESTRUCTION_ATLAS_RESOURCES := {
+	"vehicles|forge": preload("res://assets/rendered/destruction/vehicles_forge.png"),
+	"vehicles|drift": preload("res://assets/rendered/destruction/vehicles_drift.png"),
+	"vehicles|lumen": preload("res://assets/rendered/destruction/vehicles_lumen.png"),
+	"buildings|forge": preload("res://assets/rendered/destruction/buildings_forge.png"),
+	"buildings|drift": preload("res://assets/rendered/destruction/buildings_drift.png"),
+	"buildings|lumen": preload("res://assets/rendered/destruction/buildings_lumen.png"),
+}
+var destruction_atlases: Dictionary = {}
 # Presentation profiles, not weapon balance. Five families are reserved for future weapons.
 const FAMILIES = {
 	"BALLISTIC_LIGHT": [22.0, "ffc477", 0.32, 0.0],
@@ -57,6 +70,45 @@ func recycle_particle(particle: Dictionary) -> void:
 func reset() -> void:
 	for particle in particles: recycle_particle(particle)
 	particles.clear(); ruins.clear(); craters.clear(); flashes.clear(); shake=0; offset=Vector2.ZERO
+
+## Load the offline, authored-GLB destruction renders during mission setup.
+## Gameplay only samples resident textures; it never creates a 3D pose or
+## performs a GPU-to-CPU readback when a unit dies.
+func prepare_destruction_atlases() -> void:
+	for faction in FACTION_IDS:
+		for family_name in ["vehicles", "buildings"]:
+			var key: String="%s|%s"%[family_name,faction]
+			if destruction_atlases.has(key): continue
+			var atlas:=DESTRUCTION_ATLAS_RESOURCES.get(key) as Texture2D
+			var expected_size:=Vector2(DESTRUCTION_ATLAS_TILE*(8 if family_name=="vehicles" else 4),DESTRUCTION_ATLAS_TILE*8)
+			if atlas==null or atlas.get_size()!=expected_size:
+				push_warning("Invalid offline 3D destruction atlas: "+key)
+				continue
+			destruction_atlases[key]=atlas
+
+func draw_3d_destruction_stamp(c: WorldRenderer, ruin: Dictionary) -> bool:
+	var kind:=str(ruin.get("object_kind","tank"))
+	var is_building:=bool(ruin.get("building",false))
+	var roles: Array=BUILDING_KINDS if is_building else VEHICLE_KINDS
+	var role_index:=roles.find(kind)
+	if role_index<0: return false
+	var faction:=str(ruin.get("faction","forge"))
+	if not FACTION_IDS.has(faction): faction="forge"
+	var texture:=destruction_atlases.get(("buildings" if is_building else "vehicles")+"|"+faction) as Texture2D
+	if texture==null: return false
+	var direction_count:=4 if is_building else 8
+	var frame:=posmod(roundi(posmod(float(ruin.get("angle",0.0)),TAU)/TAU*direction_count),direction_count)
+	var source:=Rect2(frame*DESTRUCTION_ATLAS_TILE,role_index*DESTRUCTION_ATLAS_TILE,DESTRUCTION_ATLAS_TILE,DESTRUCTION_ATLAS_TILE)
+	var stamp_size:=Vector2(256,256) if is_building else Vector2(81.92,81.92)
+	var dest:=Rect2(Vector2(ruin.pos)-stamp_size*0.5,stamp_size)
+	# Preserve owner-readable markings without baking player colors into faction assets.
+	c.draw_texture_rect_region(texture,dest,source,Color.WHITE,false)
+	var owner:=int(ruin.get("owner",1))
+	var marker_color:=Color("44d9c5") if owner==0 else Color("f16b53")
+	var ruin_position: Vector2=ruin.get("pos",Vector2.ZERO)
+	var marker_pos: Vector2=ruin_position+Vector2(stamp_size.x*0.22,-stamp_size.y*0.18)
+	c.draw_circle(marker_pos,2.0,marker_color)
+	return true
 
 func persistence_snapshot() -> Dictionary:
 	var result := {"version":1,"ruins":[],"craters":[]}
@@ -90,7 +142,7 @@ func restore_persistence(data: Variant, bounds: Vector2) -> Error:
 			if collection=="ruins":
 				if not record.get("building",null) is bool or not record.get("core",null) is bool: return ERR_INVALID_DATA
 				if not record.get("object_kind",null) is String or not record.object_kind in OBJECT_KINDS: return ERR_INVALID_DATA
-				if record.building!=(record.object_kind in OBJECT_KINDS.slice(0,7)) or record.core!=(record.object_kind=="core"): return ERR_INVALID_DATA
+				if record.building!=(record.object_kind in BUILDING_KINDS) or record.core!=(record.object_kind=="core"): return ERR_INVALID_DATA
 				if not finite_number(record.get("angle",null)) or not finite_number(record.get("variant",null)): return ERR_INVALID_DATA
 				if float(record.variant)!=int(record.variant) or int(record.variant)<0 or int(record.variant)>3: return ERR_INVALID_DATA
 				var footprint: Variant = record.get("footprint",null)
@@ -98,6 +150,11 @@ func restore_persistence(data: Variant, bounds: Vector2) -> Error:
 				for dimension in footprint:
 					if not finite_number(dimension) or float(dimension)!=int(dimension) or int(dimension)<1 or int(dimension)>8: return ERR_INVALID_DATA
 				item.merge({"building":record.building,"core":record.core,"object_kind":record.object_kind,"angle":float(record.angle),"variant":int(record.variant),"footprint":footprint.duplicate()})
+				var faction:=str(record.get("faction","forge"))
+				if not FACTION_IDS.has(faction): return ERR_INVALID_DATA
+				var owner:=int(record.get("owner",1))
+				if owner<0 or owner>1: return ERR_INVALID_DATA
+				item.faction=faction; item.owner=owner
 			restored[collection].append(item)
 	reset()
 	ruins.assign(restored.ruins); craters.assign(restored.craters)
@@ -152,7 +209,9 @@ func emit_effect(kind: String, data: Dictionary, distance: float = 0.0) -> void:
 		p.radius=155.0 if p.core else (65.0+float(data.get("visual_size",2.0))*20.0 if building else {"scout":38.0,"tank":64.0,"siege":88.0,"harvester":74.0}.get(data.get("kind","tank"),58.0))
 		p.duration=5.5 if p.core else (3.8 if building else 1.9)
 		p.energy=false; p.hot=Color("ffc15c")
-		ruins.append({"pos":data.pos,"building":building,"core":p.core,"angle":data.angle,"age":0.0,"radius":p.radius*0.4,"variant":p.variant,"object_kind":data.get("kind","tank"),"footprint":data.get("visual_footprint",[2,2])})
+		var faction:=str(data.get("faction","forge"))
+		if not FACTION_IDS.has(faction): faction="forge"
+		ruins.append({"pos":data.pos,"building":building,"core":p.core,"angle":data.angle,"age":0.0,"radius":p.radius*0.4,"variant":p.variant,"object_kind":data.get("kind","tank"),"footprint":data.get("visual_footprint",[2,2]),"faction":faction,"owner":int(data.get("owner",1))})
 		if ruins.size()>MAX_RUINS:
 			# Recycle the oldest vehicle first, ordinary buildings next, cores last.
 			var victim := 0
@@ -200,6 +259,7 @@ func draw_ground(c: WorldRenderer) -> void:
 		var fade := 1.0
 		var aged_compact := is_compact_wreck_lod(float(ruin.get("age",0.0)),visible_ruin_count,c.vfx_budget_tier,c.benchmark_compact_wrecks)
 		if aged_compact:
+			if draw_3d_destruction_stamp(c,ruin): continue
 			if ruin.building:
 				var extent_simple := Vector2(ruin.footprint[0],ruin.footprint[1])*32.0*0.40
 				var simple_base := Rect2(ruin.pos-extent_simple,extent_simple*2)
@@ -212,6 +272,10 @@ func draw_ground(c: WorldRenderer) -> void:
 				var length_simple := 12.0 if ruin.object_kind=="scout" else (21.0 if ruin.object_kind in ["siege","harvester"] else 17.0)
 				c.smooth_polygon(PackedVector2Array([ruin.pos-direction_simple*length_simple-side_simple*7,ruin.pos+direction_simple*length_simple-side_simple*6,ruin.pos+direction_simple*(length_simple-3)+side_simple*7,ruin.pos-direction_simple*(length_simple-2)+side_simple*7]),Color(0.19,0.14,0.10,0.72))
 				c.draw_line(ruin.pos-direction_simple*length_simple,ruin.pos+direction_simple*length_simple,Color(0.42,0.31,0.21,0.55),2,true)
+			continue
+		if draw_3d_destruction_stamp(c,ruin):
+			# The texture is a static GPU asset rendered from this exact authored
+			# faction/role model. Keep only the short-lived explosion over it.
 			continue
 		if ruin.building:
 			c.smooth_polygon(PackedVector2Array([ruin.pos+Vector2(-r,-r*0.55),ruin.pos+Vector2(r*0.6,-r*0.5),ruin.pos+Vector2(r,r*0.45),ruin.pos+Vector2(-r*0.7,r*0.5)]),Color(0.24,0.18,0.12,0.65*fade))

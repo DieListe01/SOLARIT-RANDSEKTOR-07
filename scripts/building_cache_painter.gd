@@ -50,6 +50,7 @@ func _ready() -> void:
 		loaded_standard_model=ModelAssets.add_optional_glb(self, asset_path, "Authored building",team)
 	if loaded_faction_model or loaded_standard_model:
 		var model: Node3D=get_node("Faction building" if loaded_faction_model else "Authored building") as Node3D
+		entity["faction"] = faction
 		ModelAssets.apply_building_pose(model, entity)
 		var construction_stage:=int(entity.get("construction_stage",5))
 		if construction_stage<5:
@@ -89,7 +90,26 @@ func _add_construction_rig(footprint: Vector2, stage: int) -> void:
 	for side in [-1.0,1.0]:
 		_add_construction_box("Assembly guide light",Vector3(0.07,height+0.22,0.07),Vector3(side*width*0.40,0.25+(height+0.22)*0.5,depth*0.40),Color("45d8c5"),0.15,team_mat)
 	if stage>=4:
-		_add_construction_box("Commissioning power rail",Vector3(width*0.68,0.045,0.06),Vector3(0,1.60,0),Color("45d8c5"),0.15,team_mat)
+		_add_construction_box("Commissioning power rail",Vector3(width*0.68,0.09,0.10),Vector3(0,1.60,0),Color("45d8c5"),0.15,team_mat)
+		_add_commissioning_beacons(width,depth,height,team_mat)
+
+func _add_commissioning_beacons(width: float, depth: float, height: float, team_mat: Material) -> void:
+	# At 95% the structure is assembled; luminous roof beacons make the final
+	# live commissioning phase readable at the same zoom as the construction rig.
+	var y:=maxf(1.75,height+0.38)
+	for side in [-1.0,1.0]:
+		for fore_aft in [-1.0,1.0]:
+			var beacon:=MeshInstance3D.new()
+			beacon.name="Commissioning status beacon"
+			var mesh:=SphereMesh.new()
+			mesh.radius=0.14
+			mesh.height=0.28
+			mesh.radial_segments=8
+			mesh.rings=4
+			beacon.mesh=mesh
+			beacon.position=Vector3(side*width*0.36,y,fore_aft*depth*0.36)
+			beacon.material_override=team_mat
+			add_child(beacon)
 
 func _add_construction_box(label: String, size: Vector3, position: Vector3, color: Color, metallic: float, custom_material: Material = null) -> void:
 	var instance:=MeshInstance3D.new()

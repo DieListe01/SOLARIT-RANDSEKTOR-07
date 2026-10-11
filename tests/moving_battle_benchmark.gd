@@ -9,7 +9,7 @@ var game: Control
 var side_units: Array = [[],[],[],[]]
 var trace_lines: Array[String] = []
 var benchmark_contract_failed := false
-var summary_lines: Array[String] = ["variant,frames,fps,avg_frame_ms,1pct_worst_frame_ms,max_frame_ms,visible_vehicles,entities,projectiles,effects,particles,wrecks,tracks,pose_hits,pose_misses,poses_created,readbacks,cache_size,active_subviewports,world_ms,terrain_ms,buildings_ms,vehicles_ms,wrecks_ms,combat_vfx_ms,projectiles_render_ms,impacts_render_ms,explosions_render_ms,smoke_render_ms,tracks_render_ms,fog_ms,hud_ms,simulation_ms,pathfinding_ms,separation_ms,target_search_ms,combat_ms,movement_ms,projectile_sim_ms,ai_ms,draw_calls,primitives"]
+var summary_lines: Array[String] = ["variant,frames,fps,avg_frame_ms,1pct_worst_frame_ms,max_frame_ms,visible_vehicles,entities,projectiles,effects,particles,wrecks,tracks,pose_hits,pose_misses,poses_created,readbacks,cache_size,active_subviewports,production_preview_views,world_ms,terrain_ms,buildings_ms,vehicles_ms,wrecks_ms,combat_vfx_ms,projectiles_render_ms,impacts_render_ms,explosions_render_ms,smoke_render_ms,tracks_render_ms,fog_ms,hud_ms,simulation_ms,pathfinding_ms,separation_ms,target_search_ms,combat_ms,movement_ms,projectile_sim_ms,ai_ms,draw_calls,primitives"]
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -214,6 +214,7 @@ func run_variant(label: String, treatment: String) -> void:
 		var render_wait_ms: float=r.vehicle_cache_render_wait_ms_total-old_render_wait_ms
 		row.append("%.4f"%readback_ms); row.append("%.4f"%render_wait_ms)
 		row.append(str(r.vehicle_texture_cache.size())); row.append(str(r.vehicle_cache_active_subviewports))
+		row.append(str(r.production_preview_cache.viewports.size() if r.production_preview_cache!=null else 0))
 		trace_lines.append(",".join(row))
 		old_created=r.vehicle_cache_new_poses_total; old_readbacks=r.vehicle_cache_readbacks_total
 		old_readback_ms=r.vehicle_cache_readback_ms_total; old_render_wait_ms=r.vehicle_cache_render_wait_ms_total
@@ -221,7 +222,8 @@ func run_variant(label: String, treatment: String) -> void:
 	var frame_total:=0.0; var max_frame:=0.0
 	for x in frames: frame_total+=x; max_frame=maxf(max_frame,x)
 	var avg:=frame_total/frames.size()
-	var counts_summary: Array[int]=[game.renderer.visible_mobile_count,game.sim.entities.size(),game.sim.projectiles.size(),game.sim.effects.size(),game.renderer.combat_fx.particles.size(),game.renderer.combat_fx.ruins.size(),game.renderer.tracks.size(),total_hits,total_misses,game.renderer.vehicle_cache_new_poses_total-starting_created,total_readbacks,game.renderer.vehicle_texture_cache.size(),game.renderer.vehicle_cache_active_subviewports]
+	var preview_view_count: int=game.renderer.production_preview_cache.viewports.size() if game.renderer.production_preview_cache!=null else 0
+	var counts_summary: Array[int]=[game.renderer.visible_mobile_count,game.sim.entities.size(),game.sim.projectiles.size(),game.sim.effects.size(),game.renderer.combat_fx.particles.size(),game.renderer.combat_fx.ruins.size(),game.renderer.tracks.size(),total_hits,total_misses,game.renderer.vehicle_cache_new_poses_total-starting_created,total_readbacks,game.renderer.vehicle_texture_cache.size(),game.renderer.vehicle_cache_active_subviewports,preview_view_count]
 	var created_poses: int=game.renderer.vehicle_cache_new_poses_total-starting_created
 	if created_poses!=0 or max_created_per_frame>1 or total_readbacks!=0 or max_frame>100.0:
 		benchmark_contract_failed=true
@@ -255,7 +257,7 @@ func run() -> void:
 	for _frame in 300:
 		await process_frame
 		if game.renderer.vehicle_cache_generation_frozen: break
-	trace_lines.append("variant,frame,frame_ms,world_ms,terrain_ms,buildings_ms,vehicles_ms,wrecks_ms,combat_vfx_ms,projectiles_render_ms,impacts_render_ms,explosions_render_ms,smoke_ms,tracks_ms,fog_ms,hud_ms,simulation_ms,pathfinding_ms,separation_ms,target_search_ms,combat_ms,movement_ms,projectile_sim_ms,ai_ms,draw_calls,primitives,visible_vehicles,entities,projectiles,effects,particles,wrecks,tracks,pose_hits,pose_misses,poses_created,readbacks,readback_ms,subviewport_render_ms,cache_size,active_subviewports")
+	trace_lines.append("variant,frame,frame_ms,world_ms,terrain_ms,buildings_ms,vehicles_ms,wrecks_ms,combat_vfx_ms,projectiles_render_ms,impacts_render_ms,explosions_render_ms,smoke_ms,tracks_ms,fog_ms,hud_ms,simulation_ms,pathfinding_ms,separation_ms,target_search_ms,combat_ms,movement_ms,projectile_sim_ms,ai_ms,draw_calls,primitives,visible_vehicles,entities,projectiles,effects,particles,wrecks,tracks,pose_hits,pose_misses,poses_created,readbacks,readback_ms,subviewport_render_ms,cache_size,active_subviewports,production_preview_views")
 	for pair in [["baseline_adaptive","adaptive"],["vfx_limited","vfx"],["baseline_fullquality_1",""],["tracks_optimized","tracks"],["baseline_fullquality_2",""],["wrecks_compact","wrecks"],["baseline_fullquality_3",""],["combined","combined"]]:
 		await run_variant(str(pair[0]),str(pair[1]))
 	var summary_file:=FileAccess.open("res://test-output/moving_battle_benchmark.csv",FileAccess.WRITE)
