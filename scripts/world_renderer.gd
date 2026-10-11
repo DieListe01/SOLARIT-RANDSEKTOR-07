@@ -890,6 +890,7 @@ func _draw() -> void:
 	var half := logical_size*0.5/zoom
 	var from := g.cell(camera-half)-Vector2i.ONE
 	var to := g.cell(camera+half)+Vector2i.ONE
+	draw_special_objective_markers()
 	var terrain_started := Time.get_ticks_usec() if profile_enabled else 0
 	vfx_budget_tier=0
 	var combat_load:=sim.projectiles.size()+sim.effects.size()+combat_fx.particles.size()+visual_bursts.size()
@@ -1152,6 +1153,27 @@ func _draw() -> void:
 	if classic and crt>0:
 		for y in range(0,int(output.y),3): draw_line(Vector2(0,y),Vector2(output.x,y),Color(0,0,0,0.1 if crt==1 else 0.22),1)
 	if profile_enabled: profile_total_ms=float(Time.get_ticks_usec()-profile_started)/1000.0
+
+func draw_special_objective_markers() -> void:
+	if sim == null: return
+	for objective in sim.db.mission.get("objectives", []):
+		if str(objective.get("type", "")) != "control_zone": continue
+		var raw_cell: Array = objective.get("cell", [0, 0])
+		var center := sim.grid.center(Vector2i(int(raw_cell[0]), int(raw_cell[1])))
+		var radius := maxf(48.0, float(objective.get("radius", 150.0)))
+		var progress := float(sim.control_zone_progress.get(str(objective.get("id", "")), 0.0)) / maxf(1.0, float(objective.get("seconds", 1.0)))
+		var pulse := 0.78 + 0.22 * sin(elapsed * 3.0)
+		var marker_color := Color(0.35, 0.92, 0.78, 0.16 * pulse)
+		var ring_color := Color(0.35, 0.92, 0.78, 0.82 * pulse)
+		if progress >= 1.0:
+			marker_color = Color(0.91, 0.72, 0.34, 0.14)
+			ring_color = Color(0.91, 0.72, 0.34, 0.95)
+		draw_circle(center, radius, marker_color)
+		draw_arc(center, radius, 0.0, TAU, 48, ring_color, 3.0, true)
+		if progress > 0.0:
+			draw_arc(center, radius * 0.82, -PI * 0.5, -PI * 0.5 + TAU * clampf(progress, 0.0, 1.0), 48, Color("e7bd78"), 5.0, true)
+		for direction in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+			draw_line(center + direction * radius * 0.68, center + direction * radius * 0.82, ring_color, 4.0, true)
 
 
 func _construction_phase(progress: float) -> String:

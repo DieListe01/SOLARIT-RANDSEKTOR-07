@@ -53,6 +53,7 @@ Add-GodotTest 'Core' 'player_profile' $true 180
 Add-GodotTest 'Core' 'regression' $true 300
 
 Add-GodotTest 'Simulation' 'mission_system' $true 300
+Add-GodotTest 'Mission' 'special_orders' $true 300
 Add-GodotTest 'Simulation' 'playthrough' $true 600
 
 Add-GodotTest 'Gameplay' 'faction_vehicle_balance' $true 300
@@ -72,6 +73,7 @@ Add-GodotTest 'ProfileHighscore' 'online_stats' $true 300
 
 Add-GodotTest 'Mission' 'campaign_units' $true 300
 
+Add-PythonTest 'Audio' 'audio_asset_validation.py' $pythonPath @((Join-Path $gameRoot 'tests\audio_asset_validation.py')) 300
 Add-GodotTest 'Audio' 'audio_integration' $true 300
 
 Add-GodotTest 'UI' 'ui_integration' $false 600 'gl_compatibility' 'opengl3_angle'

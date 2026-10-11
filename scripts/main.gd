@@ -16,6 +16,7 @@ const PrivateLobbyCode := preload("res://scripts/private_lobby_code.gd")
 const PlayerProfileScript := preload("res://scripts/player_profile.gd")
 const MatchRecorderScript := preload("res://scripts/match_recorder.gd")
 const MatchChartScript := preload("res://scripts/match_chart.gd")
+const SpecialOrdersScript := preload("res://scripts/special_orders.gd")
 var update_history := Catalog.read_json("res://data/update_history.json")
 var update_manager: Node
 var update_check_manual := false
@@ -184,6 +185,9 @@ var campaign_progress_path := CAMPAIGN_PATH
 var run_id := ""
 var highscore_mission_index := -1
 var last_load_path := ""
+var special_order_run: Dictionary = {}
+var special_result_recorded := false
+var special_profile: Dictionary = {}
 
 func _ready() -> void:
 	mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -396,21 +400,22 @@ func show_main_menu() -> void:
 	label(ui,"KOMMANDO / BEREIT",Vector2(98,482),16,MUTED)
 	menu_buttons.clear()
 	menu_buttons.start=menu_button("01","EINSATZ WÄHLEN",526,show_briefing,true)
-	menu_buttons.multiplayer=menu_button("02","MULTIPLAYER",600,show_online_menu)
-	menu_buttons.load=menu_button("03","SPIELSTAND LADEN",658,func():show_load_dialog(show_main_menu))
+	menu_buttons.special_orders=menu_button("02","SPEZIALAUFTRÄGE",596,show_special_orders)
+	menu_buttons.multiplayer=menu_button("03","MULTIPLAYER",650,show_online_menu)
+	menu_buttons.load=menu_button("04","SPIELSTAND LADEN",704,func():show_load_dialog(show_main_menu))
 	menu_buttons.load.disabled=not FileAccess.file_exists(SAVE_PATH) and not FileAccess.file_exists("user://autosave.json")
-	menu_buttons.options=menu_button("04","OPTIONEN",716,func():show_options(show_main_menu))
-	menu_buttons.credits=menu_button("05","MUSIK & CREDITS",774,show_credits)
-	menu_buttons.quit=menu_button("06","BEENDEN",832,func():music.shutdown(); get_tree().quit())
+	menu_buttons.options=menu_button("05","OPTIONEN",758,func():show_options(show_main_menu))
+	menu_buttons.credits=menu_button("06","MUSIK & CREDITS",812,show_credits)
+	menu_buttons.quit=menu_button("07","BEENDEN",866,func():music.shutdown(); get_tree().quit())
 	menu_buttons.start.grab_focus()
 	show_menu_commander()
-	var replay := button(ui,"↺  INTRO ANSEHEN",Rect2(98,900,245,38),show_intro)
+	var replay := button(ui,"↺  INTRO ANSEHEN",Rect2(98,928,245,38),show_intro)
 	replay.add_theme_font_size_override("font_size",16)
-	menu_buttons.updates=button(ui,"UPDATEINFO",Rect2(360,900,190,38),func():show_updates(show_main_menu))
+	menu_buttons.updates=button(ui,"UPDATEINFO",Rect2(360,928,190,38),func():show_updates(show_main_menu))
 	menu_buttons.updates.add_theme_font_size_override("font_size",16)
-	menu_buttons.highscores=button(ui,"BESTENLISTE",Rect2(567,900,200,38),func():show_highscores(show_main_menu))
+	menu_buttons.highscores=button(ui,"BESTENLISTE",Rect2(567,928,200,38),func():show_highscores(show_main_menu))
 	menu_buttons.highscores.add_theme_font_size_override("font_size",16)
-	update_button=button(ui,"UPDATES PRÜFEN",Rect2(784,900,220,38),check_for_game_update)
+	update_button=button(ui,"UPDATES PRÜFEN",Rect2(784,928,220,38),check_for_game_update)
 	update_button.add_theme_font_size_override("font_size",16)
 	ghost_button_style(replay); ghost_button_style(menu_buttons.updates); ghost_button_style(menu_buttons.highscores); ghost_button_style(update_button)
 	if not commander_profile.has_identity(): show_profile_dialog(true,show_main_menu)
@@ -716,8 +721,101 @@ func mission_index_for_id(id: String) -> int:
 		if str(probe.mission.get("id",""))==id: return index
 	return -1
 
+func show_special_orders() -> void:
+	clear(overlay)
+	var p:=panel(overlay,Rect2(480,150,960,780),Color("202a29"))
+	p.name="SpecialOrdersPanel"
+	label(p,"SOLARIT / VEYRA-FRONT",Vector2(38,26),16,MINT)
+	label(p,"Spezialaufträge",Vector2(38,56),38,GOLD)
+	label(p,"Eigenständige Einsätze mit reproduzierbaren Seeds. Deine Kampagne bleibt unverändert.",Vector2(40,112),16,Color("d5ded5"),875)
+	var weekly_index:=SpecialOrdersScript.weekly_index(int(Time.get_unix_time_from_system()))
+	var weekly_seed:=SpecialOrdersScript.weekly_seed(weekly_index)
+	var week_card:=panel(p,Rect2(36,160,888,166),Color("182421"))
+	label(week_card,"WOCHENAUFTRAG  ·  %02d" % (posmod(weekly_index,52)+1),Vector2(22,17),14,MINT)
+	label(week_card,"SEED  %06d" % weekly_seed,Vector2(22,44),25,GOLD)
+	label(week_card,"Diese Woche gelten weltweit derselbe Auftragstyp und dieselben Sektorregeln.",Vector2(22,83),15,Color("d5ded5"),550)
+	var weekly_start:=button(week_card,"WOCHENAUFTRAG STARTEN",Rect2(590,54,280,54),func():_launch_weekly_special())
+	weekly_start.add_theme_font_size_override("font_size",15)
+	var quick_faction:=OptionButton.new(); quick_faction.name="SpecialQuickFaction"; quick_faction.position=Vector2(38,367); quick_faction.size=Vector2(260,42)
+	quick_faction.add_item("KOBALT-KONSORTIUM",0); quick_faction.add_item("WANDERPAKT",1); quick_faction.set_item_metadata(0,"forge"); quick_faction.set_item_metadata(1,"drift"); p.add_child(quick_faction)
+	var quick_difficulty:=OptionButton.new(); quick_difficulty.name="SpecialQuickDifficulty"; quick_difficulty.position=Vector2(318,367); quick_difficulty.size=Vector2(220,42)
+	for option in [["EINFACH","easy"],["NORMAL","normal"],["SCHWER","hard"]]: quick_difficulty.add_item(option[0]); quick_difficulty.set_item_metadata(quick_difficulty.item_count-1,option[1])
+	quick_difficulty.select(1); p.add_child(quick_difficulty)
+	button(p,"SCHNELLAUFTRAG GENERIEREN",Rect2(568,365,350,46),func():
+		var seed_rng:=RandomNumberGenerator.new(); seed_rng.randomize()
+		var faction_value:=str(quick_faction.get_item_metadata(quick_faction.selected))
+		var difficulty_value:=str(quick_difficulty.get_item_metadata(quick_difficulty.selected))
+		var type_value: String=SpecialOrdersScript.TYPES[seed_rng.randi_range(0,SpecialOrdersScript.TYPES.size()-1)]
+		var order:=SpecialOrdersScript.generate(Catalog.read_json("res://data/veyra.json"),seed_rng.randi_range(100000,999999),type_value,faction_value,difficulty_value)
+		_launch_special_order(order)
+	)
+	button(p,"EIGENEN AUFTRAG KONFIGURIEREN",Rect2(38,433,880,48),func():show_special_custom())
+	var profile:=SpecialOrdersScript.load_profile()
+	label(p,"PERSÖNLICHER STATUS",Vector2(40,510),14,MINT)
+	label(p,"%d Einsätze  ·  %d Siege  ·  %d Gold/Platin  ·  %s Solarit geborgen" % [int(profile.completed),int(profile.wins),int(profile.gold_plus),format_score(int(profile.solarite))],Vector2(40,538),19,Color("d5ded5"),850)
+	var history: Array=profile.get("history",[])
+	var board_text:="NOCH KEINE ERGEBNISSE"
+	if not history.is_empty():
+		var lines: Array[String]=[]
+		for i in range(mini(history.size(),3)):
+			var item: Dictionary=history[i].duplicate(true)
+			lines.append("%s  ·  Seed %s  ·  %s  ·  %s Punkte" % [str(item.get("type","Auftrag")),str(item.get("seed","—")),str(item.get("medal","—")),format_score(int(item.get("score",0)))])
+		board_text="\n".join(lines)
+	label(p,"LETZTE ERGEBNISSE / PERSÖNLICHE BESTENLISTE",Vector2(40,590),13,MUTED)
+	label(p,board_text,Vector2(40,616),16,Color("c7d4cc"),850)
+	button(p,"ZURÜCK",Rect2(38,715,200,42),show_main_menu)
+
+func show_special_custom() -> void:
+	clear(overlay)
+	var p:=panel(overlay,Rect2(500,195,920,690),Color("202a29")); p.name="SpecialOrderCustomPanel"
+	label(p,"SPEZIALAUFTRAG / EIGENE PARAMETER",Vector2(36,28),16,MINT)
+	label(p,"Einsatz konfigurieren",Vector2(36,59),36,GOLD)
+	label(p,"Auftragstyp",Vector2(38,127),14,MUTED)
+	var type_select:=OptionButton.new(); type_select.name="SpecialCustomType"; type_select.position=Vector2(38,152); type_select.size=Vector2(400,44)
+	for mission_type in SpecialOrdersScript.TYPES: type_select.add_item(SpecialOrdersScript.TYPE_NAMES[mission_type]); type_select.set_item_metadata(type_select.item_count-1,mission_type)
+	p.add_child(type_select)
+	label(p,"Eigene Fraktion",Vector2(38,219),14,MUTED)
+	var faction_select:=OptionButton.new(); faction_select.name="SpecialCustomFaction"; faction_select.position=Vector2(38,244); faction_select.size=Vector2(400,44)
+	faction_select.add_item("KOBALT-KONSORTIUM"); faction_select.set_item_metadata(0,"forge"); faction_select.add_item("WANDERPAKT"); faction_select.set_item_metadata(1,"drift"); p.add_child(faction_select)
+	label(p,"Schwierigkeit",Vector2(38,310),14,MUTED)
+	var difficulty_select:=OptionButton.new(); difficulty_select.name="SpecialCustomDifficulty"; difficulty_select.position=Vector2(38,335); difficulty_select.size=Vector2(400,44)
+	for option in [["EINFACH","easy"],["NORMAL","normal"],["SCHWER","hard"]]: difficulty_select.add_item(option[0]); difficulty_select.set_item_metadata(difficulty_select.item_count-1,option[1])
+	difficulty_select.select(1); p.add_child(difficulty_select)
+	label(p,"Seed · leer lassen für einen neuen Zufallswert",Vector2(38,403),14,MUTED)
+	var seed_input:=LineEdit.new(); seed_input.name="SpecialCustomSeed"; seed_input.position=Vector2(38,428); seed_input.size=Vector2(400,44); seed_input.placeholder_text="z. B. 184726"; seed_input.max_length=9; seed_input.text=str(randi_range(100000,999999)); p.add_child(seed_input)
+	label(p,"Jeder Seed erzeugt dieselbe Karte, Doktrin, Modifier und Nebenziele. Benutzeraufträge zählen nicht zur Wochenwertung.",Vector2(490,158),18,Color("d5ded5"),380)
+	var conditions: Array[String]=[]
+	for modifier in SpecialOrdersScript.MODIFIERS: conditions.append("• %s" % modifier.name)
+	label(p,"MÖGLICHE SEKTORBEDINGUNGEN\n"+"\n".join(conditions),Vector2(490,270),15,MUTED,380)
+	button(p,"AUFTRAG ERZEUGEN",Rect2(490,570,380,52),func():
+		var seed_text:=seed_input.text.strip_edges()
+		var seed_value:=int(seed_text) if seed_text.is_valid_int() else randi_range(100000,999999)
+		var selected_type:=str(type_select.get_item_metadata(type_select.selected))
+		var selected_faction:=str(faction_select.get_item_metadata(faction_select.selected))
+		var selected_difficulty:=str(difficulty_select.get_item_metadata(difficulty_select.selected))
+		_launch_special_order(SpecialOrdersScript.generate(Catalog.read_json("res://data/veyra.json"),seed_value,selected_type,selected_faction,selected_difficulty))
+	)
+	button(p,"ZURÜCK",Rect2(38,570,200,52),show_special_orders)
+
+func _launch_weekly_special() -> void:
+	var base:=Catalog.read_json("res://data/veyra.json")
+	var index:=SpecialOrdersScript.weekly_index(int(Time.get_unix_time_from_system()))
+	_launch_special_order(SpecialOrdersScript.weekly_order(base,int(Time.get_unix_time_from_system()),faction,difficulty))
+
+func _launch_special_order(order: Dictionary) -> void:
+	special_order_run=order.duplicate(true)
+	special_result_recorded=false
+	mission_index=-1
+	faction=str(order.get("player_faction","forge"))
+	difficulty=str(order.get("difficulty","normal"))
+	db=Catalog.new("res://data/veyra.json")
+	db.mission=order.get("mission",{}).duplicate(true)
+	if db.mission.is_empty() or db.mission.get("id","")=="": show_error("Spezialauftrag konnte nicht erzeugt werden."); return
+	start_game()
+
 func select_mission(index: int) -> void:
 	if index<0 or index>int(campaign_progress.unlocked_mission): notify("Dieser Einsatz wird erst nach dem vorherigen Missionssieg freigegeben."); return
+	special_order_run.clear(); special_result_recorded=false
 	mission_index=clampi(index,0,MISSION_PATHS.size()-1)
 	db=Catalog.new(MISSION_PATHS[mission_index])
 	playing=false; paused=true
@@ -732,6 +830,11 @@ func mission_objective_brief() -> String:
 	return "\n".join(lines)
 
 func show_briefing() -> void:
+	if mission_index < 0 or not special_order_run.is_empty():
+		special_order_run.clear()
+		special_result_recorded=false
+		mission_index=clampi(int(campaign_progress.get("unlocked_mission",0)),0,MISSION_PATHS.size()-1)
+		db=Catalog.new(MISSION_PATHS[mission_index])
 	clear(ui); clear(overlay)
 	view_container.visible=false
 	var art := FrontendBackdrop.new()
@@ -1392,7 +1495,7 @@ func _on_online_world_snapshot(snapshot: Dictionary) -> void:
 func start_game() -> void:
 	intro_active=false
 	if online.is_host() and not online.mission_started and not online.can_start(): return
-	sim=Simulation.new(db,faction,difficulty,int(campaign_progress.tech_level))
+	sim=Simulation.new(db,faction,difficulty,0 if not special_order_run.is_empty() else int(campaign_progress.tech_level))
 	if online.active and online.is_versus():
 		sim.configure_versus(online.mission_config,online.local_owner())
 		if online.is_client(): sim.restore(sim.snapshot_for(1))
@@ -2606,14 +2709,15 @@ func on_presentation(kind: String, data: Dictionary) -> void:
 	if not sim.grid.inside(cell) or sim.fog[local_owner()][cell.y*sim.grid.width+cell.x]==0: return
 	renderer.combat_fx.emit_effect(kind,data,renderer.camera.distance_to(data.pos))
 	var distance_gain := clampf(1.0-renderer.camera.distance_to(data.pos)/1600.0,0.08,1.0)
-	if kind=="shot": music.cue(renderer.combat_fx.family(data.weapon).to_lower()+"_shot",0.8*distance_gain)
-	if kind=="impact": music.cue(renderer.combat_fx.family(data.weapon).to_lower()+"_impact",0.7*distance_gain)
+	var audio_position := audio_position_for_world(data.pos)
+	if kind=="shot": music.cue(renderer.combat_fx.family(data.weapon).to_lower()+"_shot",0.8*distance_gain,audio_position)
+	if kind=="impact": music.cue(renderer.combat_fx.family(data.weapon).to_lower()+"_impact",0.7*distance_gain,audio_position)
 	if kind=="destroy":
-		if data.get("kind","")=="core": music.cue("alarm",0.6); music.cue("core_impact",0.9)
+		if data.get("kind","")=="core": music.cue("alarm",0.6,audio_position); music.cue("core_impact",0.9,audio_position)
 		notify(("EIGENES GEBÄUDE ZERSTÖRT" if data.building else "FAHRZEUG VERLOREN") if data.owner==local_owner() else ("FEINDLICHES GEBÄUDE ZERSTÖRT" if data.building else "FEINDLICHES FAHRZEUG ZERSTÖRT"))
 		if is_instance_valid(minimap): minimap.ping(data.pos,Color("f34c32"))
 	if kind=="hit" and data.owner==local_owner() and not data.building and notice_timer<=0:
-		notify("FAHRZEUG UNTER BESCHUSS"); music.cue("alarm")
+		notify("FAHRZEUG UNTER BESCHUSS"); music.cue("alarm",1.0,audio_position)
 		if is_instance_valid(minimap): minimap.ping(data.pos,Color("f34c32"))
 
 func on_event(kind: String, pos: Vector2, message: String) -> void:
@@ -2621,16 +2725,41 @@ func on_event(kind: String, pos: Vector2, message: String) -> void:
 	if sim!=null:
 		var cell := sim.grid.cell(pos)
 		visible=sim.grid.inside(cell) and sim.fog[local_owner()][cell.y*sim.grid.width+cell.x]>0
+	if kind in ["harvest_start","harvest_stop","harvest_unload"]:
+		if kind=="harvest_stop":
+			var working_harvester:Dictionary={}
+			for entity in sim.entities.values():
+				if entity.kind!="harvester" or entity.owner!=local_owner() or entity.harvest_state!="HARVEST": continue
+				if not sim.is_visible(entity,local_owner()): continue
+				working_harvester=entity
+				break
+			music.set_harvester_working(not working_harvester.is_empty(),audio_position_for_world(working_harvester.pos) if not working_harvester.is_empty() else Vector2(-1,-1))
+		elif visible:
+			var audio_position:=audio_position_for_world(pos)
+			if kind=="harvest_start":
+				music.cue("harvest_start_demo",0.8,audio_position)
+				music.cue("harvest_collect_demo",0.55,audio_position)
+				music.set_harvester_working(true,audio_position)
+			else:
+				music.cue("harvest_unload_demo",0.9,audio_position)
+		return
 	if kind in ["shot","explosion"]:
 		if visible:
-			if kind=="explosion": music.cue(kind,clampf(1.0-pos.distance_to(renderer.camera)/1200.0,0.05,0.8))
+			if kind=="explosion": music.cue(kind,clampf(1.0-pos.distance_to(renderer.camera)/1200.0,0.05,0.8),audio_position_for_world(pos))
 	else:
 		if not visible: return
 		renderer.visual_event(kind,pos)
-		music.cue(kind)
+		music.cue(kind,1.0,audio_position_for_world(pos))
 		if message!="": notify(message)
 		last_event=pos
 		if kind in ["alarm","complete","ready"] and is_instance_valid(minimap): minimap.ping(pos,GOLD if kind=="alarm" else sim.team_color(local_owner()))
+
+func audio_position_for_world(world_position: Vector2) -> Vector2:
+	if not is_instance_valid(renderer): return Vector2(-1,-1)
+	var container_position:=view_container.global_position if is_instance_valid(view_container) else WORLD_RECT.position
+	var container_size:=view_container.size if is_instance_valid(view_container) else WORLD_RECT.size
+	var scale:=container_size/WORLD_RECT.size
+	return container_position+(WORLD_RECT.size*0.5+world_position-renderer.camera)*scale
 
 func notify(message: String) -> void:
 	if is_instance_valid(notification): notification.text=message; fit_wrapped(notification)
@@ -2660,6 +2789,9 @@ func show_end() -> void:
 		side_panel.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	if sim.online_mode=="versus" or (online.active and sim.online_mode=="coop"):
 		show_online_end(); return
+	if not special_order_run.is_empty():
+		show_special_order_end()
+		return
 	paused=true
 	if is_instance_valid(online_stats): online_stats.stop_playing()
 	clear(overlay)
@@ -2717,6 +2849,56 @@ func show_end() -> void:
 	else:
 		button(p,"ERNEUT SPIELEN",Rect2(42,670,310,58),start_game)
 		button(p,"HAUPTMENÜ",Rect2(392,670,310,58),show_main_menu)
+
+func show_special_order_end() -> void:
+	paused=true
+	if is_instance_valid(online_stats): online_stats.stop_playing()
+	clear(overlay)
+	var panel_height:=720.0
+	var p:=panel(overlay,Rect2(510,(1080-panel_height)*0.5,900,panel_height),Color("202a29"))
+	p.name="SpecialOrderDebrief"
+	var won:=sim.result=="victory"
+	var summary:=SpecialOrdersScript.score_run(special_order_run,sim) if won else {"score":0,"medal":"NICHT ABGESCHLOSSEN","optional_done":0,"optional_total":special_order_run.get("optional_objectives",[]).size()}
+	label(p,"SPEZIALAUFTRAG / AUSWERTUNG",Vector2(38,24),16,MINT)
+	label(p,"Einsatz erfüllt" if won else "Signal verloren",Vector2(38,53),40,GOLD)
+	label(p,"%s  ·  %s  ·  SEED %06d\nDOKTRIN  %s\nSEKTORREGELN  %s\nZEIT  %s  ·  SOLARIT  %s\nNEBENZIELE  %d / %d" % [str(special_order_run.get("type_name",special_order_run.get("type",""))),"WOCHENAUFTRAG" if bool(special_order_run.get("official",false)) else "EIGENER EINSATZ",int(special_order_run.get("seed",0)),str(special_order_run.get("enemy_doctrine",""))," · ".join(special_order_run.get("modifiers",[])),format_save_clock(sim.time),format_score(int(sim.stats.gathered)),int(summary.optional_done),int(summary.optional_total)],Vector2(42,116),18,Color("d5ded5"),810)
+	label(p,"WERTUNG  %s  ·  %s PUNKTE  ·  RISIKOSTUFE %d" % [str(summary.medal),format_score(int(summary.score)),int(special_order_run.get("risk_level",0))],Vector2(42,286),23,GOLD,810)
+	label(p,"Wertung: 10.000 Siegpunkte + 2.500 je Nebenziel + bis 5.000 für Solarit + Zeitbonus − Einheiten-/Gebäudeverluste + 1.800 je Risikostufe.\nMedaillen: Bronze ab 0 · Silber ab 14.500 · Gold ab 19.000 · Platin ab 24.500.",Vector2(42,337),15,MUTED,810)
+	if not special_result_recorded:
+		var leave_button:=button(p,"SEKTOR VERLASSEN · ERGEBNIS SPEICHERN",Rect2(42,586,500,56),func():_finish_special_order(summary))
+		leave_button.add_theme_color_override("font_color",GOLD)
+		if won: button(p,"WEITERKÄMPFEN · +RISIKO",Rect2(564,586,290,56),continue_special_risk)
+	else:
+		button(p,"HAUPTMENÜ",Rect2(42,586,310,56),show_main_menu)
+		button(p,"NOCH EIN SPEZIALAUFTRAG",Rect2(374,586,480,56),show_special_orders)
+
+func _finish_special_order(summary: Dictionary) -> void:
+	if not special_result_recorded:
+		var order_result:={"outcome":"victory" if sim.result=="victory" else "defeat","score":int(summary.get("score",0)),"medal":str(summary.get("medal","NICHT ABGESCHLOSSEN")),"solarite":int(sim.stats.gathered)}
+		special_profile=SpecialOrdersScript.load_profile()
+		if not SpecialOrdersScript.record_result(special_profile,special_order_run,order_result): notify("Spezialauftrags-Ergebnis konnte nicht gespeichert werden."); return
+		special_result_recorded=true
+	show_main_menu()
+
+func continue_special_risk() -> void:
+	if sim==null or sim.result!="victory" or special_order_run.is_empty(): return
+	var next_risk:=int(special_order_run.get("risk_level",0))+1
+	special_order_run.risk_level=next_risk
+	var objectives: Array=sim.db.mission.objectives
+	for objective in objectives:
+		if objective is Dictionary and bool(objective.get("primary",false)): objective.primary=false
+	var risk_id:="risk_hold_%d" % next_risk
+	objectives.append({"id":risk_id,"type":"survive","seconds":sim.time+180.0,"primary":true,"text":"Überstehe weitere drei Minuten für Risikostufe %d." % next_risk,"hud":"RISIKOSTUFE %d HALTEN" % next_risk})
+	sim.db.mission.objectives=objectives
+	var waves: Array=sim.db.mission.get("waves",[])
+	waves.append({"time":sim.time+75.0,"spawn_cell":[58,8],"units":["tank","raider","scout"],"message":"RISIKO %d · FEINDVERSTÄRKUNGEN" % next_risk})
+	sim.db.mission.waves=waves
+	sim.result=""
+	paused=false
+	renderer.visual_paused=false
+	clear(overlay)
+	update_hud()
+	notify("Risikostufe %d begonnen · Verstärkung nähert sich." % next_risk)
 
 func record_commander_result(mode: String, score: int) -> Dictionary:
 	if sim == null or sim.result not in ["victory", "defeat"] or run_id.is_empty(): return {"new_best": false}
@@ -3267,6 +3449,9 @@ func save_game(path: String = SAVE_PATH, feedback: bool = true) -> void:
 	data["category"]=category
 	data["inspected"]=inspected
 	data["production_target_factory_id"]=production_target_factory_id
+	if not special_order_run.is_empty():
+		special_order_run["mission"]=db.mission.duplicate(true)
+		data["special_order_run"]=special_order_run.duplicate(true)
 	var bookmark_save: Dictionary={}
 	for key in bookmarks:
 		var point: Vector2=bookmarks[key]
@@ -3287,6 +3472,17 @@ func save_slot_info(path: String) -> Dictionary:
 	var parser:=JSON.new()
 	if parser.parse(FileAccess.get_file_as_string(path))!=OK or not parser.data is Dictionary: return info
 	var data: Dictionary=parser.data
+	var saved_special: Variant=data.get("special_order_run",{})
+	if saved_special is Dictionary and not saved_special.is_empty():
+		var special_mission: Variant=saved_special.get("mission",{})
+		if not special_mission is Dictionary or str(special_mission.get("id",""))!=str(data.get("mission","")): return info
+		info.valid=true
+		info.mission_id=str(data.get("mission",""))
+		info.mission=str(data.get("mission_name",special_mission.get("display_name","Spezialauftrag")))
+		info.time=float(data.get("time",0.0)) if data.get("time",0.0) is int or data.get("time",0.0) is float else 0.0
+		info.saved_at=str(data.get("saved_at","")); info.commander=str(data.get("commander_nickname",""))
+		info.difficulty=difficulty_label(str(data.get("difficulty","normal"))); info.version=str(data.get("game_version",""))
+		return info
 	var saved_index:=mission_index_for_id(str(data.get("mission","")))
 	if saved_index<0: return info
 	var preview:=Catalog.new(MISSION_PATHS[saved_index])
@@ -3352,12 +3548,24 @@ func load_game(path: String = "") -> void:
 	if parser.parse(FileAccess.get_file_as_string(path))!=OK: show_error("Spielstand enthält ungültiges JSON."); return
 	var data = parser.data
 	if not data is Dictionary: show_error("Ungültiger Spielstand."); return
-	var saved_mission_index:=mission_index_for_id(str(data.get("mission","")))
-	if saved_mission_index<0: show_error("Mission des Spielstands ist nicht verfügbar."); return
-	mission_index=saved_mission_index
-	db=Catalog.new(MISSION_PATHS[mission_index])
+	var loaded_special: Variant=data.get("special_order_run",{})
+	if loaded_special is Dictionary and not loaded_special.is_empty():
+		var special_mission: Variant=loaded_special.get("mission",{})
+		if not special_mission is Dictionary or str(special_mission.get("id",""))!=str(data.get("mission","")):
+			show_error("Spezialauftragsdaten im Spielstand sind ungültig."); return
+		special_order_run=loaded_special.duplicate(true)
+		special_result_recorded=false
+		mission_index=-1
+		db=Catalog.new("res://data/veyra.json")
+		db.mission=special_mission.duplicate(true)
+	else:
+		var saved_mission_index:=mission_index_for_id(str(data.get("mission","")))
+		if saved_mission_index<0: show_error("Mission des Spielstands ist nicht verfügbar."); return
+		special_order_run.clear(); special_result_recorded=false
+		mission_index=saved_mission_index
+		db=Catalog.new(MISSION_PATHS[mission_index])
 	if not db.errors.is_empty(): show_error("Spieldaten der gespeicherten Mission sind ungültig."); return
-	var model := Simulation.new(db,"forge","normal",int(campaign_progress.tech_level))
+	var model := Simulation.new(db,"forge","normal",0 if not special_order_run.is_empty() else int(campaign_progress.tech_level))
 	if model.restore(data)!=OK: show_error("Spielstandversion oder Spieldaten passen nicht."); return
 	var local_visuals := CombatEffects.new()
 	if data.has("visual_state") and local_visuals.restore_persistence(data.visual_state,Vector2(model.grid.width,model.grid.height)*model.grid.tile)!=OK:
@@ -3771,7 +3979,7 @@ func show_credits() -> void:
 	var p := panel(overlay,Rect2(580,170,980,740),Color("2b221b"))
 	label(p,"SOLARIT: RANDSEKTOR 07 / ORIGINALAUDIO",Vector2(40,34),18,MINT)
 	label(p,"Frequenzen von Veyra",Vector2(40,80),42,GOLD)
-	label(p,"Komposition, Synthese und Grafik wurden für dieses Projekt erstellt.\nAlle Musikspuren laufen bei 120 BPM auf derselben Taktachse.\nAus dem ruhigen Bassmotiv wächst das Gefechtsarrangement.\n\nEngine: Godot, MIT-Lizenz. Keine externen Plugins oder Spielassets.\nProgrammierung, Gestaltung & Komposition: Codex für Dirk.",Vector2(40,168),22,Color("c8d8ce"),900)
+	label(p,"Eigenständige, fraktionsgebundene SOLARIT-Referenzmusik.\nTempo und Taktart folgen der jeweiligen Fraktion; Calm, Contact, Battle und Alarm liegen auf einer gemeinsamen Taktachse und werden überblendet.\n\nMusik und Effekte: intern erstellte Demo-/Referenzproduktion.\nEngine: Godot, MIT-Lizenz. Keine externen Musik- oder Spielassets.",Vector2(40,168),22,Color("c8d8ce"),900)
 	music.start(Simulation.new(db,faction))
 	music.set_paused(false)
 	for i in 4:

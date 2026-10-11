@@ -1,6 +1,18 @@
 {
-  "current_version": "0.38.10",
+  "current_version": "0.38.11",
   "entries": [
+    {
+      "version": "0.38.11",
+      "date": "11.10.2026",
+      "title": "Spezialaufträge mit Wochenmission und Seeds",
+      "changes": [
+        "Das Hauptmenü enthält jetzt einen eigenen Modus für Spezialaufträge; die fest gestaltete Veyra-Kampagne und ihr Fortschritt bleiben getrennt.",
+        "Gebiet sichern, Solarit-Förderung, Stellung halten und Basis ausschalten verwenden reproduzierbare Seeds, acht Sektorbedingungen, sechs Gegnerdoktrinen und optionale Ziele. Das Haltegebiet wird sichtbar markiert und umkämpfte Präsenz stoppt den Fortschritt.",
+        "Wochen-, Schnell- und eigene Aufträge sind spielbar. Zeit, Solarit, Nebenziele, Verluste und Risikostufen ergeben eine offengelegte Wertung mit Medaillen; Weiterkämpfen erhöht Risiko und mögliche Punkte.",
+        "Spezialauftragsstände speichern die erzeugte Mission samt Regeln, Seed und Fortschritt. Ein eigenes Profil führt Ergebnisse und persönliche Wochen-/Seed-Bestenlisten.",
+        "Die adaptive Musiksteuerung bindet erste fraktionsbezogene Referenzstücke sowie Arbeits-, Förder- und Entladegeräusche des Sammlers ein. Die neuen Musikdateien sind Demo-/Hörreferenzen; Sprachsamples und die abschließende Hörabnahme stehen noch aus."
+      ]
+    },
     {
       "version": "0.38.10",
       "date": "11.10.2026",

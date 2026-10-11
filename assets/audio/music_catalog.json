@@ -1,0 +1,333 @@
+{
+  "schema_version": 2,
+  "default_tempo_bpm": 120,
+  "default_beats_per_bar": 4,
+  "title_track": {
+    "id": "first_signal",
+    "path": "res://assets/audio/music/first_signal_demo.ogg",
+    "bpm": 96,
+    "beats_per_bar": 4,
+    "beat_unit": 4,
+    "loop_start_seconds": 0.0,
+    "loop_end_seconds": 160.0,
+    "weight": 1.0,
+    "intensity": "title",
+    "transition_points_bars": [
+      0,
+      8,
+      16,
+      24,
+      32,
+      40,
+      48,
+      56,
+      64
+    ]
+  },
+  "factions": {
+    "forge": {
+      "display_name": "Kobalt-Konsortium",
+      "motif": [
+        0,
+        7,
+        3,
+        10
+      ],
+      "identity": "schwer, industriell, diszipliniert",
+      "tracks": {
+        "calm": [
+          {
+            "id": "forge_calm_demo",
+            "path": "res://assets/audio/music/forge_calm_demo.ogg",
+            "bpm": 108,
+            "beats_per_bar": 4,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 106.667,
+            "weight": 1.0,
+            "intensity": "low",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48
+            ]
+          }
+        ],
+        "contact": [
+          {
+            "id": "forge_contact_demo",
+            "path": "res://assets/audio/music/forge_contact_demo.ogg",
+            "bpm": 108,
+            "beats_per_bar": 4,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 106.667,
+            "weight": 1.0,
+            "intensity": "low",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48
+            ]
+          }
+        ],
+        "battle": [
+          {
+            "id": "forge_battle_demo",
+            "path": "res://assets/audio/music/forge_battle_demo.ogg",
+            "bpm": 108,
+            "beats_per_bar": 4,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 106.667,
+            "weight": 1.0,
+            "intensity": "medium",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48
+            ]
+          }
+        ],
+        "alarm": [
+          {
+            "id": "forge_alarm_demo",
+            "path": "res://assets/audio/music/forge_alarm_demo.ogg",
+            "bpm": 108,
+            "beats_per_bar": 4,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 106.667,
+            "weight": 1.0,
+            "intensity": "high",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48
+            ]
+          }
+        ]
+      }
+    },
+    "drift": {
+      "display_name": "Wanderpakt",
+      "motif": [
+        0,
+        2,
+        7,
+        5
+      ],
+      "identity": "rau, mobil, gebrochen",
+      "tracks": {
+        "calm": [
+          {
+            "id": "drift_calm_demo",
+            "path": "res://assets/audio/music/drift_calm_demo.ogg",
+            "bpm": 108,
+            "beats_per_bar": 7,
+            "beat_unit": 8,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 108.889,
+            "weight": 1.0,
+            "intensity": "low",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48,
+              56
+            ]
+          }
+        ],
+        "contact": [
+          {
+            "id": "drift_contact_demo",
+            "path": "res://assets/audio/music/drift_contact_demo.ogg",
+            "bpm": 108,
+            "beats_per_bar": 7,
+            "beat_unit": 8,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 108.889,
+            "weight": 1.0,
+            "intensity": "low",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48,
+              56
+            ]
+          }
+        ],
+        "battle": [
+          {
+            "id": "drift_battle_demo",
+            "path": "res://assets/audio/music/drift_battle_demo.ogg",
+            "bpm": 108,
+            "beats_per_bar": 7,
+            "beat_unit": 8,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 108.889,
+            "weight": 1.0,
+            "intensity": "medium",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48,
+              56
+            ]
+          }
+        ],
+        "alarm": [
+          {
+            "id": "drift_alarm_demo",
+            "path": "res://assets/audio/music/drift_alarm_demo.ogg",
+            "bpm": 108,
+            "beats_per_bar": 7,
+            "beat_unit": 8,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 108.889,
+            "weight": 1.0,
+            "intensity": "high",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48,
+              56
+            ]
+          }
+        ]
+      }
+    },
+    "lumen": {
+      "display_name": "Prisma-Konklave",
+      "motif": [
+        0,
+        11,
+        4,
+        9
+      ],
+      "identity": "fremdartig, präzise, räumlich",
+      "tracks": {
+        "calm": [
+          {
+            "id": "lumen_calm_demo",
+            "path": "res://assets/audio/music/lumen_calm_demo.ogg",
+            "bpm": 96,
+            "beats_per_bar": 5,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 150.0,
+            "weight": 1.0,
+            "intensity": "low",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48
+            ]
+          }
+        ],
+        "contact": [
+          {
+            "id": "lumen_contact_demo",
+            "path": "res://assets/audio/music/lumen_contact_demo.ogg",
+            "bpm": 96,
+            "beats_per_bar": 5,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 150.0,
+            "weight": 1.0,
+            "intensity": "low",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48
+            ]
+          }
+        ],
+        "battle": [
+          {
+            "id": "lumen_battle_demo",
+            "path": "res://assets/audio/music/lumen_battle_demo.ogg",
+            "bpm": 96,
+            "beats_per_bar": 5,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 150.0,
+            "weight": 1.0,
+            "intensity": "medium",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48
+            ]
+          }
+        ],
+        "alarm": [
+          {
+            "id": "lumen_alarm_demo",
+            "path": "res://assets/audio/music/lumen_alarm_demo.ogg",
+            "bpm": 96,
+            "beats_per_bar": 5,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 150.0,
+            "weight": 1.0,
+            "intensity": "high",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32,
+              40,
+              48
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

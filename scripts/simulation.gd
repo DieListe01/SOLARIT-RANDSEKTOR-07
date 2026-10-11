@@ -35,6 +35,7 @@ var stats := {"gathered":0.0,"produced":0,"lost":0,"kills":0,"built":0,"building
 var rng := RandomNumberGenerator.new()
 var objective_announced: Dictionary = {}
 var triggered_waves: Dictionary = {}
+var control_zone_progress: Dictionary = {}
 
 # Approximate body radii; ephemeral neighbour buckets never enter save/network data.
 const UNIT_RADII := {"scout":14.0,"tank":22.0,"siege":26.0,"harvester":28.0,"raider":21.0,"lancer":29.0,"scorcher":23.0,"bulwark":34.0}
@@ -538,7 +539,29 @@ func tick(dt: float) -> void:
 			if profile_enabled: profile_ai_ms=float(Time.get_ticks_usec()-ai_started)/1000.0
 		ai_timer=float(db.rules.ai_interval[difficulty])
 	if online_mode!="versus": process_mission_waves()
+	update_control_zone_objectives(dt)
 	check_objectives()
+
+func update_control_zone_objectives(dt: float) -> void:
+	for objective in db.mission.get("objectives", []):
+		if str(objective.get("type", "")) != "control_zone": continue
+		var objective_id := str(objective.get("id", ""))
+		var raw_cell: Array = objective.get("cell", [0, 0])
+		var center := grid.center(Vector2i(int(raw_cell[0]), int(raw_cell[1])))
+		var radius := maxf(1.0, float(objective.get("radius", 150.0)))
+		var friendly_present := false
+		var enemy_present := false
+		for entity in entities.values():
+			if entity.building or not entity.complete: continue
+			if entity.pos.distance_to(center) > radius: continue
+			if int(entity.owner) == 0: friendly_present = true
+			elif int(entity.owner) == 1: enemy_present = true
+		var current := float(control_zone_progress.get(objective_id, 0.0))
+		if friendly_present and not enemy_present:
+			current = minf(float(objective.get("seconds", 30.0)), current + dt)
+		elif enemy_present:
+			current = maxf(0.0, current - dt * 2.0)
+		control_zone_progress[objective_id] = current
 
 func process_building(e: Dictionary, dt: float) -> void:
 	var speed := 1.0 if powered(e.owner) else 0.4
@@ -782,15 +805,24 @@ func nearest_building(e: Dictionary, kind: String) -> Dictionary:
 		if distance<best: best=distance; found=b
 	return found
 
+func set_harvest_state(e: Dictionary, next_state: String) -> void:
+	var previous:=str(e.get("harvest_state","IDLE"))
+	if previous==next_state: return
+	e.harvest_state=next_state
+	if int(e.get("owner",-1))==view_owner:
+		if previous=="HARVEST": event.emit("harvest_stop",e.pos,"")
+		if next_state=="HARVEST": event.emit("harvest_start",e.pos,"")
+		if next_state=="UNLOAD": event.emit("harvest_unload",e.pos,"")
+
 func harvest(e: Dictionary, dt: float) -> void:
 	if e.harvest_state=="IDLE":
 		# A service order keeps collectors at the hangar until fully repaired.
 		if e.order=="service" and e.hp<e.max_hp: return
 		# Moving a collector relocates it; on arrival its autonomous work resumes.
 		if e.order in ["stop","hold"] or not e.path.is_empty() or e.path_pending: return
-		e.harvest_state="RETURN_TO_BASE" if e.cargo>0 else "SEARCH_RESOURCE"
+		set_harvest_state(e,"RETURN_TO_BASE" if e.cargo>0 else "SEARCH_RESOURCE")
 	if e.harvest_state=="EVADE":
-		if e.path.is_empty(): e.harvest_state="RETURN_TO_BASE" if e.cargo>0 else "SEARCH_RESOURCE"
+		if e.path.is_empty(): set_harvest_state(e,"RETURN_TO_BASE" if e.cargo>0 else "SEARCH_RESOURCE")
 		return
 	if e.harvest_state=="SEARCH_RESOURCE":
 		var best := INF
@@ -805,36 +837,36 @@ func harvest(e: Dictionary, dt: float) -> void:
 			if distance<best: best=distance; found=k
 		if found=="": return
 		e.resource=found
-		e.harvest_state="MOVE_TO_RESOURCE"
+		set_harvest_state(e,"MOVE_TO_RESOURCE")
 		request_path(e,grid.center(grid.parse_key(found)))
 	elif e.harvest_state=="MOVE_TO_RESOURCE":
-		if float(grid.resources.get(e.resource,0))<=0: e.harvest_state="SEARCH_RESOURCE"; return
-		if e.pos.distance_to(grid.center(grid.parse_key(e.resource)))<27: e.harvest_state="HARVEST"; e.path=[]
-		elif e.path.is_empty() and not e.path_pending: e.harvest_state="SEARCH_RESOURCE"
+		if float(grid.resources.get(e.resource,0))<=0: set_harvest_state(e,"SEARCH_RESOURCE"); return
+		if e.pos.distance_to(grid.center(grid.parse_key(e.resource)))<27: set_harvest_state(e,"HARVEST"); e.path=[]
+		elif e.path.is_empty() and not e.path_pending: set_harvest_state(e,"SEARCH_RESOURCE")
 	elif e.harvest_state=="HARVEST":
 		var amount := minf(float(db.rules.harvest_rate)*dt,float(grid.resources.get(e.resource,0)))
 		amount=minf(amount,float(db.rules.harvest_capacity)-float(e.cargo))
 		grid.resources[e.resource]-=amount
 		e.cargo+=amount
 		if e.cargo>=float(db.rules.harvest_capacity) or grid.resources[e.resource]<=0:
-			e.harvest_state="RETURN_TO_BASE"
+			set_harvest_state(e,"RETURN_TO_BASE")
 	elif e.harvest_state in ["RETURN_TO_BASE","UNLOAD"]:
 		var refinery := nearest_building(e,"refinery")
 		if refinery.is_empty(): e.path=[]; return
 		var dock: Vector2 = refinery_dock(e,refinery)
 		if dock==Vector2(-1,-1): return
 		if e.pos.distance_to(dock)>32:
-			e.harvest_state="RETURN_TO_BASE"
+			set_harvest_state(e,"RETURN_TO_BASE")
 			if e.path.is_empty() and not e.path_pending: request_path(e,dock)
 		else:
 			e.path=[]
-			e.harvest_state="UNLOAD"
+			set_harvest_state(e,"UNLOAD")
 			var amount := minf(e.cargo,float(db.rules.unload_rate)*dt)
 			e.cargo-=amount
 			var bonus:=1.0+0.20*float(refinery.get("upgrade_level",0))
 			credits[e.owner]+=amount*bonus
 			side_stats[e.owner].gathered+=amount*bonus
-			if e.cargo<=0: e.harvest_state="SEARCH_RESOURCE"
+			if e.cargo<=0: set_harvest_state(e,"SEARCH_RESOURCE")
 
 func refinery_dock(e: Dictionary, refinery: Dictionary) -> Vector2:
 	# Pick a reachable perimeter cell on whichever side is easiest to approach.
@@ -1008,6 +1040,8 @@ func objective_complete(objective: Dictionary) -> bool:
 			return time>=float(objective.get("seconds",0.0))
 		"harvest_amount":
 			return float(stats.gathered)>=float(objective.get("amount",0.0))
+		"control_zone":
+			return float(control_zone_progress.get(str(objective.get("id", "")), 0.0)) >= float(objective.get("seconds", 30.0))
 		"build_structure":
 			return buildings(owner,kind,true).size()>=int(objective.get("count",1))
 	return false
@@ -1026,6 +1060,8 @@ func objective_progress_text(objective: Dictionary) -> String:
 			return "%d / %d" % [mini(int(stats.gathered),int(objective.get("amount",0))),int(objective.get("amount",0))]
 		"build_structure":
 			return "%d / %d" % [buildings(int(objective.get("owner",0)),str(objective.get("kind","")),true).size(),int(objective.get("count",1))]
+		"control_zone":
+			return "%d / %d" % [int(control_zone_progress.get(str(objective.get("id", "")), 0.0)), int(objective.get("seconds", 30.0))]
 	return ""
 
 func objective_latched(objective: Dictionary) -> bool:
@@ -1102,7 +1138,7 @@ func check_objectives() -> void:
 	var primary_complete:=0
 	for objective in db.mission.get("objectives",[]):
 		var id: String=str(objective.get("id",""))
-		if objective_failed(objective):
+		if objective_failed(objective) and not bool(objective.get("optional", false)):
 			result="defeat"
 			return
 		var completed_now:=objective_complete(objective)
@@ -1201,7 +1237,7 @@ func snapshot() -> Dictionary:
 	var memory: Array = known.duplicate(true)
 	for side in memory:
 		for k in side: side[k].pos=[side[k].pos.x,side[k].pos.y]
-	var save_state: Dictionary={"online_mode":online_mode,"view_owner":view_owner,"winner":winner,"side_stats":side_stats.duplicate(true),"format_version":1,"mission":db.mission.id,"entities":all,"projectiles":bullets,"credits":credits,"resources":grid.resources,"factions":factions,"player_colors":player_colors.duplicate(),"time":time,"next_id":next_id,"rng_state":str(rng.state),"difficulty":difficulty,"result":result,"stats":stats,"explored":[Array(explored[0]),Array(explored[1])],"known":memory,"ai_state":ai_state,"ai_timer":ai_timer,"ai_scout_index":ai_scout_index,"ai_production_timer":ai_production_timer,"combat_heat":combat_heat,"base_alarm":base_alarm,"triggered_waves":triggered_waves.duplicate(true),"objective_announced":objective_announced.duplicate(true)}
+	var save_state: Dictionary={"online_mode":online_mode,"view_owner":view_owner,"winner":winner,"side_stats":side_stats.duplicate(true),"format_version":1,"mission":db.mission.id,"entities":all,"projectiles":bullets,"credits":credits,"resources":grid.resources,"factions":factions,"player_colors":player_colors.duplicate(),"time":time,"next_id":next_id,"rng_state":str(rng.state),"difficulty":difficulty,"result":result,"stats":stats,"explored":[Array(explored[0]),Array(explored[1])],"known":memory,"ai_state":ai_state,"ai_timer":ai_timer,"ai_scout_index":ai_scout_index,"ai_production_timer":ai_production_timer,"combat_heat":combat_heat,"base_alarm":base_alarm,"triggered_waves":triggered_waves.duplicate(true),"objective_announced":objective_announced.duplicate(true),"control_zone_progress":control_zone_progress.duplicate(true)}
 	return save_state
 
 func restore(save: Dictionary) -> Error:
@@ -1277,6 +1313,7 @@ func restore(save: Dictionary) -> Error:
 		if not number(save[k]): return ERR_INVALID_DATA
 	if save.has("triggered_waves") and not save.triggered_waves is Dictionary: return ERR_INVALID_DATA
 	if save.has("objective_announced") and not save.objective_announced is Dictionary: return ERR_INVALID_DATA
+	if save.has("control_zone_progress") and not save.control_zone_progress is Dictionary: return ERR_INVALID_DATA
 	grid=WorldGrid.new(db.mission)
 	entities.clear()
 	building_ids.clear(); mobile_entity_count=0
@@ -1319,6 +1356,7 @@ func restore(save: Dictionary) -> Error:
 	combat_heat=float(save.combat_heat); base_alarm=float(save.base_alarm)
 	triggered_waves=save.get("triggered_waves",{}).duplicate(true)
 	objective_announced=save.get("objective_announced",{}).duplicate(true)
+	control_zone_progress=save.get("control_zone_progress",{}).duplicate(true)
 	explored=[PackedByteArray(save.explored[0]),PackedByteArray(save.explored[1])]
 	known=save.known.duplicate(true)
 	for side in known:

@@ -9,3 +9,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Godot enthält weitere Bibliotheken und die Standardschrift. Deren Copyright- und Lizenztexte werden von Godot selbst eingebettet und sind außerdem in der versionsbezogenen [COPYRIGHT-Datei](https://github.com/godotengine/godot/blob/4.7.2-stable/COPYRIGHT.txt) dokumentiert. Es wurden keine externen Spielassets verwendet.
+
+## Audio-Demoassets
+
+Die im Audio-Qualitätspass erzeugten OGG-Dateien sind eigene algorithmische Demo-/Referenzkompositionen und -klänge; sie enthalten keine aus externen Aufnahmen übernommenen Samples. Die Renderwerkzeuge verwenden NumPy, SciPy und FFmpeg/libvorbis ausschließlich während der Asset-Erzeugung. Diese Werkzeuge und Bibliotheken werden nicht in den Windows-Spielbuild eingebettet. Die Tracks sind bis zur Hörabnahme als Referenzmaterial gekennzeichnet.

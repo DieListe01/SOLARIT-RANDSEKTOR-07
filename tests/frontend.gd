@@ -1,4 +1,5 @@
 extends SceneTree
+const SpecialOrdersScript = preload("res://scripts/special_orders.gd")
 var game: Control
 var failures: Array[String] = []
 var checks := 0
@@ -39,7 +40,7 @@ func run() -> void:
 	check(game.intro_art.world_root.find_child("Cinematic core",true,false)!=null and game.intro_art.world_root.find_child("Cinematic Solarit harvester",true,false)!=null,"Intro reuses the shipped command-center and harvester GLB assets")
 	check(game.sim==null,"Intro never instantiates gameplay simulation")
 	check(game.music.frontend and game.music.frontend_player.playing,"Own title score starts on first launch")
-	check(absf(game.music.frontend_player.stream.get_length()-24)<0.1,"Full 24-second title theme")
+	check(game.music.frontend_player.stream.get_length()>=120.0,"Long-form 120-second minimum title theme")
 	game.intro_art.elapsed=4.7
 	await capture("intro_planet")
 	game.intro_art.elapsed=8.8
@@ -94,6 +95,27 @@ func run() -> void:
 	game.show_commander_file(game.show_main_menu)
 	check(game.overlay.get_node_or_null("CommanderDossier") != null and game.commander_profile.data.statistics.best_score == 0, "Commander dossier opens with empty, real statistics")
 	check(game.overlay.get_node("CommanderDossier").find_children("*", "ScrollContainer", true, false).size() == 1, "Dossier history remains in a bounded, scrollable region")
+	game.show_main_menu()
+	check(game.menu_buttons.has("special_orders") and game.menu_buttons.special_orders.text.contains("SPEZIALAUFTRÄGE"), "Main menu exposes a separate special-orders mode without replacing campaign selection")
+	game.menu_buttons.special_orders.pressed.emit()
+	check(game.overlay.get_node_or_null("SpecialOrdersPanel") != null, "Special-orders mode opens its own briefing and statistics panel")
+	if game.overlay.get_node_or_null("SpecialOrdersPanel") != null:
+		await capture("special_orders_menu")
+		var special_buttons: Array = game.overlay.get_node("SpecialOrdersPanel").find_children("*", "Button", true, false)
+		var custom_buttons: Array = special_buttons.filter(func(item): return item.text == "EIGENEN AUFTRAG KONFIGURIEREN")
+		if not custom_buttons.is_empty(): custom_buttons[0].pressed.emit()
+		check(game.overlay.get_node_or_null("SpecialOrderCustomPanel") != null and game.overlay.get_node_or_null("SpecialOrderCustomPanel/SpecialCustomSeed") != null, "Custom special orders expose type, faction, difficulty and reproducible seed controls")
+		var custom_panel: Control = game.overlay.get_node_or_null("SpecialOrderCustomPanel")
+		if custom_panel != null:
+			var return_buttons: Array = custom_panel.find_children("*", "Button", true, false).filter(func(item): return item.text == "ZURÜCK")
+			if not return_buttons.is_empty(): return_buttons[0].pressed.emit()
+		var preview_order: Dictionary = SpecialOrdersScript.generate(Catalog.read_json("res://data/veyra.json"), 318472, "area", "forge", "normal")
+		game.special_order_run = preview_order.duplicate(true)
+		game.mission_index = -1
+		game.db = Catalog.new("res://data/veyra.json")
+		game.db.mission = preview_order.mission.duplicate(true)
+		game.show_briefing()
+		check(game.special_order_run.is_empty() and game.mission_index >= 0 and game.mission_index_for_id(str(game.db.mission.id)) == game.mission_index, "Returning from special orders restores a fixed campaign mission and clears special-run state")
 	game.show_main_menu()
 	await create_timer(0.8).timeout
 	await capture("menu_new")

@@ -29,7 +29,7 @@ func _init(path: String = "res://data/veyra.json") -> void:
 			if d.has("footprint") and (d.footprint[0] < 1 or d.footprint[1] < 1):
 				errors.append("Ungültiger Grundriss: " + id)
 	if mission.get("format_version", 0) != 1: errors.append("Ungültiges Kartenformat")
-	var objective_types := ["destroy_target", "destroy_all", "protect", "survive", "harvest_amount", "build_structure"]
+	var objective_types := ["destroy_target", "destroy_all", "protect", "survive", "harvest_amount", "build_structure", "control_zone"]
 	for objective in mission.get("objectives", []):
 		if objective.get("type","") not in objective_types: errors.append("Unbekanntes Missionsziel: "+str(objective.get("type","")))
 		if not objective.has("id") or not objective.has("text"): errors.append("Missionsziel ohne ID oder Text")
