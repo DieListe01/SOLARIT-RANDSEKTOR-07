@@ -84,6 +84,7 @@ var playing := false
 var vehicle_pose_warmup_active := false
 var ended := false
 var classic := false
+var classic_hd := false
 var crt := 0
 var placement := ""
 var placement_rotation := 0
@@ -2335,7 +2336,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	var in_world := WORLD_RECT.has_point(local)
 	if event is InputEventMouseButton:
 		if event.button_index==MOUSE_BUTTON_MIDDLE: middle_drag=event.pressed and in_world
-		if event.button_index==MOUSE_BUTTON_WHEEL_UP and in_world: renderer.zoom=minf(2.5 if not classic else 1.5,renderer.zoom+0.25); clamp_camera()
+		if event.button_index==MOUSE_BUTTON_WHEEL_UP and in_world: renderer.zoom=minf(1.5 if _is_classic_retro() else 2.5,renderer.zoom+0.25); clamp_camera()
 		if event.button_index==MOUSE_BUTTON_WHEEL_DOWN and in_world: renderer.zoom=maxf(0.75,renderer.zoom-0.25); clamp_camera()
 		if event.button_index==MOUSE_BUTTON_RIGHT:
 			if event.pressed and in_world:
@@ -2382,7 +2383,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						selected=[]; inspected=id
 				dragging=false; renderer.selecting=false; music.cue("select"); update_hud()
 	if event is InputEventMouseMotion:
-		if middle_drag: renderer.camera-=event.relative/(renderer.zoom*(1.0/3.0 if classic else 1.0)); clamp_camera()
+		if middle_drag: renderer.camera-=event.relative/(renderer.zoom*(1.0/3.0 if _is_classic_retro() else 1.0)); clamp_camera()
 		if dragging: renderer.selection_rect=Rect2(drag_start,screen_world(local)-drag_start).abs()
 
 func _process(dt: float) -> void:
@@ -3489,8 +3490,10 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 		if control.get_parent()==null: content.add_child(control)
 	if options_tab=="BILD":
 		heading.call("ANZEIGE",18)
-		var classic_button := button(content,"CLASSIC RETRO · 640×360" if classic else "MODERN RETRO · FULL HD",Rect2(),func():set_classic(not classic); show_options(back,"BILD"))
-		row.call(30 if compact_options else 45,"Darstellungsstil","Pixelgenaue Retro-Skalierung oder modernes Full HD.",classic_button)
+		var display_labels: Array[String] = ["2D RETRO · 640×360","2D · FULL HD","3D · FULL HD"]
+		var display_label: String = display_labels[_display_mode_index()]
+		var display_button := button(content,display_label,Rect2(),func():set_display_mode((_display_mode_index()+1)%3); show_options(back,"BILD"))
+		row.call(30 if compact_options else 45,"Darstellungsstil","Umschalten zwischen klassischer 2D-Grafik und 3D-Modellen.",display_button)
 		var resolutions: Array = WINDOW_RESOLUTIONS
 		var resolution := OptionButton.new()
 		resolution.name="ResolutionSelect"
@@ -3636,15 +3639,31 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 	open_tween.tween_property(p,"modulate:a",1.0,0.18)
 
 func set_classic(value: bool) -> void:
-	classic=value; renderer.classic=value; renderer.crt=crt
+	# Compatibility helper for tests and internal callers: classic means the
+	# original pixel-perfect 640×360 mode; false means the modern 3D mode.
+	set_display_mode(0 if value else 2)
+
+func _display_mode_index() -> int:
+	if not classic: return 2
+	return 1 if classic_hd else 0
+
+func _is_classic_retro() -> bool:
+	return classic and not classic_hd
+
+func set_display_mode(mode: int) -> void:
+	var normalized_mode := clampi(mode,0,2)
+	classic=normalized_mode<2
+	classic_hd=normalized_mode==1
+	renderer.classic=classic; renderer.crt=crt
 	var window := get_window()
-	window.content_scale_mode=Window.CONTENT_SCALE_MODE_VIEWPORT if value else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
-	window.content_scale_size=Vector2i(640,360) if value else Vector2i(1920,1080)
-	window.content_scale_stretch=Window.CONTENT_SCALE_STRETCH_INTEGER if value else Window.CONTENT_SCALE_STRETCH_FRACTIONAL
-	scale=Vector2.ONE/3.0 if value else Vector2.ONE
-	view_container.stretch_shrink=3 if value else 1
-	texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST if value else CanvasItem.TEXTURE_FILTER_LINEAR
-	view_container.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST if value else CanvasItem.TEXTURE_FILTER_LINEAR
+	var retro := _is_classic_retro()
+	window.content_scale_mode=Window.CONTENT_SCALE_MODE_VIEWPORT if retro else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	window.content_scale_size=Vector2i(640,360) if retro else Vector2i(1920,1080)
+	window.content_scale_stretch=Window.CONTENT_SCALE_STRETCH_INTEGER if retro else Window.CONTENT_SCALE_STRETCH_FRACTIONAL
+	scale=Vector2.ONE/3.0 if retro else Vector2.ONE
+	view_container.stretch_shrink=3 if retro else 1
+	texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST if retro else CanvasItem.TEXTURE_FILTER_LINEAR
+	view_container.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST if retro else CanvasItem.TEXTURE_FILTER_LINEAR
 	if playing: build_hud()
 	persist_settings()
 
@@ -3667,7 +3686,11 @@ func load_settings() -> void:
 			save_config.save("user://settings.cfg")
 		window.mode=save_config.get_value("video","mode",Window.MODE_WINDOWED)
 		window.borderless=save_config.get_value("video","borderless",false)
-		set_classic(save_config.get_value("video","classic",false))
+		var saved_display_mode := int(save_config.get_value("video","display_mode",-1))
+		if saved_display_mode>=0:
+			set_display_mode(saved_display_mode)
+		else:
+			set_classic(save_config.get_value("video","classic",false))
 	_apply_launcher_display_override()
 	renderer.health_mode=health_mode
 
@@ -3692,6 +3715,7 @@ func persist_settings() -> void:
 	save_config.set_value("gameplay","health",health_mode)
 	save_config.set_value("online", "enabled", online_stats_enabled)
 	save_config.set_value("video","classic",classic)
+	save_config.set_value("video","display_mode",_display_mode_index())
 	save_config.set_value("video","crt",crt)
 	save_config.set_value("video","shake",renderer.combat_fx.shake_mode)
 	save_config.set_value("video","effects",renderer.combat_fx.quality)

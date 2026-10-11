@@ -192,6 +192,14 @@ func run() -> void:
 	game.update_hud()
 	await capture("base")
 	var before: Dictionary = game.sim.snapshot()
+	game.set_display_mode(1)
+	game.paused=true
+	game.music.set_paused(true)
+	check(game.classic and game.classic_hd,"2D Full HD keeps the classic 2D renderer")
+	check(root.content_scale_size==Vector2i(1920,1080),"2D Full HD keeps a native Full HD canvas")
+	check(root.content_scale_mode==Window.CONTENT_SCALE_MODE_CANVAS_ITEMS,"2D Full HD does not use low-resolution viewport scaling")
+	check(game.sim.snapshot()==before,"2D Full HD switch leaves simulation unchanged")
+	await capture("2d_full_hd")
 	game.set_classic(true)
 	game.paused=true
 	game.music.set_paused(true)

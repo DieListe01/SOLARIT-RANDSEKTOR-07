@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.8",
+  "current_version": "0.38.9",
   "entries": [
+    {
+      "version": "0.38.9",
+      "date": "11.10.2026",
+      "title": "2D-Grafik jetzt auch in Full HD",
+      "changes": [
+        "Der Bildmodus in den Optionen schaltet jetzt zwischen 2D Retro (640×360), 2D Full HD (1920×1080) und 3D Full HD um.",
+        "Klassische 2D-Darstellung und Auflösung sind damit unabhängig wählbar. Die Einstellung wird gespeichert und sofort angewendet.",
+        "Die Spielwelt, Einheiten und Simulation bleiben beim Wechsel unverändert."
+      ]
+    },
     {
       "version": "0.38.8",
       "date": "11.10.2026",
