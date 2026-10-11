@@ -68,6 +68,19 @@ jobs:
           & .\tools\Godot_v4.7.2-stable_win64_console.exe --headless --editor --path . --quit
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Set Windows test display to Full HD
+        shell: pwsh
+        run: |
+          $setResolution = Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue
+          if (-not $setResolution) { throw 'Set-DisplayResolution is unavailable on this Windows runner.' }
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Start-Sleep -Seconds 2
+          $resolution = Get-DisplayResolution
+          $resolution | Format-List | Out-String | Write-Host
+          if ([int]$resolution.Width -ne 1920 -or [int]$resolution.Height -ne 1080) {
+            throw "Windows runner display resolution is $($resolution.Width)x$($resolution.Height), expected 1920x1080."
+          }
+
       - name: Install regression image tooling
         run: python -m pip install --disable-pip-version-check -r requirements-test.txt
 
@@ -83,51 +96,51 @@ jobs:
 
       - name: Run core regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group Core
+        run: .\Test-Solarit.ps1 -CI -Group Core -HeartbeatSeconds 30
 
       - name: Run simulation regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group Simulation
+        run: .\Test-Solarit.ps1 -CI -Group Simulation -HeartbeatSeconds 30
 
       - name: Run gameplay regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group Gameplay
+        run: .\Test-Solarit.ps1 -CI -Group Gameplay -HeartbeatSeconds 30
 
       - name: Run save-load regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group SaveLoad
+        run: .\Test-Solarit.ps1 -CI -Group SaveLoad -HeartbeatSeconds 30
 
       - name: Run profile/highscore regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group ProfileHighscore
+        run: .\Test-Solarit.ps1 -CI -Group ProfileHighscore -HeartbeatSeconds 30
 
       - name: Run mission regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group Mission
+        run: .\Test-Solarit.ps1 -CI -Group Mission -HeartbeatSeconds 30
 
       - name: Run multiplayer regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group Multiplayer
+        run: .\Test-Solarit.ps1 -CI -Group Multiplayer -HeartbeatSeconds 30
 
       - name: Run audio regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group Audio
+        run: .\Test-Solarit.ps1 -CI -Group Audio -HeartbeatSeconds 30
 
       - name: Run UI regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group UI
+        run: .\Test-Solarit.ps1 -CI -Group UI -HeartbeatSeconds 30
 
       - name: Run visual regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group Visual
+        run: .\Test-Solarit.ps1 -CI -Group Visual -HeartbeatSeconds 30
 
       - name: Run renderer/cache regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group RendererCache
+        run: .\Test-Solarit.ps1 -CI -Group RendererCache -HeartbeatSeconds 30
 
       - name: Run performance regression
         shell: pwsh
-        run: .\Test-Solarit.ps1 -CI -Group Performance
+        run: .\Test-Solarit.ps1 -CI -Group Performance -HeartbeatSeconds 30
 
       - name: Upload regression diagnostics and visual artifacts
         if: always()

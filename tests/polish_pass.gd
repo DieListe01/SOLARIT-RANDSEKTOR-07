@@ -153,6 +153,7 @@ func run() -> void:
 		game.set_display_mode(display_mode)
 		game._apply_launcher_display_override()
 		var expected_canvas_size:=Vector2i(640,360) if display_mode==0 else Vector2i(1920,1080)
+		print("FULL HD LAUNCHER CHECK style=%d expected_canvas=%s actual_canvas=%s actual_window=%s actual_mode=%d display_mode=%d" % [display_mode,expected_canvas_size,game.get_window().content_scale_size,game.get_window().size,game.get_window().mode,game._display_mode_index()])
 		check(game.get_window().content_scale_size==expected_canvas_size and game.get_window().size==Vector2i(1920,1080) and game.get_window().mode==Window.MODE_FULLSCREEN and game._display_mode_index()==display_mode,"Full HD launcher preserves display style %d"%display_mode)
 	if previous_launcher_override.is_empty(): OS.unset_environment("SOLARIT_LAUNCH_FULL_HD")
 	else: OS.set_environment("SOLARIT_LAUNCH_FULL_HD",previous_launcher_override)

@@ -49,10 +49,14 @@ current full regression command.
 The default deadlines are 180 seconds for small Python/unit tests, 300 seconds
 for ordinary Godot/regression tests, 600 seconds for visual/render-heavy,
 playthrough/performance, or multiplayer cases, and 90 minutes for the whole
-GitHub job. GitHub Actions continues to run one test group per named step.
+GitHub job. GitHub Actions continues to run one test group per named step and
+sets its virtual Windows display to 1920×1080 before rendered tests, matching
+the Full-HD fullscreen assertions without changing the game assertions.
 The PowerShell supervisor writes a START marker before launch, then PASS/FAIL
-with duration and exit code. Every 45 seconds it reports the current test,
-group, PID, child count, log size/mtime, and recent stdout/stderr. A timeout or
+with duration and exit code. At its configured heartbeat interval it reports
+the current test, group, PID, child count, log size/mtime, and recent
+stdout/stderr. The default local heartbeat is 45 seconds; GitHub Actions passes
+30 seconds so hosted visual-test durations produce live heartbeats. A timeout or
 failure records process ancestry and log tails in
 `test-output/ci/CI-FAILURE-CONTEXT.txt`, then terminates only the supervised
 process and its discovered descendants. Multiplayer additionally reports both
