@@ -1,6 +1,15 @@
 {
-  "current_version": "0.38.11",
+  "current_version": "0.38.12",
   "entries": [
+    {
+      "version": "0.38.12",
+      "date": "11.10.2026",
+      "title": "Spezialaufträge und Windows-Audio-Regressionslauf",
+      "changes": [
+        "Der neue Spezialauftragsmodus bleibt von der handgebauten Kampagne getrennt und bietet reproduzierbare Wochenaufträge, Schnelleinsätze und eigene Aufträge mit Seed.",
+        "Der Windows-Regressionslauf installiert FFmpeg/FFprobe jetzt ausdrücklich, damit die unveränderte Audioprüfung auch auf frischen Runnern ausgeführt werden kann."
+      ]
+    },
     {
       "version": "0.38.11",
       "date": "11.10.2026",
