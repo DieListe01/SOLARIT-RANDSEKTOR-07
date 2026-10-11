@@ -8,6 +8,10 @@ on:
         required: true
         type: string
   push:
+    branches:
+      - main
+      - master
+      - "codex/**"
     tags:
       - "v*"
 
@@ -21,6 +25,9 @@ concurrency:
 jobs:
   build-and-publish:
     runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      SOLARIT_CI_GROUP_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -29,10 +36,13 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ inputs.version }}'
-          if ([string]::IsNullOrWhiteSpace($version)) { $version = $env:GITHUB_REF_NAME -replace '^v', '' }
           $history = Get-Content data/update_history.json -Raw | ConvertFrom-Json
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            if ($env:GITHUB_REF.StartsWith('refs/tags/v')) { $version = $env:GITHUB_REF_NAME -replace '^v', '' }
+            else { $version = $history.current_version }
+          }
           if ($history.current_version -ne $version) {
-            throw "Release tag $version does not match data/update_history.json ($($history.current_version))."
+            throw "Workflow version $version does not match data/update_history.json ($($history.current_version))."
           }
           "SOLARIT_VERSION=$version" >> $env:GITHUB_ENV
 
@@ -61,17 +71,85 @@ jobs:
       - name: Install regression image tooling
         run: python -m pip install --disable-pip-version-check -r requirements-test.txt
 
-      - name: Run full regression suite
+      - name: Record regression runner environment
         shell: pwsh
-        run: .\Test-Solarit.ps1
+        run: .\tools\write_ci_environment.ps1
+
+      - name: Prepare regression diagnostics
+        shell: pwsh
+        run: |
+          Remove-Item -LiteralPath test-output/ci/regression-summary.json,test-output/ci/regression-summary.txt,test-output/ci/CI-FAILURE-CONTEXT.txt -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force test-output/ci/logs | Out-Null
+
+      - name: Run core regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group Core
+
+      - name: Run simulation regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group Simulation
+
+      - name: Run gameplay regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group Gameplay
+
+      - name: Run save-load regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group SaveLoad
+
+      - name: Run profile/highscore regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group ProfileHighscore
+
+      - name: Run mission regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group Mission
+
+      - name: Run multiplayer regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group Multiplayer
+
+      - name: Run audio regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group Audio
+
+      - name: Run UI regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group UI
+
+      - name: Run visual regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group Visual
+
+      - name: Run renderer/cache regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group RendererCache
+
+      - name: Run performance regression
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -Group Performance
+
+      - name: Upload regression diagnostics and visual artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solarit-regression-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            test-output/ci/**
+            test-output/**/*.png
+            test-output/**/*.jpg
+            test-output/**/*.webp
 
       - name: Embed release channel
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           $channel = @{ format_version = 1; repository = 'DieListe01/ASHLINE-Releases'; installer_prefix = 'SOLARIT-RANDSEKTOR-07-Setup-'; check_interval_hours = 24 }
           $channel | ConvertTo-Json | Set-Content -Encoding utf8 data/update_channel.json
 
       - name: Export Windows game
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force build | Out-Null
@@ -82,9 +160,11 @@ jobs:
           (Get-Content docs/Spielstart.txt -Raw).Replace('@VERSION@', $env:SOLARIT_VERSION) | Set-Content -Encoding utf8 build/Spielstart.txt
 
       - name: Build portable archives
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         run: python tools/package_release.py $env:SOLARIT_VERSION
 
       - name: Package external-address API update
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           $stage = Join-Path $PWD 'build\network-address-api-update'
@@ -94,6 +174,7 @@ jobs:
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath "build/SOLARIT-Network-Address-API-Update-$env:SOLARIT_VERSION.zip" -Force
 
       - name: Build per-user installer
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           choco install innosetup --yes --no-progress
@@ -104,6 +185,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Create verified release manifest
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           $installer = Get-ChildItem build -Filter "SOLARIT-RANDSEKTOR-07-Setup-$env:SOLARIT_VERSION.exe" | Select-Object -First 1
@@ -119,6 +201,7 @@ jobs:
           Set-Content -Path 'build/release-notes.md' -Value $notes -Encoding utf8
 
       - name: Publish installer to public release feed
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.ASHLINE_RELEASE_TOKEN }}
         shell: pwsh
