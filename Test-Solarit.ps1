@@ -74,7 +74,9 @@ Add-GodotTest 'ProfileHighscore' 'online_stats' $true 300
 Add-GodotTest 'Mission' 'campaign_units' $true 300
 
 Add-PythonTest 'Audio' 'audio_asset_validation.py' $pythonPath @((Join-Path $gameRoot 'tests\audio_asset_validation.py')) 300
+Add-PythonTest 'Audio' 'voice_catalog_validation.py' $pythonPath @((Join-Path $gameRoot 'tests\voice_catalog_validation.py')) 300
 Add-GodotTest 'Audio' 'audio_integration' $true 300
+Add-GodotTest 'Audio' 'voice_system' $true 300
 
 Add-GodotTest 'UI' 'ui_integration' $false 600 'gl_compatibility' 'opengl3_angle'
 Add-GodotTest 'UI' 'frontend' $false 600

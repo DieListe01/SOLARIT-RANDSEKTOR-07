@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.12",
+  "current_version": "0.38.13",
   "entries": [
+    {
+      "version": "0.38.13",
+      "date": "11.10.2026",
+      "title": "Fraktions-Voice-System und Audiooptionen",
+      "changes": [
+        "Ein zentraler Voice-Katalog mit 96 fraktionsspezifischen und 22 System-/Missionszeilen, stabilen Text-IDs, Variantenrotation, Prioritäten und Cooldowns ist eingebunden.",
+        "Befehle, Sammlerzustände, Schadensschwellen, Bau-/Produktionserfolge und wichtige Warnungen sind mit dem lokalen Sprachsystem verbunden. Sprache hat einen eigenen Pegel und optionale Untertitel in den Audiooptionen.",
+        "Deutsche Sprecheraufnahmen sind in dieser Version noch nicht enthalten. Die Katalogzeilen sind ausdrücklich als Aufnahme ausstehend markiert; die vorhandene englische Systemstimme wird nicht als Fraktionsstimme ausgegeben."
+      ]
+    },
     {
       "version": "0.38.12",
       "date": "11.10.2026",

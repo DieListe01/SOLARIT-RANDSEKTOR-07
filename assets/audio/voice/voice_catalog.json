@@ -1,0 +1,1301 @@
+{
+  "schema_version": 1,
+  "recordings_status": "not_recorded",
+  "audio_format": "mono OGG Vorbis",
+  "factions": {
+    "forge": {
+      "display_name": "Kobalt-Konsortium",
+      "voice_identity": "ruhig, professionell, robust",
+      "lines": {
+        "select": [
+          {
+            "id": "voice_forge_select_01",
+            "event": "select",
+            "text": "Bereit.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_forge_select_02",
+            "event": "select",
+            "text": "Kommandokanal offen.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_forge_select_03",
+            "event": "select",
+            "text": "Einheit wartet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_forge_select_04",
+            "event": "select",
+            "text": "Bereit für Befehle.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          }
+        ],
+        "move": [
+          {
+            "id": "voice_forge_move_01",
+            "event": "move",
+            "text": "Unterwegs.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_forge_move_02",
+            "event": "move",
+            "text": "Route bestätigt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_forge_move_03",
+            "event": "move",
+            "text": "Position wird angefahren.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_forge_move_04",
+            "event": "move",
+            "text": "Bewege mich zum Ziel.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          }
+        ],
+        "attack": [
+          {
+            "id": "voice_forge_attack_01",
+            "event": "attack",
+            "text": "Ziel erfasst.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_forge_attack_02",
+            "event": "attack",
+            "text": "Angriff beginnt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_forge_attack_03",
+            "event": "attack",
+            "text": "Feuer frei.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_forge_attack_04",
+            "event": "attack",
+            "text": "Ziel wird bekämpft.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          }
+        ],
+        "damage": [
+          {
+            "id": "voice_forge_damage_01",
+            "event": "damage",
+            "text": "Panzerung beschädigt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          },
+          {
+            "id": "voice_forge_damage_02",
+            "event": "damage",
+            "text": "Strukturschaden bestätigt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          },
+          {
+            "id": "voice_forge_damage_03",
+            "event": "damage",
+            "text": "Einheit beschädigt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          }
+        ],
+        "critical": [
+          {
+            "id": "voice_forge_critical_01",
+            "event": "critical",
+            "text": "Kritischer Schaden.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 20,
+            "event_cooldown": 14
+          },
+          {
+            "id": "voice_forge_critical_02",
+            "event": "critical",
+            "text": "Kampffähigkeit gefährdet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 20,
+            "event_cooldown": 14
+          }
+        ],
+        "success": [
+          {
+            "id": "voice_forge_success_01",
+            "event": "success",
+            "text": "Position erreicht.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_forge_success_02",
+            "event": "success",
+            "text": "Auftrag ausgeführt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvester_select": [
+          {
+            "id": "voice_forge_harvester_select_01",
+            "event": "harvester_select",
+            "text": "Erntesystem online.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_forge_harvester_select_02",
+            "event": "harvester_select",
+            "text": "Sammler bereit.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_forge_harvester_select_03",
+            "event": "harvester_select",
+            "text": "Fördersystem einsatzbereit.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_start": [
+          {
+            "id": "voice_forge_harvest_start_01",
+            "event": "harvest_start",
+            "text": "Solaritabbau beginnt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_forge_harvest_start_02",
+            "event": "harvest_start",
+            "text": "Erntesystem aktiviert.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_full": [
+          {
+            "id": "voice_forge_harvest_full_01",
+            "event": "harvest_full",
+            "text": "Laderaum fast voll.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_forge_harvest_full_02",
+            "event": "harvest_full",
+            "text": "Speicherkapazität erreicht.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_return": [
+          {
+            "id": "voice_forge_harvest_return_01",
+            "event": "harvest_return",
+            "text": "Rückkehr zur Raffinerie.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_forge_harvest_return_02",
+            "event": "harvest_return",
+            "text": "Ladung wird zur Raffinerie gebracht.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_unload": [
+          {
+            "id": "voice_forge_harvest_unload_01",
+            "event": "harvest_unload",
+            "text": "Solarit wird übertragen.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_forge_harvest_unload_02",
+            "event": "harvest_unload",
+            "text": "Entladung läuft.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_danger": [
+          {
+            "id": "voice_forge_harvest_danger_01",
+            "event": "harvest_danger",
+            "text": "Sammler unter Beschuss.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_forge_harvest_danger_02",
+            "event": "harvest_danger",
+            "text": "Ernteeinheit gefährdet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ]
+      }
+    },
+    "drift": {
+      "display_name": "Wanderpakt",
+      "voice_identity": "direkt, rau, pragmatisch",
+      "lines": {
+        "select": [
+          {
+            "id": "voice_drift_select_01",
+            "event": "select",
+            "text": "Was liegt an?",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_drift_select_02",
+            "event": "select",
+            "text": "Bin bereit.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_drift_select_03",
+            "event": "select",
+            "text": "Sag wohin.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_drift_select_04",
+            "event": "select",
+            "text": "Wir hören.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          }
+        ],
+        "move": [
+          {
+            "id": "voice_drift_move_01",
+            "event": "move",
+            "text": "Wir rollen.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_drift_move_02",
+            "event": "move",
+            "text": "Schon unterwegs.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_drift_move_03",
+            "event": "move",
+            "text": "Los geht's.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_drift_move_04",
+            "event": "move",
+            "text": "Machen wir uns auf.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          }
+        ],
+        "attack": [
+          {
+            "id": "voice_drift_attack_01",
+            "event": "attack",
+            "text": "Da ist unser Ziel.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_drift_attack_02",
+            "event": "attack",
+            "text": "Draufhalten.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_drift_attack_03",
+            "event": "attack",
+            "text": "Jetzt wird's laut.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_drift_attack_04",
+            "event": "attack",
+            "text": "Packen wir sie.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          }
+        ],
+        "damage": [
+          {
+            "id": "voice_drift_damage_01",
+            "event": "damage",
+            "text": "Wir kassieren!",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          },
+          {
+            "id": "voice_drift_damage_02",
+            "event": "damage",
+            "text": "Panzerung hält nicht mehr!",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          },
+          {
+            "id": "voice_drift_damage_03",
+            "event": "damage",
+            "text": "Das hat gesessen.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          }
+        ],
+        "critical": [
+          {
+            "id": "voice_drift_critical_01",
+            "event": "critical",
+            "text": "Das wird eng.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 20,
+            "event_cooldown": 14
+          },
+          {
+            "id": "voice_drift_critical_02",
+            "event": "critical",
+            "text": "Wir müssen hier raus!",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 20,
+            "event_cooldown": 14
+          }
+        ],
+        "success": [
+          {
+            "id": "voice_drift_success_01",
+            "event": "success",
+            "text": "Geschafft.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_drift_success_02",
+            "event": "success",
+            "text": "Platz gehört uns.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvester_select": [
+          {
+            "id": "voice_drift_harvester_select_01",
+            "event": "harvester_select",
+            "text": "Sammler läuft.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_drift_harvester_select_02",
+            "event": "harvester_select",
+            "text": "Na, dann holen wir was.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_drift_harvester_select_03",
+            "event": "harvester_select",
+            "text": "Erntemaschine bereit.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_start": [
+          {
+            "id": "voice_drift_harvest_start_01",
+            "event": "harvest_start",
+            "text": "Wir holen das Zeug.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_drift_harvest_start_02",
+            "event": "harvest_start",
+            "text": "Sammler läuft.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_full": [
+          {
+            "id": "voice_drift_harvest_full_01",
+            "event": "harvest_full",
+            "text": "Laderaum ist voll.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_drift_harvest_full_02",
+            "event": "harvest_full",
+            "text": "Mehr passt nicht rein.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_return": [
+          {
+            "id": "voice_drift_harvest_return_01",
+            "event": "harvest_return",
+            "text": "Ab zurück zur Raffinerie.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_drift_harvest_return_02",
+            "event": "harvest_return",
+            "text": "Wir bringen die Ladung heim.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_unload": [
+          {
+            "id": "voice_drift_harvest_unload_01",
+            "event": "harvest_unload",
+            "text": "Abladen, dann weiter.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_drift_harvest_unload_02",
+            "event": "harvest_unload",
+            "text": "Ladung geht rüber.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_danger": [
+          {
+            "id": "voice_drift_harvest_danger_01",
+            "event": "harvest_danger",
+            "text": "Sammler unter Beschuss!",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_drift_harvest_danger_02",
+            "event": "harvest_danger",
+            "text": "Die Erntemaschine braucht Deckung!",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ]
+      }
+    },
+    "lumen": {
+      "display_name": "Prisma-Konklave",
+      "voice_identity": "kühl, analytisch, technologisch",
+      "lines": {
+        "select": [
+          {
+            "id": "voice_lumen_select_01",
+            "event": "select",
+            "text": "Verbindung hergestellt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_lumen_select_02",
+            "event": "select",
+            "text": "System bereit.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_lumen_select_03",
+            "event": "select",
+            "text": "Befehlskanal aktiv.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          },
+          {
+            "id": "voice_lumen_select_04",
+            "event": "select",
+            "text": "Anweisung erwartet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 8,
+            "event_cooldown": 2
+          }
+        ],
+        "move": [
+          {
+            "id": "voice_lumen_move_01",
+            "event": "move",
+            "text": "Vektor gesetzt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_lumen_move_02",
+            "event": "move",
+            "text": "Navigation aktiv.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_lumen_move_03",
+            "event": "move",
+            "text": "Koordinaten bestätigt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_lumen_move_04",
+            "event": "move",
+            "text": "Kurs wird ausgeführt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          }
+        ],
+        "attack": [
+          {
+            "id": "voice_lumen_attack_01",
+            "event": "attack",
+            "text": "Zielpriorität gesetzt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_lumen_attack_02",
+            "event": "attack",
+            "text": "Feuersequenz gestartet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_lumen_attack_03",
+            "event": "attack",
+            "text": "Eliminierung eingeleitet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          },
+          {
+            "id": "voice_lumen_attack_04",
+            "event": "attack",
+            "text": "Zielanalyse abgeschlossen.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 5,
+            "event_cooldown": 3
+          }
+        ],
+        "damage": [
+          {
+            "id": "voice_lumen_damage_01",
+            "event": "damage",
+            "text": "Integritätsverlust.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          },
+          {
+            "id": "voice_lumen_damage_02",
+            "event": "damage",
+            "text": "Strukturschaden registriert.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          },
+          {
+            "id": "voice_lumen_damage_03",
+            "event": "damage",
+            "text": "Schutzmatrix beeinträchtigt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 12,
+            "event_cooldown": 8
+          }
+        ],
+        "critical": [
+          {
+            "id": "voice_lumen_critical_01",
+            "event": "critical",
+            "text": "Integrität kritisch.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 20,
+            "event_cooldown": 14
+          },
+          {
+            "id": "voice_lumen_critical_02",
+            "event": "critical",
+            "text": "Systemstabilität gefährdet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 20,
+            "event_cooldown": 14
+          }
+        ],
+        "success": [
+          {
+            "id": "voice_lumen_success_01",
+            "event": "success",
+            "text": "Position bestätigt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_lumen_success_02",
+            "event": "success",
+            "text": "Aufgabe abgeschlossen.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 2,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvester_select": [
+          {
+            "id": "voice_lumen_harvester_select_01",
+            "event": "harvester_select",
+            "text": "Extraktionseinheit bereit.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_lumen_harvester_select_02",
+            "event": "harvester_select",
+            "text": "Erntesystem online.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_lumen_harvester_select_03",
+            "event": "harvester_select",
+            "text": "Sammlersystem verbunden.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_start": [
+          {
+            "id": "voice_lumen_harvest_start_01",
+            "event": "harvest_start",
+            "text": "Extraktionssequenz gestartet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_lumen_harvest_start_02",
+            "event": "harvest_start",
+            "text": "Solarit-Erfassung aktiv.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_full": [
+          {
+            "id": "voice_lumen_harvest_full_01",
+            "event": "harvest_full",
+            "text": "Ladekapazität nahezu erreicht.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_lumen_harvest_full_02",
+            "event": "harvest_full",
+            "text": "Speichergrenze erreicht.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_return": [
+          {
+            "id": "voice_lumen_harvest_return_01",
+            "event": "harvest_return",
+            "text": "Rückkehrvektor zur Raffinerie gesetzt.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_lumen_harvest_return_02",
+            "event": "harvest_return",
+            "text": "Transportsequenz eingeleitet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_unload": [
+          {
+            "id": "voice_lumen_harvest_unload_01",
+            "event": "harvest_unload",
+            "text": "Solarittransfer läuft.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_lumen_harvest_unload_02",
+            "event": "harvest_unload",
+            "text": "Entladesequenz aktiv.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 3,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ],
+        "harvest_danger": [
+          {
+            "id": "voice_lumen_harvest_danger_01",
+            "event": "harvest_danger",
+            "text": "Sammlereinheit wird angegriffen.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          },
+          {
+            "id": "voice_lumen_harvest_danger_02",
+            "event": "harvest_danger",
+            "text": "Extraktionsplattform gefährdet.",
+            "asset": "",
+            "asset_state": "recording_required",
+            "priority": 1,
+            "unit_cooldown": 7,
+            "event_cooldown": 6
+          }
+        ]
+      }
+    }
+  },
+  "system": {
+    "build_complete": [
+      {
+        "id": "voice_neutral_build_complete_01",
+        "event": "build_complete",
+        "text": "Konstruktion abgeschlossen.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_build_complete_02",
+        "event": "build_complete",
+        "text": "Gebäude betriebsbereit.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "unit_ready": [
+      {
+        "id": "voice_neutral_unit_ready_01",
+        "event": "unit_ready",
+        "text": "Einheit einsatzbereit.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_unit_ready_02",
+        "event": "unit_ready",
+        "text": "Produktion abgeschlossen.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "base_attack": [
+      {
+        "id": "voice_neutral_base_attack_01",
+        "event": "base_attack",
+        "text": "Basis unter Beschuss.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 1,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_base_attack_02",
+        "event": "base_attack",
+        "text": "Verteidigungsanlage angegriffen.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 1,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "energy_critical": [
+      {
+        "id": "voice_neutral_energy_critical_01",
+        "event": "energy_critical",
+        "text": "Energieversorgung kritisch.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 1,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_energy_critical_02",
+        "event": "energy_critical",
+        "text": "Energiereserven erschöpfen sich.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 1,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "mission": [
+      {
+        "id": "voice_neutral_mission_01",
+        "event": "mission",
+        "text": "Missionsziel aktualisiert.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 1,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_mission_02",
+        "event": "mission",
+        "text": "Primärziel erfüllt.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 1,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_mission_03",
+        "event": "mission",
+        "text": "Mission erfolgreich.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 1,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_mission_04",
+        "event": "mission",
+        "text": "Mission gescheitert.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 1,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "enemy_contact": [
+      {
+        "id": "voice_neutral_enemy_contact_01",
+        "event": "enemy_contact",
+        "text": "Feindkontakt.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_enemy_contact_02",
+        "event": "enemy_contact",
+        "text": "Unbekannte Einheiten entdeckt.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "solar_low": [
+      {
+        "id": "voice_neutral_solar_low_01",
+        "event": "solar_low",
+        "text": "Solaritvorrat niedrig.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_solar_low_02",
+        "event": "solar_low",
+        "text": "Solaritreserven werden knapp.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "refinery_active": [
+      {
+        "id": "voice_neutral_refinery_active_01",
+        "event": "refinery_active",
+        "text": "Solarit-Verarbeitung aktiv.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "energy_stable": [
+      {
+        "id": "voice_neutral_energy_stable_01",
+        "event": "energy_stable",
+        "text": "Energieversorgung stabil.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "structure_lost": [
+      {
+        "id": "voice_neutral_structure_lost_01",
+        "event": "structure_lost",
+        "text": "Struktur verloren.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_structure_lost_02",
+        "event": "structure_lost",
+        "text": "Gebäude ausgefallen.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ],
+    "harvester_danger": [
+      {
+        "id": "voice_neutral_harvester_danger_01",
+        "event": "harvester_danger",
+        "text": "Sammler angegriffen.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      },
+      {
+        "id": "voice_neutral_harvester_danger_02",
+        "event": "harvester_danger",
+        "text": "Sammler benötigt Unterstützung.",
+        "asset": "",
+        "asset_state": "recording_required",
+        "priority": 2,
+        "unit_cooldown": 0,
+        "event_cooldown": 8
+      }
+    ]
+  }
+}

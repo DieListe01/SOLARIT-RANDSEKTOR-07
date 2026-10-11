@@ -1,6 +1,8 @@
 extends Node
 class_name MusicDirector
 
+const VoiceDirectorScript := preload("res://scripts/voice_director.gd")
+
 var sim: Simulation
 var layers: Array[AudioStreamPlayer] = []
 var voices: Array[AudioStreamPlayer2D] = []
@@ -33,6 +35,7 @@ var engine_voice: AudioStreamPlayer
 var audio_listener: AudioListener2D
 var harvest_loop: AudioStreamPlayer2D
 var voice_duck := 1.0
+var speech: Variant
 const LAYER_NAMES = ["calm","contact","battle","alarm"]
 const CATALOG_PATH := "res://assets/audio/music_catalog.json"
 
@@ -55,6 +58,9 @@ func _ready() -> void:
 	frontend_player=AudioStreamPlayer.new()
 	frontend_player.bus="Music"
 	add_child(frontend_player)
+	speech=VoiceDirectorScript.new()
+	speech.name="VoiceDirector"
+	add_child(speech)
 	for name_value in ["select","move","build","complete","ready","alarm","victory","defeat","error","save","shot","explosion","impact","pulse_shot","cannon_shot","siege_shot"]:
 		samples[name_value]=load("res://assets/audio/"+name_value+".wav")
 	samples["harvest_start_demo"]=load("res://assets/audio/sfx/harvest_start_demo.ogg")
@@ -110,6 +116,7 @@ func _ready() -> void:
 	add_child(harvest_loop)
 
 func start(model: Simulation) -> void:
+	if speech!=null: speech.stop()
 	engine_voice.stream_paused=false; engine_voice.volume_db=-70; engine_voice.play()
 	harvest_loop.stream_paused=false; harvest_loop.stop()
 	frontend=false
@@ -188,6 +195,7 @@ func _load_track_stream(track: Dictionary) -> AudioStream:
 	return stream
 
 func start_frontend(restart: bool = false) -> void:
+	if speech!=null: speech.stop()
 	engine_voice.stop()
 	harvest_loop.stop()
 	frontend=true; sim=null; paused=false; state="FIRST_SIGNAL"
@@ -257,6 +265,9 @@ func play_voice(stream: AudioStream, voice_volume_db: float = -2.0) -> bool:
 			return true
 	return false
 
+func set_voice_volume(value: float) -> void:
+	if speech!=null: speech.set_volume(value)
+
 func set_harvester_working(active: bool, screen_position: Vector2 = Vector2(-1,-1), attenuation: float = 0.7) -> void:
 	if harvest_loop==null or harvest_loop.stream==null: return
 	if not active:
@@ -280,6 +291,7 @@ func set_paused(value: bool) -> void:
 	for voice in voices: voice.stream_paused=value
 	for voice_player in voice_players: voice_player.stream_paused=value
 	if harvest_loop!=null: harvest_loop.stream_paused=value
+	if speech!=null and is_instance_valid(speech.player): speech.player.stream_paused=value
 
 func shutdown() -> void:
 	if is_instance_valid(engine_voice): engine_voice.stream_paused=false; engine_voice.stop()
@@ -288,16 +300,18 @@ func shutdown() -> void:
 	for layer in layers: layer.stream_paused=false; layer.stop(); layer.stream=null
 	for voice in voices: voice.stream_paused=false; voice.stop(); voice.stream=null
 	for voice_player in voice_players: voice_player.stream_paused=false; voice_player.stop(); voice_player.stream=null
+	if speech!=null: speech.stop()
 
 func _exit_tree() -> void:
 	shutdown()
 
 func _process(dt: float) -> void:
+	if speech!=null: speech.tick(dt)
 	if audio_listener!=null:
 		audio_listener.position=get_viewport().get_visible_rect().size*0.5
 	shot_cooldown=maxf(0,shot_cooldown-dt)
 	for cue_name in cue_cooldowns: cue_cooldowns[cue_name]=maxf(0,float(cue_cooldowns[cue_name])-dt)
-	var voice_active := voice_players.any(func(player: AudioStreamPlayer): return player.playing)
+	var voice_active: bool = voice_players.any(func(player: AudioStreamPlayer): return player.playing) or (speech!=null and is_instance_valid(speech.player) and speech.player.playing)
 	voice_duck=move_toward(voice_duck,0.72 if voice_active else 1.0,dt*1.5)
 	if frontend and not paused:
 		frontend_player.volume_db=move_toward(frontend_player.volume_db,linear_to_db(maxf(0.001,music_volume*0.7)),dt*12)
@@ -345,6 +359,7 @@ func _process(dt: float) -> void:
 		state=pending; age=0
 	if sim.result!="" and not ended:
 		ended=true; state=sim.result.to_upper(); cue(sim.result)
+		if speech!=null: speech.request("mission",faction_id)
 	# Strongly differentiated adaptive arrangements. The four synchronized stems are
 	# intentionally mixed very differently per tactical state, so contact, economy,
 	# battle and base alarm are immediately audible rather than feeling like one loop.

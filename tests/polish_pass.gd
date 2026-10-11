@@ -105,6 +105,23 @@ func run() -> void:
 		music_slider.value=0.42
 		check(is_equal_approx(game.music.music_volume,0.42),"Audio slider updates the live music volume")
 		music_slider.value=old_music_volume
+	var old_voice_volume:float=game.music.speech.voice_volume
+	var voice_slider:=game.overlay.find_child("VoiceVolumeSlider",true,false) as HSlider
+	check(voice_slider!=null,"Audio tab contains a separate voice slider")
+	if voice_slider:
+		voice_slider.value=0.37
+		check(is_equal_approx(game.music.speech.voice_volume,0.37),"Voice slider immediately updates the dedicated voice level")
+		check(is_equal_approx(AudioServer.get_bus_volume_linear(AudioServer.get_bus_index("Voice")),0.37),"Voice slider applies to the Voice bus")
+		voice_slider.value=old_voice_volume
+	var old_subtitles:bool=game.music.speech.subtitles_enabled
+	var subtitles_toggle:=game.overlay.find_child("VoiceSubtitlesToggle",true,false) as Button
+	check(subtitles_toggle!=null,"Audio tab exposes voice subtitle control")
+	if subtitles_toggle:
+		subtitles_toggle.pressed.emit()
+		check(game.music.speech.subtitles_enabled!=old_subtitles,"Voice subtitle toggle applies immediately")
+		check(bool(game.save_config.get_value("audio","voice_subtitles",old_subtitles))==game.music.speech.subtitles_enabled,"Voice subtitle preference is persisted")
+		game.music.speech.subtitles_enabled=old_subtitles
+		game.persist_settings()
 	game.show_options(game.show_pause,"BILD")
 	options=game.overlay.find_child("OptionsPanel",true,false)
 	var visible_size := game.get_viewport_rect().size

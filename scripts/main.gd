@@ -70,6 +70,8 @@ var chat_input: LineEdit
 var connection_label: Label
 var renderer: WorldRenderer
 var music: MusicDirector
+var voice_health_ratios: Dictionary = {}
+var voice_pending_harvester_returns: Dictionary = {}
 var viewport: SubViewport
 var view_container: SubViewportContainer
 var ui := Control.new()
@@ -121,6 +123,7 @@ var minimap: TacticalMap
 var radar_caption: Label
 var side_panel: Panel
 var low_power_alerted := false
+var low_solarit_alerted := false
 var buttons: Dictionary = {}
 var requirement_marks: Dictionary = {}
 var production_rows: Dictionary = {}
@@ -195,6 +198,7 @@ func _ready() -> void:
 	db=Catalog.new(MISSION_PATHS[mission_index])
 	music=MusicDirector.new()
 	add_child(music)
+	music.speech.subtitle_requested.connect(_on_voice_subtitle)
 	setup_theme()
 	setup_world()
 	add_child(ui)
@@ -1523,6 +1527,9 @@ func start_game() -> void:
 	render_previous=capture_render_state(); render_current=render_previous.duplicate(true)
 	connect_sim()
 	selected=[]; groups={}; ended=false; accumulator=0; production_target_factory_id=0
+	voice_health_ratios.clear()
+	voice_pending_harvester_returns.clear()
+	low_solarit_alerted=false; low_power_alerted=false
 	right_held=false; right_panning=false; middle_drag=false; harvest_mode=false
 	var cores:=sim.buildings(local_owner(),"core")
 	renderer.camera=cores[0].pos if not cores.is_empty() else Vector2(320,320)
@@ -1942,6 +1949,12 @@ func update_hud() -> void:
 	var p := sim.power(local_owner())
 	radar_caption.text="RADAR AKTIV" if not sim.buildings(local_owner(),"radar").is_empty() and sim.powered(local_owner()) else "RADAR OFFLINE"
 	status.text=format_score(int(sim.credits[local_owner()]))
+	var solarit_balance:=float(sim.credits[local_owner()])
+	if solarit_balance<400.0 and not low_solarit_alerted:
+		music.speech.request("solar_low",str(sim.factions[local_owner()]))
+		low_solarit_alerted=true
+	elif solarit_balance>700.0:
+		low_solarit_alerted=false
 	energy_label.text="%+d"%int(p.y-p.x)
 	energy_label.modulate=Color("ffb17c") if p.x>p.y else Color.WHITE
 	energy_label.tooltip_text="Verbrauch %d / Erzeugung %d · freie Energie %+d"%[int(p.x),int(p.y),int(p.y-p.x)]
@@ -1949,7 +1962,7 @@ func update_hud() -> void:
 	if is_instance_valid(objective): objective.text=sim.hud_objective_text()
 	if is_instance_valid(optional_objective): optional_objective.text=sim.optional_objective_progress_text() if not online.active else ""
 	if p.x>p.y and not low_power_alerted:
-		notify("ENERGIE KNAPP / IMPULSWERK BAUEN"); music.cue("alarm")
+		notify("ENERGIE KNAPP / IMPULSWERK BAUEN"); music.cue("alarm"); music.speech.request("energy_critical",str(sim.factions[local_owner()]))
 		minimap.ping(renderer.camera,GOLD)
 	low_power_alerted=p.x>p.y
 	selected=selected.filter(func(id):return sim.entities.has(int(id)))
@@ -2432,6 +2445,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				if group_last==key and Time.get_ticks_msec()/1000.0-group_time<0.4 and not selected.is_empty():
 					if sim.entities.has(int(selected[0])): renderer.camera=sim.entities[int(selected[0])].pos
 				group_last=key; group_time=Time.get_ticks_msec()/1000.0
+				_request_selection_voice()
 		if event.keycode>=KEY_F1 and event.keycode<=KEY_F4 and event.keycode!=KEY_F3:
 			if event.shift_pressed: bookmarks[event.keycode]=renderer.camera
 			elif bookmarks.has(event.keycode): renderer.camera=bookmarks[event.keycode]
@@ -2488,12 +2502,13 @@ func _unhandled_input(event: InputEvent) -> void:
 						elif not selected.has(id): selected.append(id)
 					elif id>0:
 						selected=[]; inspected=id
-				dragging=false; renderer.selecting=false; music.cue("select"); update_hud()
+				dragging=false; renderer.selecting=false; music.cue("select"); _request_selection_voice(); update_hud()
 	if event is InputEventMouseMotion:
 		if middle_drag: renderer.camera-=event.relative/(renderer.zoom*(1.0/3.0 if _is_classic_retro() else 1.0)); clamp_camera()
 		if dragging: renderer.selection_rect=Rect2(drag_start,screen_world(local)-drag_start).abs()
 
 func _process(dt: float) -> void:
+	_process_pending_voice_lines()
 	_advance_online_directory(dt)
 	if is_instance_valid(online_directory) and not online_directory.published_lobby_id.is_empty():
 		if not online.is_host() or online.connected or online.mission_started:
@@ -2688,7 +2703,54 @@ func dispatch_order(ids: Array, point: Vector2, order: String = "move", target_i
 	var actors := ids.duplicate()
 	if order in ["harvest","return"]: actors=actors.filter(func(id):return sim.entities.has(int(id)) and sim.entities[int(id)].kind=="harvester")
 	if actors.size()==1 and sim.entities.has(int(actors[0])) and sim.entities[int(actors[0])].kind=="factory" and order in ["move","attack","attack_move"]: order="rally"
-	return submit_player_command({"type":order,"owner_id":local_owner(),"ids":actors,"point":[point.x,point.y],"target_id":target_id})
+	var submitted:=submit_player_command({"type":order,"owner_id":local_owner(),"ids":actors,"point":[point.x,point.y],"target_id":target_id})
+	if submitted and not actors.is_empty() and order in ["move","attack","attack_move","harvest","return"]:
+		var representative_id:=int(actors[0])
+		var representative:Dictionary=sim.entities.get(representative_id,{})
+		if not representative.is_empty():
+			var voice_event:="attack" if order=="attack" else ("harvest_return" if order=="return" else "move")
+			music.speech.request(voice_event,str(representative.get("faction_id",faction)),representative_id,actors.size())
+	return submitted
+
+func _on_voice_subtitle(text: String, _line_id: String) -> void:
+	if not text.is_empty(): notify(text)
+
+func _process_pending_voice_lines() -> void:
+	if not playing or sim==null or music==null or music.speech==null: return
+	var now:=Time.get_ticks_msec()
+	for raw_id in voice_pending_harvester_returns.keys():
+		var unit_id:=int(raw_id)
+		var pending:Dictionary=voice_pending_harvester_returns[raw_id]
+		if now<int(pending.next): continue
+		if now>int(pending.expires) or not sim.entities.has(unit_id):
+			voice_pending_harvester_returns.erase(raw_id)
+			continue
+		var collector:Dictionary=sim.entities[unit_id]
+		if str(collector.get("harvest_state",""))!="RETURN_TO_BASE":
+			voice_pending_harvester_returns.erase(raw_id)
+			continue
+		if music.speech.request("harvest_return",str(pending.faction),unit_id):
+			voice_pending_harvester_returns.erase(raw_id)
+		else:
+			pending.next=now+500
+			voice_pending_harvester_returns[raw_id]=pending
+
+func _request_selection_voice() -> void:
+	if selected.is_empty() or sim==null: return
+	var representative:Dictionary=sim.entities.get(int(selected[0]),{})
+	if representative.is_empty() or int(representative.owner)!=local_owner(): return
+	var event_name:="harvester_select" if str(representative.kind)=="harvester" else "select"
+	music.speech.request(event_name,str(representative.get("faction_id",faction)),int(representative.id),selected.size())
+
+func _nearest_friendly_harvester(world_position: Vector2) -> int:
+	if sim==null: return 0
+	var best_id:=0
+	var best_distance:=INF
+	for entity in sim.entities.values():
+		if entity.kind!="harvester" or int(entity.owner)!=local_owner(): continue
+		var distance:float=entity.pos.distance_squared_to(world_position)
+		if distance<best_distance: best_distance=distance; best_id=int(entity.id)
+	return best_id if best_distance<120.0*120.0 else 0
 
 func issue_context_order(point: Vector2) -> void:
 	var id := entity_at(point)
@@ -2701,7 +2763,24 @@ func issue_context_order(point: Vector2) -> void:
 	if order=="harvest": notify("Solaritfeld zugewiesen: sammeln und automatisch abladen.")
 
 func on_presentation(kind: String, data: Dictionary) -> void:
+	if kind=="hit" and data.has("id") and sim!=null and sim.entities.has(int(data.id)):
+		var damaged: Dictionary=sim.entities[int(data.id)]
+		var ratio:=float(damaged.hp)/maxf(1.0,float(damaged.max_hp))
+		var previous_ratio:=float(voice_health_ratios.get(int(data.id),1.0))
+		voice_health_ratios[int(data.id)]=ratio
+		if sim.is_visible(damaged,local_owner()):
+			if str(damaged.kind)=="harvester" and int(damaged.owner)==local_owner() and ratio<0.5 and previous_ratio>=0.5:
+				music.speech.request("harvest_danger",str(damaged.get("faction_id",faction)),int(data.id))
+			elif int(damaged.owner)==local_owner() and ratio<0.2 and previous_ratio>=0.2:
+				music.speech.request("critical",str(damaged.get("faction_id",faction)),int(data.id))
+			elif int(damaged.owner)==local_owner() and ratio<0.65 and previous_ratio>=0.65:
+				music.speech.request("damage",str(damaged.get("faction_id",faction)),int(data.id))
+			elif int(damaged.owner)!=local_owner() and ratio<0.2 and previous_ratio>=0.2:
+				music.speech.request("critical",str(damaged.get("faction_id","forge")),int(data.id))
 	if kind=="destroy" and data.has("id"):
+		if bool(data.get("building",false)) and int(data.get("owner",-1))==local_owner(): music.speech.request("structure_lost",str(data.get("faction",faction)))
+		voice_health_ratios.erase(int(data.id))
+		voice_pending_harvester_returns.erase(int(data.id))
 		selected.erase(int(data.id))
 		if inspected==int(data.id): inspected=0
 		renderer.selected=selected.duplicate()
@@ -2731,18 +2810,41 @@ func on_event(kind: String, pos: Vector2, message: String) -> void:
 			for entity in sim.entities.values():
 				if entity.kind!="harvester" or entity.owner!=local_owner() or entity.harvest_state!="HARVEST": continue
 				if not sim.is_visible(entity,local_owner()): continue
+				if entity.pos.distance_to(pos)>120.0: continue
 				working_harvester=entity
 				break
+			if working_harvester.is_empty():
+				var capacity:=maxf(1.0,float(sim.db.rules.harvest_capacity))
+				for entity in sim.entities.values():
+					if entity.kind!="harvester" or entity.owner!=local_owner() or entity.harvest_state!="RETURN_TO_BASE": continue
+					if float(entity.get("cargo",0.0))<capacity*0.85: continue
+					if entity.pos.distance_to(pos)>120.0: continue
+					music.speech.request("harvest_full",str(entity.get("faction_id",faction)),int(entity.id))
+					var now:=Time.get_ticks_msec()
+					voice_pending_harvester_returns[int(entity.id)]={"faction":str(entity.get("faction_id",faction)),"next":now+2200,"expires":now+9000}
+					break
 			music.set_harvester_working(not working_harvester.is_empty(),audio_position_for_world(working_harvester.pos) if not working_harvester.is_empty() else Vector2(-1,-1))
 		elif visible:
 			var audio_position:=audio_position_for_world(pos)
 			if kind=="harvest_start":
+				var collector_id:=_nearest_friendly_harvester(pos)
+				if collector_id>0 and sim.entities.has(collector_id): music.speech.request("harvest_start",str(sim.entities[collector_id].get("faction_id",faction)),collector_id)
 				music.cue("harvest_start_demo",0.8,audio_position)
 				music.cue("harvest_collect_demo",0.55,audio_position)
 				music.set_harvester_working(true,audio_position)
 			else:
+				var unloading_id:=_nearest_friendly_harvester(pos)
+				if unloading_id>0 and sim.entities.has(unloading_id): music.speech.request("harvest_unload",str(sim.entities[unloading_id].get("faction_id",faction)),unloading_id)
 				music.cue("harvest_unload_demo",0.9,audio_position)
 		return
+	if visible and kind=="complete":
+		if message.begins_with("ZIEL ERFÜLLT"):
+			music.speech.request("mission",str(sim.factions[local_owner()]))
+		else: music.speech.request("build_complete",str(sim.factions[local_owner()]))
+	elif visible and kind=="ready":
+		music.speech.request("unit_ready",str(sim.factions[local_owner()]))
+	elif visible and kind=="alarm":
+		music.speech.request("base_attack" if message.begins_with("BASIS") else "enemy_contact",str(sim.factions[local_owner()]))
 	if kind in ["shot","explosion"]:
 		if visible:
 			if kind=="explosion": music.cue(kind,clampf(1.0-pos.distance_to(renderer.camera)/1200.0,0.05,0.8),audio_position_for_world(pos))
@@ -3581,6 +3683,7 @@ func load_game(path: String = "") -> void:
 	renderer.preserve_loaded_visuals=true
 	faction=sim.factions[0]; difficulty=sim.difficulty
 	selected=[]
+	voice_health_ratios.clear(); voice_pending_harvester_returns.clear()
 	if data.get("selected",[]) is Array:
 		for id in data.get("selected",[]):
 			if sim.number(id) and sim.entities.has(int(id)): selected.append(int(id))
@@ -3749,16 +3852,16 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 		row.call(342 if compact_options else 429,"Lebensbalken","Anzeige beschädigter oder ausgewählter Einheiten.",health_button)
 	elif options_tab=="AUDIO":
 		heading.call("AUDIO-MISCHPULT",22)
-		label(content,"Die Mischpegel gelten sofort und werden lokal gespeichert.",Vector2(26,51),14,MUTED)
-		for i in 2:
-			var y := 116.0+i*122.0
-			var title := "MUSIK" if i==0 else "SOUND-EFFEKTE"
+		label(content,"Pegel gelten sofort; Sprache kann wichtige Meldungen hörbar machen.",Vector2(26,51),14,MUTED)
+		for i in 3:
+			var y := 92.0+i*94.0
+			var title:String = ["MUSIK","SOUND-EFFEKTE","SPRACHE"][i]
 			label(content,title,Vector2(28,y),16,Color("d6dfd5"))
 			var slider := HSlider.new()
-			slider.name="MusicVolumeSlider" if i==0 else "SfxVolumeSlider"
+			slider.name=["MusicVolumeSlider","SfxVolumeSlider","VoiceVolumeSlider"][i]
 			slider.position=Vector2(28,y+37); slider.size=Vector2(cw-150,32)
 			slider.min_value=0; slider.max_value=1; slider.step=0.01
-			slider.value=music.music_volume if i==0 else music.sfx_volume
+			slider.value=[music.music_volume,music.sfx_volume,music.speech.voice_volume][i]
 			var track := StyleBoxFlat.new()
 			track.bg_color=Color("292b25"); track.set_corner_radius_all(3); track.content_margin_top=3; track.content_margin_bottom=3
 			var active_track := StyleBoxFlat.new()
@@ -3776,14 +3879,17 @@ func show_options(back: Callable, requested_tab: String = "") -> void:
 			slider.value_changed.connect(func(value: float):
 				percentage.text="%d %%" % roundi(value*100.0)
 				if i==0: music.music_volume=value
-				else: music.sfx_volume=value; music.cue("select")
+				elif i==1: music.sfx_volume=value; music.cue("select")
+				else: music.set_voice_volume(value)
 				persist_settings())
 			content.add_child(slider); content.add_child(percentage)
 			var line := ColorRect.new()
 			line.position=Vector2(28,y+88); line.size=Vector2(cw-56,1); line.color=Color(0.70,0.61,0.45,0.14); line.mouse_filter=Control.MOUSE_FILTER_IGNORE
 			content.add_child(line)
-		label(content,"MUSIK UND EFFEKTE SIND GETRENNT GEREGELT",Vector2(28,381),13,MUTED)
-		label(content,"Tipp: Effekte lassen sich unabhängig von der Musik leiser stellen.",Vector2(28,408),14,Color("c8d3cc"))
+		var subtitle_button:=button(content,"UNTERTITEL  ·  "+("AN" if music.speech.subtitles_enabled else "AUS"),Rect2(28,382,cw-56,44),func():music.speech.subtitles_enabled=not music.speech.subtitles_enabled; persist_settings(); show_options(back,"AUDIO"))
+		subtitle_button.name="VoiceSubtitlesToggle"
+		subtitle_button.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		label(content,"Die Text-IDs sind vorbereitet; Sprecheraufnahmen stehen noch aus.",Vector2(30,437),13,MUTED,cw-60)
 	elif options_tab=="STEUERUNG":
 		heading.call("TASTENBELEGUNG",16)
 		label(content,"BEFEHL",Vector2(28,43),12,MUTED)
@@ -3885,6 +3991,8 @@ func load_settings() -> void:
 	if save_config.load("user://settings.cfg")==OK:
 		music.music_volume=save_config.get_value("audio","music",0.65)
 		music.sfx_volume=save_config.get_value("audio","sfx",0.75)
+		music.set_voice_volume(float(save_config.get_value("audio","voice",0.8)))
+		music.speech.subtitles_enabled=bool(save_config.get_value("audio","voice_subtitles",false))
 		edge_scroll=save_config.get_value("gameplay","edge",true)
 		health_mode=save_config.get_value("gameplay","health","damaged")
 		online_stats_enabled=bool(save_config.get_value("online", "enabled", true))
@@ -3926,6 +4034,8 @@ static func _normalize_window_resolution(size: Vector2i) -> Vector2i:
 func persist_settings() -> void:
 	save_config.set_value("audio","music",music.music_volume)
 	save_config.set_value("audio","sfx",music.sfx_volume)
+	save_config.set_value("audio","voice",music.speech.voice_volume)
+	save_config.set_value("audio","voice_subtitles",music.speech.subtitles_enabled)
 	save_config.set_value("gameplay","edge",edge_scroll)
 	save_config.set_value("gameplay","health",health_mode)
 	save_config.set_value("online", "enabled", online_stats_enabled)
