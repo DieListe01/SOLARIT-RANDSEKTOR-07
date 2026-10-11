@@ -202,6 +202,23 @@ func interpolated_entity(entity: Dictionary) -> Dictionary:
 	visual.turret=lerp_angle(float(before[2]),float(now[2]),interpolation_alpha)
 	return visual
 
+func vehicle_cache_family_prefix(key: String) -> String:
+	var parts: PackedStringArray=key.split("|")
+	if parts.size()<4: return key
+	return "%s|%s|%s|%s" % [parts[0],parts[1],parts[2],parts[3]]
+
+func invalidate_vehicle_fallbacks_for_new_pose(key: String) -> void:
+	# A new texture can improve fallback choices only for the same render family
+	# (unit, faction, owner tint and team color). Preserve all unrelated indexes.
+	var prefix:=vehicle_cache_family_prefix(key)+"|"
+	for requested_key in vehicle_cache_fallback_keys.keys():
+		if str(requested_key).begins_with(prefix): vehicle_cache_fallback_keys.erase(requested_key)
+
+func forget_vehicle_fallbacks_to_pose(key: String) -> void:
+	# Evicting a pose only invalidates requests that actually pointed at it.
+	for requested_key in vehicle_cache_fallback_keys.keys():
+		if str(vehicle_cache_fallback_keys[requested_key])==key: vehicle_cache_fallback_keys.erase(requested_key)
+
 func nearest_vehicle_texture(key: String) -> Texture2D:
 	var cached_fallback_key:=str(vehicle_cache_fallback_keys.get(key,""))
 	if not cached_fallback_key.is_empty() and vehicle_texture_cache.has(cached_fallback_key):
@@ -321,7 +338,7 @@ func evict_vehicle_cache_entry() -> void:
 	if oldest_key=="": oldest_key=str(vehicle_texture_cache.keys()[0])
 	vehicle_texture_cache.erase(oldest_key)
 	vehicle_texture_last_used.erase(oldest_key)
-	vehicle_cache_fallback_keys.clear()
+	forget_vehicle_fallbacks_to_pose(oldest_key)
 	if vehicle_cache_viewports.has(oldest_key):
 		var old_viewport: SubViewport=vehicle_cache_viewports[oldest_key]
 		vehicle_cache_viewports.erase(oldest_key)
@@ -484,7 +501,7 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	if pose_texture!=null:
 		if vehicle_texture_cache.size()>=vehicle_cache_capacity: evict_vehicle_cache_entry()
 		vehicle_texture_cache[key]=pose_texture
-		vehicle_cache_fallback_keys.clear()
+		invalidate_vehicle_fallbacks_for_new_pose(key)
 		vehicle_cache_viewports[key]=viewport
 		vehicle_texture_last_used[key]=Time.get_ticks_usec()
 		# The rendered image is retained by the SubViewport texture. Its 3D scene

@@ -215,10 +215,19 @@ func verify_vehicle_cache_fallback() -> bool:
 	game.renderer.vehicle_texture_cache.erase(exact_key)
 	var fallback_found: bool=game.renderer.nearest_vehicle_texture(requested)==nearby_state
 	game.renderer.vehicle_texture_cache.erase(fallback_key)
+	game.renderer.vehicle_cache_fallback_keys["cache_test_unit|forge|0|ffffff|2|2|0|0|0|0"]="cache_test_unit|forge|0|ffffff|1|2|0|2|1|3"
+	game.renderer.vehicle_cache_fallback_keys["other_unit|forge|0|ffffff|2|2|0|0|0|0"]="other_unit|forge|0|ffffff|1|2|0|0|0|0"
+	game.renderer.invalidate_vehicle_fallbacks_for_new_pose("cache_test_unit|forge|0|ffffff|3|2|0|0|0|0")
+	var same_family_invalidated: bool=not game.renderer.vehicle_cache_fallback_keys.has("cache_test_unit|forge|0|ffffff|2|2|0|0|0|0")
+	var unrelated_family_preserved: bool=game.renderer.vehicle_cache_fallback_keys.has("other_unit|forge|0|ffffff|2|2|0|0|0|0")
+	game.renderer.forget_vehicle_fallbacks_to_pose("other_unit|forge|0|ffffff|1|2|0|0|0|0")
+	var evicted_pose_forgotten: bool=not game.renderer.vehicle_cache_fallback_keys.has("other_unit|forge|0|ffffff|2|2|0|0|0|0")
 	if not exact_preferred: push_error("VEHICLE CACHE REGRESSION: exact visual state was not preferred")
 	if not fallback_found: push_error("VEHICLE CACHE REGRESSION: missing visual state did not use a nearby cached variant")
-	print("VEHICLE CACHE FALLBACK: exact state preferred; nearby variant used while a new state is rasterized: %s" % (exact_preferred and fallback_found))
-	return exact_preferred and fallback_found
+	if not same_family_invalidated or not unrelated_family_preserved or not evicted_pose_forgotten: push_error("VEHICLE CACHE REGRESSION: fallback invalidation was too broad or left an evicted pose indexed")
+	print("VEHICLE CACHE FALLBACK: exact state preferred; family-scoped invalidation retained unrelated fallbacks: %s" % (exact_preferred and fallback_found and same_family_invalidated and unrelated_family_preserved and evicted_pose_forgotten))
+	game.renderer.vehicle_cache_fallback_keys.clear()
+	return exact_preferred and fallback_found and same_family_invalidated and unrelated_family_preserved and evicted_pose_forgotten
 
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute("res://test-output")
