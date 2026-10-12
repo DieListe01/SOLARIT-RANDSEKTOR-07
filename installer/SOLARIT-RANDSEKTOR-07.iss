@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.38.15"
+  #define AppVersion "0.38.16"
 #endif
 
 #define AppName "SOLARIT: RANDSEKTOR 07"
@@ -47,4 +47,3 @@ Name: "{autodesktop}\SOLARIT - RANDSEKTOR 07"; Filename: "{app}\{#AppExe}"; Task
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "SOLARIT: RANDSEKTOR 07 starten"; Flags: postinstall nowait skipifsilent
-

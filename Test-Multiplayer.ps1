@@ -34,7 +34,28 @@ function Invoke-PeerTest([string]$Script, [int]$TestPort, [string]$Prefix, [bool
             $peers += Start-Process @launch
             [void]$ownedPids.Add($peers[-1].Id)
             Write-Host "MULTIPLAYER $($role.ToUpperInvariant()) started pid=$($peers[-1].Id) port=$TestPort stdout=$($launch.RedirectStandardOutput) stderr=$($launch.RedirectStandardError)"
-            if ($role -eq 'host') { Start-Sleep -Milliseconds 200 }
+            if ($role -eq 'host' -and $Script -like '*network_roundtrip*') {
+                # Do not race the client against Godot startup on slower CI
+                # runners. `Lobby offen` is emitted only after create_server()
+                # has succeeded and the ENet listener is ready.
+                $hostReadyDeadline=[DateTime]::UtcNow.AddSeconds(30)
+                $hostLogPath=Join-Path $logDirectory "$Prefix-host.log"
+                $hostReady=$false
+                while([DateTime]::UtcNow -lt $hostReadyDeadline){
+                    $peers[0].Refresh()
+                    if($peers[0].HasExited){throw "Multiplayer host exited before ENet was ready: $Script (Exit $($peers[0].ExitCode))"}
+                    $hostOutput=Get-Content -LiteralPath $hostLogPath -Raw -ErrorAction SilentlyContinue
+                    if($hostOutput -match 'Lobby offen'){$hostReady=$true;break}
+                    Start-Sleep -Milliseconds 100
+                }
+                if(-not $hostReady){
+                    $lastHostOutput=(Get-Content -LiteralPath $hostLogPath -Tail 10 -ErrorAction SilentlyContinue) -join ' | '
+                    Write-Host "TIMEOUT TEST`nname: $Script (host startup)`ngroup: Multiplayer`nruntime: 30s`npid: $($peers[0].Id)`nlast_output: $lastHostOutput"
+                    throw "Multiplayer host did not report ENet readiness within 30s: $Script"
+                }
+                Write-Host "MULTIPLAYER HOST READY pid=$($peers[0].Id) port=$TestPort marker='Lobby offen'"
+            }
+            elseif ($role -eq 'host') { Start-Sleep -Milliseconds 200 }
         }
         while ($true) {
             foreach ($peer in $peers) {

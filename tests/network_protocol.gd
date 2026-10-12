@@ -18,7 +18,10 @@ func _initialize() -> void:
 	check(not Session.game_versions_match("unknown", "0.36.10"), "unknown game version rejected")
 	session.host_tick=590
 	session.ping_ms=-1
-	session.last_snapshot_at=Time.get_ticks_msec()
+	# Treat the snapshot as just received even if the test process is descheduled
+	# for a millisecond between assigning the timestamp and checking the lead.
+	# command_lead_ticks() rounds elapsed milliseconds up to simulation ticks.
+	session.last_snapshot_at=Time.get_ticks_msec()+50
 	check(session.command_target_tick()==605,"fresh snapshots use the minimum safe command lead")
 	session.last_snapshot_at=Time.get_ticks_msec()-1000
 	session.ping_ms=200
