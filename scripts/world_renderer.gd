@@ -872,7 +872,7 @@ func _draw() -> void:
 	vehicle_cache_hits=0; vehicle_cache_misses=0
 	building_cache_hits=0; building_cache_misses=0
 	terrain_sprite.visible=not benchmark_disabled_categories.has("world")
-	terrain_detail.visible=not benchmark_disabled_categories.has("world")
+	terrain_detail.visible=not benchmark_disabled_categories.has("world") and not benchmark_disabled_categories.has("terrain_detail")
 	if benchmark_disabled_categories.has("world"):
 		if profile_enabled: profile_total_ms=float(Time.get_ticks_usec()-profile_started)/1000.0
 		return

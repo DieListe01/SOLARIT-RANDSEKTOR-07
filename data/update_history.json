@@ -1,6 +1,17 @@
 {
-  "current_version": "0.38.13",
+  "current_version": "0.38.14",
   "entries": [
+    {
+      "version": "0.38.14",
+      "date": "12.10.2026",
+      "title": "Organischere Geländematerial-Übergänge",
+      "changes": [
+        "Geländematerialien erhalten weichere, weniger kachelartige Übergänge. Die tatsächlichen Terrain-, Kollisions- und Wegfindungsdaten bleiben unverändert.",
+        "Der Terrain-A/B-Schalter umfasst jetzt sowohl die Detail-Meshes als auch das Terrain-Overlay und erlaubt dadurch aussagekräftigere Renderer-Vergleiche.",
+        "Der Fraktions-Voice-Katalog bleibt eingebunden; passende deutsche Sprecheraufnahmen sind weiterhin offen und werden nicht durch eine unpassende Systemstimme ersetzt.",
+        "Der Grafik-/Audio-Pass ist noch nicht vollständig abgeschlossen: Die Geländekarten enthalten weiterhin rechteckige Quellmasken; deutsche Sprecheraufnahmen und final abgenommene Musik sind noch offen."
+      ]
+    },
     {
       "version": "0.38.13",
       "date": "11.10.2026",
