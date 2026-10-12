@@ -17,6 +17,10 @@ var state := "BASE_CALM"
 var intensity := 0.0
 var age := 0.0
 var last_music_bar := -1
+var active_arrangement_index := 0
+var previous_arrangement_index := 0
+var arrangement_crossfade_elapsed := 1.25
+const ARRANGEMENT_CROSSFADE_SECONDS := 1.25
 var pending := "BASE_CALM"
 var music_volume := 0.65
 var sfx_volume := 0.75
@@ -125,6 +129,8 @@ func start(model: Simulation) -> void:
 	ended=false
 	paused=false
 	state="BASE_CALM"; pending=state; age=0; intensity=0; last_music_bar=-1
+	active_arrangement_index=0; previous_arrangement_index=0
+	arrangement_crossfade_elapsed=ARRANGEMENT_CROSSFADE_SECONDS
 	var music_owner:=clampi(int(sim.get("view_owner")),0,maxi(0,sim.factions.size()-1))
 	faction_id=str(sim.factions[music_owner]) if not sim.factions.is_empty() else "forge"
 	if not music_catalog.get("factions",{}).has(faction_id): faction_id="forge"
@@ -141,7 +147,7 @@ func start(model: Simulation) -> void:
 			continue
 		layer.stream=stream
 		layer.bus="Music"
-		layer.volume_db=-55 if name_value!="calm" else -7
+		layer.volume_db=-60 if name_value!="calm" else -7
 		add_child(layer)
 		layers.append(layer)
 		selected_tracks.append(track)
@@ -360,19 +366,37 @@ func _process(dt: float) -> void:
 	if sim.result!="" and not ended:
 		ended=true; state=sim.result.to_upper(); cue(sim.result)
 		if speech!=null: speech.request("mission",faction_id)
-	# Strongly differentiated adaptive arrangements. The four synchronized stems are
-	# intentionally mixed very differently per tactical state, so contact, economy,
-	# battle and base alarm are immediately audible rather than feeling like one loop.
-	var gains := [0.72,0.0,0.0,0.0]
-	match state:
-		"ECONOMY": gains=[0.58,0.20,0.0,0.0]
-		"ENEMY_CONTACT": gains=[0.38,0.92,0.0,0.0]
-		"SKIRMISH": gains=[0.28,0.62,0.55,0.0]
-		"BATTLE": gains=[0.16,0.34,1.0,0.0]
-		"MAJOR_BATTLE": gains=[0.10,0.26,1.0,0.70]
-		"BASE_UNDER_ATTACK": gains=[0.06,0.18,0.88,1.0]
-		"VICTORY", "DEFEAT": gains=[0.22,0.0,0.0,0.0]
-	if ended: gains=[0.22,0.0,0.0,0.0]
+	# Catalog entries are complete demo arrangements, not mix-compatible stems.
+	# Select one arrangement and briefly crossfade at the next musical bar instead
+	# of summing calm/contact/battle/alarm full mixes together.
+	_update_arrangement_mix(dt)
+
+func _arrangement_index_for_state(value: String) -> int:
+	match value:
+		"ENEMY_CONTACT", "ECONOMY": return 1 if value=="ENEMY_CONTACT" else 0
+		"SKIRMISH", "BATTLE", "MAJOR_BATTLE": return 2
+		"BASE_UNDER_ATTACK": return 3
+		_: return 0
+
+func _update_arrangement_mix(dt: float) -> void:
+	if layers.is_empty(): return
+	var requested_index := _arrangement_index_for_state(state)
+	if ended: requested_index=0
+	if requested_index!=active_arrangement_index:
+		previous_arrangement_index=active_arrangement_index
+		active_arrangement_index=requested_index
+		arrangement_crossfade_elapsed=0.0
+	arrangement_crossfade_elapsed=minf(ARRANGEMENT_CROSSFADE_SECONDS,arrangement_crossfade_elapsed+dt)
+	var blend := smoothstep(0.0,ARRANGEMENT_CROSSFADE_SECONDS,arrangement_crossfade_elapsed)
 	for i in layers.size():
-		var target_db := linear_to_db(maxf(0.002,float(gains[i])*music_volume*voice_duck))
-		layers[i].volume_db=move_toward(layers[i].volume_db,target_db,dt*15)
+		var weight := 0.0
+		if arrangement_crossfade_elapsed>=ARRANGEMENT_CROSSFADE_SECONDS:
+			weight=1.0 if i==active_arrangement_index else 0.0
+		else:
+			# Equal-power fade prevents a level dip; at most two full arrangements overlap.
+			if i==previous_arrangement_index: weight=cos(blend*PI*0.5)
+			if i==active_arrangement_index: weight=maxf(weight,sin(blend*PI*0.5))
+		var state_gain := 0.72 if active_arrangement_index==0 else (0.82 if active_arrangement_index==1 else (0.92 if active_arrangement_index==2 else 0.86))
+		var gain := weight*state_gain*music_volume*voice_duck
+		var target_db := linear_to_db(maxf(0.0001,gain))
+		layers[i].volume_db=target_db

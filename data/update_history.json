@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.17",
+  "current_version": "0.38.18",
   "entries": [
+    {
+      "version": "0.38.18",
+      "date": "12.10.2026",
+      "title": "Taktische Musik-Arrangements sauber umschalten",
+      "changes": [
+        "Vollständige Calm-, Kontakt-, Kampf- und Alarm-Demoarrangements werden nicht mehr gleichzeitig übereinandergelegt. Der Wechsel erfolgt am Taktübergang mit kurzem Crossfade.",
+        "Der Fraktions-Voice-Katalog bleibt eingebunden; passende deutsche Sprecheraufnahmen sind weiterhin offen.",
+        "Die Musikdateien bleiben ausdrücklich als Demos markiert. Diese Version enthält keine finale Neu-Komposition und keine menschlich abgenommene Musik."
+      ]
+    },
     {
       "version": "0.38.17",
       "date": "12.10.2026",

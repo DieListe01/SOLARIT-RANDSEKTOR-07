@@ -16,6 +16,8 @@ The visual suite regenerates faction vehicle and building contact sheets and exe
 
 The installed voice catalog still has no German recordings: every line has an empty asset and is marked `recording_required`. The only Windows system voice found here is Microsoft Zira (`en-US`), so it cannot provide credible German faction voices. Music files named `*_demo.ogg` remain reference compositions, not final approved soundtrack. This pass did not relabel either as finished content.
 
+The demo files are complete arrangements rather than compatible stems. From v0.38.18, tactical states select one full arrangement and transition at bar boundaries; the four complete arrangements are no longer mixed simultaneously. The underlying demo compositions remain placeholders and still require replacement and human listening approval.
+
 ## Validation
 
 - `Test-Solarit.ps1 -Group Gameplay -OverallTimeoutMinutes 20 -HeartbeatSeconds 30`: 8/8 PASS.

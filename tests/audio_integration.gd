@@ -37,7 +37,7 @@ func run() -> void:
 	var sim := Simulation.new(Catalog.new())
 	director.start(sim)
 	await create_timer(0.15).timeout
-	check(director.layers.size()==4,"Four synchronized state stems")
+	check(director.layers.size()==4,"Four synchronized state arrangements are ready for bar-aligned selection")
 	check(director.selected_tracks.size()==4,"Music tracks resolve from catalog metadata")
 	check(director.faction_id==str(sim.factions[0]),"Mission music uses the selected faction family")
 	var head: float = director.layers[0].get_playback_position()
@@ -48,6 +48,7 @@ func run() -> void:
 			check((layer.stream as AudioStreamOggVorbis).loop,"Long music stem loops in the audio stream")
 		check(layer.stream.get_length()>90.0,"Runtime music stem is at least 90 seconds before repeating")
 	check(float(director.selected_tracks[0].get("bpm",0))>0.0,"Track tempo metadata is available to bar transitions")
+	check(director._arrangement_index_for_state("BASE_CALM")==0 and director._arrangement_index_for_state("ENEMY_CONTACT")==1 and director._arrangement_index_for_state("BATTLE")==2 and director._arrangement_index_for_state("BASE_UNDER_ATTACK")==3,"Tactical states select the corresponding full-mix arrangement")
 	director.cue("explosion",0.5,Vector2(1200,500))
 	var spatial_voice: AudioStreamPlayer2D
 	for player in director.voices:
@@ -79,8 +80,11 @@ func run() -> void:
 	await wait_for_state("BASE_UNDER_ATTACK")
 	check(director.state=="BASE_UNDER_ATTACK","Base attack enables intense arrangement")
 	var mix_deadline := Time.get_ticks_msec()+3500
-	while director.layers[3].volume_db<=-20 and Time.get_ticks_msec()<mix_deadline: await process_frame
-	check(director.layers[3].volume_db>-20,"Alarm stem audible in target arrangement")
+	while director.arrangement_crossfade_elapsed<MusicDirector.ARRANGEMENT_CROSSFADE_SECONDS and Time.get_ticks_msec()<mix_deadline: await process_frame
+	check(director.layers[3].volume_db>-20,"Alarm arrangement audible after the bar-aligned transition")
+	var non_alarm_arrangements_quiet := true
+	for i in 3: non_alarm_arrangements_quiet=non_alarm_arrangements_quiet and director.layers[i].volume_db<=-20
+	check(non_alarm_arrangements_quiet,"Complete calm/contact/battle mixes are not summed under the alarm arrangement")
 	director.set_paused(true)
 	var paused_head: float = director.layers[0].get_playback_position()
 	var paused_intensity: float = director.intensity

@@ -29,3 +29,7 @@ Calm, contact, battle and alarm need audible changes in density, rhythm and moti
 Compare old reference and proposed mix for First Signal, Kobalt calm/battle, Wanderpakt battle and Prisma battle. Review each at 30 seconds, 5 minutes, and in an actual match. Record comments on organ/whistle/MIDI character, repetition, faction identity, battle lift, loop seams, dialogue/SFX masking and fatigue. Spectral, codec, peak and LUFS reports are supporting evidence only; they cannot pass this gate.
 
 Until suitable composition tools/source material and a human listening pass are available, the existing OGGs remain playable demos. They must not be announced or released as the completed high-quality soundtrack.
+
+## Runtime safeguard added in v0.38.18
+
+The current catalog files are independent complete demo arrangements, not authored stems. The runtime now selects the calm, contact, battle, or alarm arrangement for the tactical state and transitions at bar boundaries. A 1.25-second equal-power crossfade can overlap only the old and new full mixes; it no longer sums calm, contact, battle, and alarm arrangements at once. This corrects the playback architecture, but does not change the demo audio itself or pass the human listening gate.
