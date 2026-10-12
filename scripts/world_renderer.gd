@@ -767,12 +767,13 @@ func _process(dt: float) -> void:
 		preserve_loaded_visuals=false
 		material_grid=sim.grid
 		var mission_mask_path: String="res://assets/terrain_masks/%s.png" % str(sim.db.mission.get("id",""))
-		var mission_mask:=Image.new()
+		var mission_mask_texture: Texture2D
 		if ResourceLoader.exists(mission_mask_path):
-			var load_error:=mission_mask.load(mission_mask_path)
-			if load_error!=OK: push_warning("Terrain mask could not load: "+mission_mask_path)
-		if mission_mask.is_empty(): mission_mask=_build_visual_terrain_mask(sim.grid)
-		terrain_sprite.texture=ImageTexture.create_from_image(mission_mask)
+			mission_mask_texture=ResourceLoader.load(mission_mask_path) as Texture2D
+		if mission_mask_texture==null:
+			var mission_mask:=_build_visual_terrain_mask(sim.grid)
+			mission_mask_texture=ImageTexture.create_from_image(mission_mask)
+		terrain_sprite.texture=mission_mask_texture
 		terrain_sprite.material.set_shader_parameter("map_cells",Vector2(sim.grid.width,sim.grid.height))
 		_build_terrain_detail_mesh()
 	if sim!=null:

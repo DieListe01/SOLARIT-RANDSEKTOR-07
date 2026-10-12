@@ -50,7 +50,10 @@ func run() -> void:
 	check(shader != null,"Full-detail terrain shader is active on the graphical renderer")
 	check(game.sim.grid.terrain == terrain_before,"Visual border distortion does not change gameplay terrain cells")
 	var mask_image: Image = game.renderer.terrain_sprite.texture.get_image()
-	check(mask_image.get_data()==mask.get_data(),"Runtime mission texture matches its prebaked visual mask")
+	var expected_runtime_mask:=mask.duplicate()
+	mask_image.convert(Image.FORMAT_R8)
+	expected_runtime_mask.convert(Image.FORMAT_R8)
+	check(mask_image.get_data()==expected_runtime_mask.get_data(),"Runtime mission texture matches its prebaked visual mask")
 	var rock_center:=mask_image.get_pixel(13*8+4,47*8+4).r*8.0
 	var sand_center:=mask_image.get_pixel(27*8+4,47*8+4).r*8.0
 	check(int(floor(rock_center))==1 and int(floor(sand_center))==0,"Supersampled visual mask preserves distinct interior materials")
