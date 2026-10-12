@@ -90,6 +90,7 @@ Add-PythonTest 'Visual' 'assemble_faction_vehicle_contact.py' $pythonPath @((Joi
 Add-GodotTest 'Visual' 'faction_building_contact_sheet' $false 600
 Add-PythonTest 'Visual' 'assemble_faction_building_contact.py' $pythonPath @((Join-Path $gameRoot 'tools\assemble_faction_building_contact.py')) 300
 Add-GodotTest 'Visual' 'visual_showcase' $false 600
+Add-GodotTest 'Visual' 'terrain_visual_acceptance' $false 300
 Add-GodotTest 'Visual' 'color_identity' $false 300
 Add-GodotTest 'Visual' 'factory_production_visuals' $false 600
 

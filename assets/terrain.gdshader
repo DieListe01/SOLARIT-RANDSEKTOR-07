@@ -10,8 +10,9 @@ float noise(vec2 p) {
 }
 vec3 material(float kind) {
 	if (kind<0.5) return vec3(0.69,0.45,0.27);
-	if (kind<1.5 || (kind>2.5 && kind<3.5)) return vec3(0.55,0.43,0.32);
+	if (kind<1.5) return vec3(0.46,0.39,0.32);
 	if (kind<2.5) return vec3(0.75,0.53,0.34);
+	if (kind<3.5) return vec3(0.48,0.39,0.31);
 	if (kind<4.5) return vec3(0.59,0.47,0.35);
 	if (kind<5.5) return vec3(0.45,0.34,0.26);
 	return vec3(0.35,0.29,0.23);
@@ -29,20 +30,20 @@ vec2 stone(vec2 p) {
 	return vec2(second-first,identifier);
 }
 float kind_at(sampler2D terrain_map, vec2 world, vec2 warp) {
-	vec2 cell=(world+warp*27.0)/32.0;
-	return floor(texture(terrain_map,(floor(cell)+0.5)/map_cells).r*8.0);
+	vec2 uv=(world+warp*27.0)/(map_cells*32.0);
+	return floor(texture(terrain_map,uv).r*8.0);
 }
 void fragment() {
 	vec2 world=UV*map_cells*32.0;
-	// Broad, slow domain warping breaks map-cell rectangles into irregular
-	// mineral and ash boundaries without another texture pass or geometry.
-	vec2 warp=(vec2(noise(world*0.012),noise(world*0.012+91.0))-0.5)*1.8;
-	warp+=(vec2(noise(world*0.045+27.0),noise(world*0.045+118.0))-0.5)*0.38;
-	// Break up the authored rectangular terrain regions with a broad, smooth
-	// visual domain warp. Gameplay terrain and collision remain cell-exact.
-	vec2 terrain_cell=(world+warp*1.38*27.0)/32.0;
+	// Independent macro/meso/micro fields turn authored rectangular material
+	// regions into broad, eroded-looking visual borders. This displacement is
+	// strictly presentational; the simulation grid remains cell-exact.
+	vec2 warp=(vec2(noise(world*0.0032),noise(world*0.0032+91.0))-0.5)*5.2;
+	warp+=(vec2(noise(world*0.012+27.0),noise(world*0.012+118.0))-0.5)*2.2;
+	warp+=(vec2(noise(world*0.045+211.0),noise(world*0.045+302.0))-0.5)*0.7;
+	vec2 terrain_cell=(world+warp*27.0)/32.0;
 	float raw_kind=kind_at(TEXTURE,world,vec2(0.0));
-	float kind=kind_at(TEXTURE,world,warp*1.38);
+	float kind=kind_at(TEXTURE,world,warp);
 	// Keep cliff silhouettes aligned to their gameplay boundary; only softer
 	// surface families receive the wider visual breakup.
 	if(raw_kind>5.6 || kind>5.6) {
@@ -54,7 +55,7 @@ void fragment() {
 	vec4 edge_distance=vec4(local.x,1.0-local.x,local.y,1.0-local.y);
 	vec4 edge_weight=1.0-smoothstep(vec4(0.015),vec4(0.42),edge_distance);
 	float edge_warp=0.0;
-	if(raw_kind<5.6 && kind<5.6) edge_warp=1.38;
+	if(raw_kind<5.6 && kind<5.6) edge_warp=1.0;
 	vec3 adjacent=(material(kind_at(TEXTURE,world+vec2(8,0),warp*edge_warp))*edge_weight.y+
 		material(kind_at(TEXTURE,world-vec2(8,0),warp*edge_warp))*edge_weight.x+
 		material(kind_at(TEXTURE,world+vec2(0,8),warp*edge_warp))*edge_weight.w+
@@ -76,8 +77,8 @@ void fragment() {
 		variation+=(rock.y-0.5)*0.075;
 		variation-=(1.0-smoothstep(0.0,0.025,rock.x))*0.085;
 		variation+=smoothstep(0.025,0.04,rock.x)*(1.0-smoothstep(0.04,0.09,rock.x))*0.02;
-		float south=kind_at(TEXTURE,world+vec2(0,7),warp*1.38);
-		float north=kind_at(TEXTURE,world-vec2(0,5),warp*1.38);
+		float south=kind_at(TEXTURE,world+vec2(0,7),warp);
+		float north=kind_at(TEXTURE,world-vec2(0,5),warp);
 		if(south==0.0 || south==2.0) variation-=0.10;
 		if(north==0.0 || north==2.0) variation+=0.08;
 		float dust=smoothstep(0.38,0.73,noise(world*0.012+13.0));

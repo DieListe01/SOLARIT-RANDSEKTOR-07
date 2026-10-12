@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 func run() -> void:
 	var terrain_shader := FileAccess.get_file_as_string("res://assets/terrain.gdshader")
-	check(terrain_shader.contains("terrain_cell=(world+warp*1.38*27.0)/32.0") and terrain_shader.contains("kind_at(TEXTURE,world,warp*1.38)") and terrain_shader.contains("world+vec2(0,7),warp*1.38") and terrain_shader.contains("world-vec2(0,5),warp*1.38"),"Terrain material sampling, edge mask and relief probes share the same domain warp")
+	check(terrain_shader.contains("world*0.0032") and terrain_shader.contains("world*0.012+27.0") and terrain_shader.contains("world*0.045+211.0") and terrain_shader.contains("terrain_cell=(world+warp*27.0)/32.0") and terrain_shader.contains("kind_at(TEXTURE,world,warp)"),"Terrain material boundaries use layered visual-only macro, meso and micro warps")
 	var effects := CombatEffects.new()
 	check(not effects.is_compact_wreck_lod(18.0,40,0),"Fresh wrecks remain detailed through the age threshold")
 	check(effects.is_compact_wreck_lod(18.1,13,0),"Old wrecks use the low-cost silhouette in a dense visible field")

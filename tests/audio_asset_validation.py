@@ -83,13 +83,32 @@ def main() -> int:
             print(f"AUDIO ASSET VALIDATION: required executable missing: {executable}", file=sys.stderr)
             return 2
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    if "30 seconds" not in catalog.get("approval_policy", "") or "5 minutes" not in catalog.get("approval_policy", "") or "real match" not in catalog.get("approval_policy", ""):
+        raise AssertionError("Music approval policy must require 30-second, 5-minute, and in-match listening")
     track_rows: list[tuple[str, dict]] = [("title", catalog["title_track"])]
     for faction, faction_data in catalog["factions"].items():
         for state, choices in faction_data["tracks"].items():
             for track in choices:
                 track_rows.append((f"{faction}/{state}", track))
     results = []
+    approved_count = 0
     for label, track in track_rows:
+        asset_status = track.get("asset_status")
+        approval = track.get("human_listening_approval")
+        track_path = str(track.get("path", ""))
+        if asset_status == "placeholder":
+            if approval != "pending" or not track_path.endswith("_demo.ogg"):
+                raise AssertionError(f"{label}: placeholder must remain pending and visibly named as a demo")
+        elif asset_status == "approved":
+            evidence = track.get("listening_review", {})
+            required_evidence = ("reviewer", "review_date", "at_30_seconds", "at_5_minutes", "in_match")
+            if approval != "approved" or any(not evidence.get(key) for key in required_evidence):
+                raise AssertionError(f"{label}: approved asset is missing human listening evidence")
+            if "demo" in Path(track_path).name.lower() or "placeholder" in Path(track_path).name.lower():
+                raise AssertionError(f"{label}: approved asset still has a placeholder filename")
+            approved_count += 1
+        else:
+            raise AssertionError(f"{label}: unsupported or missing asset status {asset_status!r}")
         relative = str(track["path"]).removeprefix("res://").replace("/", "/")
         path = ROOT / relative
         duration = float(track["loop_end_seconds"]) - float(track["loop_start_seconds"])
@@ -100,6 +119,9 @@ def main() -> int:
         if abs(result["duration_seconds"] - duration) > 0.08:
             raise AssertionError(f"{label}: catalog loop {duration:.3f}s differs from file {result['duration_seconds']:.3f}s")
         results.append(result)
+    expected_status = "approved" if approved_count == len(track_rows) else "placeholder_not_final"
+    if catalog.get("production_status") != expected_status:
+        raise AssertionError(f"Music catalog status must be {expected_status!r} for {approved_count}/{len(track_rows)} approved entries")
     out = ROOT / "test-output" / "audio_asset_validation.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(results, indent=2), encoding="utf-8")

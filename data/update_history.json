@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.14",
+  "current_version": "0.38.15",
   "entries": [
+    {
+      "version": "0.38.15",
+      "date": "12.10.2026",
+      "title": "Unregelmäßige Geländematerial-Kanten",
+      "changes": [
+        "Die Gesteins-, Dünen- und Kraterflächen erhalten vorgebackene, organisch geformte Ränder statt harter rechteckiger Materialblöcke. Klippen bleiben scharf; die eigentlichen Terrain- und Ressourcenzellen bleiben unverändert.",
+        "Der Fraktions-Voice-Katalog bleibt eingebunden; passende deutsche Sprecheraufnahmen sind weiterhin offen.",
+        "Die vorhandene Musik bleibt als Demo gekennzeichnet. Für diesen Stand wurde keine neue Musik als fertig ausgegeben; hochwertige Fraktionskompositionen warten auf passende Produktionswerkzeuge und Hörabnahme."
+      ]
+    },
     {
       "version": "0.38.14",
       "date": "12.10.2026",

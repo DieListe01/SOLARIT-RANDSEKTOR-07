@@ -4,9 +4,9 @@
 
 The rectangular surface blocks in the current missions come from authored rectangular `terrain_regions` in the map data. Fog of war is a separate overlay and was not the source of these blocks: the A/B capture revealed every cell for both players and separately disabled terrain detail and the fog pass.
 
-The terrain shader now uses a stronger two-scale visual domain warp and a restrained surface palette to make soft material boundaries less grid-like. Hard cliff boundaries fall back to the unwarped material index, and simulation terrain, collision, movement costs, build restrictions, and pathfinding are unchanged. The `terrain_detail` benchmark category now disables its sprite overlay as well as the detail meshes, so future A/B captures actually isolate that category.
+Each shipped mission now has a baked 8× supersampled visual material mask with organically eroded rock, dune, and crater borders. These masks are presentation-only: gameplay cells, collisions, movement costs, build restrictions, resources, and pathfinding remain exact. Hard cliff boundaries and Solarit resource cells are retained. The world sprite compensates for the larger texture so all masks cover the original map dimensions. They load from `assets/terrain_masks/` at mission start instead of synchronously running the expensive generator during gameplay. `tools/generate_terrain_visual_masks.gd` rebuilds the shipped masks from mission data.
 
-The A/B captures use the Vulkan renderer on the local GeForce RTX 3060 at the normal game view, with fog fully revealed and terrain details disabled. They are stored in `test-output/terrain_ab_terrain_shader_on.png` and `test-output/terrain_ab_terrain_shader_off.png`. The stronger warp bends several exposed borders, but the rectangular shapes remain clearly visible because the source map masks are still rectangles. A complete removal needs authored irregular masks or a higher-resolution visual material mask; this pass does not claim that remaining artifact is solved.
+The local Vulkan acceptance capture uses the GeForce RTX 3060, revealed terrain, and the normal game renderer. It shows the organic boundaries in-game at two zoom levels; the mask generator and committed PNGs are compared for Veyra, Dry Vein, and Khepri, and tests confirm the simulation grid stays unchanged. Captures are stored in `test-output/terrain_irregular_boundaries.png` and `test-output/terrain_irregular_boundaries_detail.png`; the raw mask is `test-output/terrain_visual_mask.png`. A newly introduced mission without a baked mask still falls back to runtime generation and may incur a one-time loading stall until its mask is baked.
 
 ## Existing visual systems checked
 
@@ -21,12 +21,14 @@ The installed voice catalog still has no German recordings: every line has an em
 - `Test-Solarit.ps1 -Group Gameplay -OverallTimeoutMinutes 20 -HeartbeatSeconds 30`: 8/8 PASS.
 - `Test-Solarit.ps1 -Group UI -OverallTimeoutMinutes 20 -HeartbeatSeconds 30`: 5/5 PASS, including update history and version labels.
 - `Test-Solarit.ps1 -OverallTimeoutMinutes 90 -HeartbeatSeconds 30`: 47/47 PASS across 12 groups; Multiplayer PASS; no Godot processes remained.
-- Terrain A/B capture: local Vulkan / RTX 3060, full map reveal and terrain details disabled. The remaining masks are still rectangular.
+- `tests/terrain_visual_acceptance.gd`: PASS on the RTX 3060 / Vulkan renderer; 8× mask data, cliff/resource preservation, all three generated-versus-baked mission masks, and unchanged simulation terrain checked.
+- Terrain-mask generator cost on the local test build is about 300 ms per map; shipped missions avoid this cost by loading baked PNGs. The procedural fallback for a new mission should be removed from the critical path by baking that mission before distribution.
+- Candidate `v0.38.15` targeted gates: Visual 9/9, Audio 4/4, Gameplay 8/8, and `update_info.gd` PASS. The complete regression is the final remaining test gate for this candidate.
+- PowerShell 7.6.5 is required for the local regression supervisor in this environment: the test supervisor reports valid child exit codes there. Windows PowerShell 5.1 returned a null `Process.ExitCode` for the Python child despite a passing child log; no test or assertion was changed for that host-specific behavior.
 - The GitHub release workflow, export, installer, manifest and publish steps remain required before calling this version released.
 
 ## Open work
 
-- Replace remaining rectangular map material masks with authored irregular visual masks while keeping gameplay terrain exact.
 - Commission or supply German voice recordings for the existing line catalog.
 - Compose, integrate, and listen-test final faction-specific music; the current demos do not meet final audio acceptance.
 - Conduct the full user-facing 2D/3D, harvesting, production, combat, destruction, and Full HD visual/audio acceptance on a real match recording.

@@ -663,6 +663,69 @@ func _ready() -> void:
 	heat_layer.material=heat_material
 	add_child(heat_layer)
 
+func _terrain_hash(point: Vector2, seed_value: float) -> float:
+	var value:=sin(point.x*127.1+point.y*311.7+seed_value*74.7)*43758.5453
+	return value-floor(value)
+
+func _terrain_value_noise(point: Vector2, seed_value: float) -> float:
+	var cell:=Vector2(floor(point.x),floor(point.y))
+	var local:=point-cell
+	local=local*local*(Vector2(3.0,3.0)-local*2.0)
+	var top:=lerpf(_terrain_hash(cell,seed_value),_terrain_hash(cell+Vector2.RIGHT,seed_value),local.x)
+	var bottom:=lerpf(_terrain_hash(cell+Vector2.DOWN,seed_value),_terrain_hash(cell+Vector2.ONE,seed_value),local.x)
+	return lerpf(top,bottom,local.y)
+
+func _terrain_visual_class(type_name: String) -> int:
+	return int(WorldGrid.TERRAIN.get(type_name,-1))
+
+func _terrain_mask_byte(type_index: int) -> int:
+	return roundi((float(type_index)+0.5)*255.0/8.0)
+
+func _build_visual_terrain_mask(grid: WorldGrid) -> Image:
+	# This supersampled, warped mask is presentation-only. The simulation grid,
+	# pathfinding, resource cells, collisions, and build rules remain untouched.
+	const MASK_SCALE:=8
+	var width:=grid.width*MASK_SCALE
+	var height:=grid.height*MASK_SCALE
+	var base_pixels:=PackedByteArray()
+	base_pixels.resize(grid.width*grid.height)
+	for index in base_pixels.size(): base_pixels[index]=_terrain_mask_byte(grid.terrain[index])
+	var base_mask:=Image.create_from_data(grid.width,grid.height,false,Image.FORMAT_R8,base_pixels)
+	base_mask.resize(width,height,Image.INTERPOLATE_NEAREST)
+	var pixels:=base_mask.get_data()
+	const SAND_MASK_BYTE:=16
+	var mission_regions: Array=sim.db.mission.get("terrain_regions",[])
+	for region_index in mission_regions.size():
+		var region: Dictionary=mission_regions[region_index]
+		var type_index:=_terrain_visual_class(str(region.get("type","sand")))
+		if type_index<0 or type_index==6: continue
+		var rect: Array=region.get("rect",[])
+		if rect.size()<4: continue
+		var left:=int(rect[0]); var top:=int(rect[1]); var region_width:=int(rect[2]); var region_height:=int(rect[3])
+		var center:=Vector2(left+region_width*0.5,top+region_height*0.5)
+		var half_size:=Vector2(region_width,region_height)*0.5
+		var x0:=maxi(0,(left-4)*MASK_SCALE); var y0:=maxi(0,(top-4)*MASK_SCALE)
+		var x1:=mini(width,(left+region_width+4)*MASK_SCALE); var y1:=mini(height,(top+region_height+4)*MASK_SCALE)
+		for y in range(y0,y1):
+			var cell_y:=y/MASK_SCALE
+			for x in range(x0,x1):
+				var cell_x:=x/MASK_SCALE
+				var gameplay_class:=grid.terrain[cell_y*grid.width+cell_x]
+				if gameplay_class==3 or gameplay_class==6 or (gameplay_class!=0 and gameplay_class!=type_index): continue
+				var point:=Vector2((float(x)+0.5)/MASK_SCALE,(float(y)+0.5)/MASK_SCALE)
+				var delta:Vector2=abs(point-center)-half_size
+				var signed_distance:=Vector2(maxf(delta.x,0.0),maxf(delta.y,0.0)).length()+minf(maxf(delta.x,delta.y),0.0)
+				var macro_noise:=_terrain_value_noise(point*0.21,float(region_index*31+7))
+				var edge_noise:=_terrain_value_noise(point*0.68,float(region_index*47+19))
+				var displacement:float=(macro_noise-0.5)*4.6+(edge_noise-0.5)*1.1
+				if signed_distance<=displacement:
+					pixels[y*width+x]=_terrain_mask_byte(type_index)
+				elif gameplay_class==type_index:
+					pixels[y*width+x]=SAND_MASK_BYTE
+	var mask:=Image.create(width,height,false,Image.FORMAT_R8)
+	mask.set_data(width,height,false,Image.FORMAT_R8,pixels)
+	return mask
+
 func _process(dt: float) -> void:
 	if visual_paused: dt=0.0
 	if visual_paused and not vehicle_cache_queue.is_empty(): process_vehicle_cache_queue.call_deferred()
@@ -703,11 +766,13 @@ func _process(dt: float) -> void:
 			seed_mission_ground_details()
 		preserve_loaded_visuals=false
 		material_grid=sim.grid
-		var types := Image.create(sim.grid.width,sim.grid.height,false,Image.FORMAT_RGB8)
-		for y in sim.grid.height:
-			for x in sim.grid.width:
-				types.set_pixel(x,y,Color((sim.grid.type_at(Vector2i(x,y))+0.5)/8.0,0,0))
-		terrain_sprite.texture=ImageTexture.create_from_image(types)
+		var mission_mask_path: String="res://assets/terrain_masks/%s.png" % str(sim.db.mission.get("id",""))
+		var mission_mask:=Image.new()
+		if ResourceLoader.exists(mission_mask_path):
+			var load_error:=mission_mask.load(mission_mask_path)
+			if load_error!=OK: push_warning("Terrain mask could not load: "+mission_mask_path)
+		if mission_mask.is_empty(): mission_mask=_build_visual_terrain_mask(sim.grid)
+		terrain_sprite.texture=ImageTexture.create_from_image(mission_mask)
 		terrain_sprite.material.set_shader_parameter("map_cells",Vector2(sim.grid.width,sim.grid.height))
 		_build_terrain_detail_mesh()
 	if sim!=null:
@@ -882,7 +947,10 @@ func _draw() -> void:
 	var scale_value := zoom*ratio
 	terrain_sprite.visible=true
 	terrain_sprite.position=output*0.5-camera*scale_value+visual_offset*ratio
-	terrain_sprite.scale=Vector2.ONE*scale_value*sim.grid.tile
+	var terrain_mask_scale:=8.0
+	if terrain_sprite.texture!=null and sim.grid.width>0:
+		terrain_mask_scale=float(terrain_sprite.texture.get_width())/float(sim.grid.width)
+	terrain_sprite.scale=Vector2.ONE*scale_value*sim.grid.tile/terrain_mask_scale
 	terrain_detail.position=terrain_sprite.position
 	terrain_detail.scale=Vector2.ONE*scale_value*0.5
 	draw_set_transform(output*0.5-camera*scale_value+visual_offset*ratio,0,Vector2.ONE*scale_value)

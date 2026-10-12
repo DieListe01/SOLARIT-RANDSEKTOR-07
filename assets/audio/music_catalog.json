@@ -22,7 +22,9 @@
       48,
       56,
       64
-    ]
+    ],
+    "asset_status": "placeholder",
+    "human_listening_approval": "pending"
   },
   "factions": {
     "forge": {
@@ -54,7 +56,9 @@
               32,
               40,
               48
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "contact": [
@@ -76,7 +80,9 @@
               32,
               40,
               48
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "battle": [
@@ -98,7 +104,9 @@
               32,
               40,
               48
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "alarm": [
@@ -120,7 +128,9 @@
               32,
               40,
               48
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ]
       }
@@ -155,7 +165,9 @@
               40,
               48,
               56
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "contact": [
@@ -178,7 +190,9 @@
               40,
               48,
               56
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "battle": [
@@ -201,7 +215,9 @@
               40,
               48,
               56
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "alarm": [
@@ -224,7 +240,9 @@
               40,
               48,
               56
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ]
       }
@@ -258,7 +276,9 @@
               32,
               40,
               48
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "contact": [
@@ -280,7 +300,9 @@
               32,
               40,
               48
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "battle": [
@@ -302,7 +324,9 @@
               32,
               40,
               48
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ],
         "alarm": [
@@ -324,10 +348,14 @@
               32,
               40,
               48
-            ]
+            ],
+            "asset_status": "placeholder",
+            "human_listening_approval": "pending"
           }
         ]
       }
     }
-  }
+  },
+  "production_status": "placeholder_not_final",
+  "approval_policy": "Human listening approval is required at 30 seconds, 5 minutes, and in a real match before any track can be marked approved."
 }
