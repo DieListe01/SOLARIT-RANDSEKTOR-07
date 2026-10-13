@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.26",
+  "current_version": "0.38.27",
   "entries": [
+    {
+      "version": "0.38.27",
+      "date": "13.10.2026",
+      "title": "Fraktionsgebäude mit detaillierten PBR-Oberflächen",
+      "changes": [
+        "Alle Wanderpakt- und Prisma-Gebäude erhalten jetzt die vorhandenen gekachelten PBR-Oberflächen mit passenden Fraktions-Albedos sowie geteilten Normal- und Rauheitskarten. Paneele, Materialkanten und Befestigungsmuster bleiben dadurch beim Wechsel zwischen den Gebäudefamilien sichtbar.",
+        "Der GLB-Texturprozess externalisiert die Karten jetzt auch rekursiv für Fraktionsmodelle; Visualtests prüfen, dass alle 16 Fraktionsgebäude die importierten PBR-Oberflächen tatsächlich verwenden.",
+        "Musik-Demos bleiben Platzhalter; finale Kompositionen und deutsche Sprachaufnahmen sind weiterhin offen."
+      ]
+    },
     {
       "version": "0.38.26",
       "date": "13.10.2026",

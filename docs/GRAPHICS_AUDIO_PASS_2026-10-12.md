@@ -14,7 +14,7 @@ The visual suite regenerates faction vehicle and building contact sheets and exe
 
 ## Audio status
 
-The installed voice catalog still has no German recordings: every line has an empty asset and is marked `recording_required`. The only Windows system voice found here is Microsoft Zira (`en-US`), so it cannot provide credible German faction voices. Music files named `*_demo.ogg` remain reference compositions, not a final approved soundtrack. Voltage Modular plus SOUND FORGE Audio Studio provide a possible workflow that does not depend on Music Maker, but no production sessions or recordings have been created yet. This pass did not relabel either as finished content.
+The installed voice catalog still has no German recordings: every line has an empty asset and is marked `recording_required`. SAPI exposed Microsoft Zira (`en-US`), while a separate read-only check found German OneCore voices Hedda, Katja, and Stefan installed. Their in-game audio quality and redistribution rights have not been checked, so they remain candidates for private auditions only; no generated sample is shipped. Music files named `*_demo.ogg` remain reference compositions, not a final approved soundtrack. Voltage Modular plus SOUND FORGE Audio Studio provide a possible workflow that does not depend on Music Maker, but no production sessions or recordings have been created yet. This pass did not relabel either as finished content.
 
 The demo files are complete arrangements rather than compatible stems. From v0.38.18, tactical states select one full arrangement and transition at bar boundaries; the four complete arrangements are no longer mixed simultaneously. The runtime can now accept authored synchronized stems and fade them by combat state, with a safe fallback to existing arrangements. No authored stems are in the catalog yet, so the shipped music sounds unchanged. The underlying demo compositions remain placeholders and still require replacement and human listening approval.
 
@@ -31,6 +31,12 @@ The 0/25/50/75/100% comparison showed that cargo existed in all three authored h
 The normal 160×160 in-game cache crop now records empty-to-full mean RGB differences of 0.01227 for Kobalt, 0.04845 for Wanderpakt, and 0.05125 for Prisma. The smallest 25%-step difference is 0.00198 (Kobalt); the others are at least 0.00752. `tests/harvester_cargo_visual.gd` now enforces >0.01 empty-to-full and >0.0015 for every adjacent load step. The focused RendererCache test passes on the local RTX 3060 / Vulkan renderer. These images show cache-scale model differences; final confirmation still requires a real match at normal camera zoom.
 
 This visible cargo pass is not the complete graphics/audio brief. Final music, German recorded voices, normal-match capture/inspection, and the remaining asset/production audits remain open.
+
+## Iteration v0.38.27 — faction-specific PBR surfaces on buildings
+
+The 16 Wanderpakt and Prisma buildings now use the same 512×512 ceramic, graphite, and steel normal/roughness maps as the vehicle materials, plus each faction's authored tinted albedo maps. The glTF files point to a shared texture pool instead of embedding a duplicate set in every building. A forced Godot reimport confirmed that all three PBR channels reach the imported `StandardMaterial3D` materials; the Visual suite now checks that every one of the 16 faction buildings has textured surfaces. This adds readable panel seams, fastener marks, wear, and material response while retaining existing geometry, camera, animations, gameplay, and silhouettes.
+
+The maps add close-view surface response but remain stylized, tileable materials rather than hand-painted unique UV atlases. The full real-match acceptance, higher-end hand-built vehicle/building detailing, final music and voice recordings remain open.
 
 ## Validation
 

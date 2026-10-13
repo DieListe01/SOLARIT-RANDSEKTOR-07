@@ -102,8 +102,14 @@ def externalize(source: Path, target: Path | None = None, texture_root: Path | N
 
 
 def externalize_directory(directory: Path) -> None:
-    for model in sorted(directory.glob("*.glb")):
-        count = externalize(model)
+    for model in sorted(directory.rglob("*.glb")):
+        texture_root = None
+        if model.parent.name == "factions" and model.parent.parent.name in {"buildings", "vehicles"}:
+            faction = model.stem.split("_", 1)[0]
+            candidate = TEXTURES / "factions" / faction
+            if candidate.is_dir():
+                texture_root = candidate
+        count = externalize(model, texture_root=texture_root)
         print(f"Externalized {count} shared PBR maps: {model.name} ({model.stat().st_size:,} bytes)")
 
 

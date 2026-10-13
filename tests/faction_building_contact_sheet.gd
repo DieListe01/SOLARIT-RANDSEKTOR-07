@@ -49,6 +49,18 @@ func run()->void:
 			var imported=painter.get_node_or_null(expected_name) as Node3D
 			assert(imported!=null,"real building painter did not select %s/%s GLB"%[faction,kind])
 			assert(imported.find_child("TeamColor",true,false) is MeshInstance3D,"%s/%s must preserve ownership identification"%[faction,kind])
+			if faction!="forge":
+				var pbr_surfaces:=0
+				for mesh_node in imported.find_children("*","MeshInstance3D",true,false):
+					var mesh_instance:=mesh_node as MeshInstance3D
+					for surface in mesh_instance.mesh.get_surface_count():
+						var material:=mesh_instance.get_active_material(surface) as StandardMaterial3D
+						if material==null or material.albedo_texture==null or material.normal_texture==null or material.roughness_texture==null:
+							continue
+						var albedo_path:=material.albedo_texture.resource_path
+						if albedo_path.contains("/factions/%s/"%faction):
+							pbr_surfaces+=1
+				assert(pbr_surfaces>0,"%s/%s must import faction-tinted albedo plus shared normal and roughness maps"%[faction,kind])
 			if faction=="lumen":
 				var role_geometry:MeshInstance3D
 				for child in imported.find_children("*","MeshInstance3D",true,false):

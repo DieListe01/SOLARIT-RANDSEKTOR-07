@@ -20,6 +20,18 @@ PALETTES={
  "lumen":{"armor":(.12,.17,.28,1),"light":(.38,.42,.58,1),"dark":(.025,.035,.075,1),"steel":(.20,.27,.43,1),"glass":(.035,.14,.38,1),"energy":(.34,.18,.96,1),"amber":(.40,.74,1,1),"team":(.02,.88,.73,1),"ceramic":(.30,.36,.52,1)},
 }
 M={}
+TEXTURES=ROOT/"assets"/"models"/"textures"/"industrial"
+
+def surface_texture(key):
+    """Map structural finishes to the shared, authored industrial PBR set."""
+    return {"armor":"ceramic", "light":"ceramic", "ceramic":"ceramic",
+            "dark":"graphite", "steel":"steel"}.get(key)
+
+def faction_albedo_name(key, texture_key):
+    role={"armor":"armor", "light":"armor_light", "ceramic":"armor",
+          "dark":"dark", "steel":"steel"}.get(key)
+    finish={"ceramic":"ceramic", "graphite":"graphite", "steel":"steel"}.get(texture_key)
+    return "factions_%s_%s_%s_albedo.png"%(_FACTION,role,finish) if role and finish else ""
 
 def clear():
     bpy.ops.object.select_all(action="SELECT"); bpy.ops.object.delete(use_global=False)
@@ -29,11 +41,45 @@ def clear():
 def material(key):
     if key in M: return M[key]
     c=PALETTES[_FACTION][key]; m=bpy.data.materials.new(_FACTION.title()+" / "+key); m.diffuse_color=c; m.use_nodes=True
-    p=m.node_tree.nodes.get("Principled BSDF"); p.inputs["Base Color"].default_value=c
+    nodes=m.node_tree.nodes; links=m.node_tree.links
+    p=nodes.get("Principled BSDF"); p.inputs["Base Color"].default_value=c
     p.inputs["Metallic"].default_value=.68 if key in {"dark","steel","energy"} else .24
     p.inputs["Roughness"].default_value=.30 if key in {"glass","energy"} else .48
     if key in {"team","energy","amber"}:
         p.inputs["Emission Color"].default_value=c; p.inputs["Emission Strength"].default_value=.85 if key!="team" else .45
+    # The original building family used flat Principled colors even though the
+    # project already ships tileable, authored panel/grit/fastener PBR maps.
+    # Use the already-authored faction-tinted albedo maps from the vehicle PBR
+    # set, then share the neutral roughness and normal maps. Keeping albedo as a
+    # direct texture also makes the full material portable through glTF.
+    texture_key=surface_texture(key)
+    if texture_key:
+        def image_node(suffix, colorspace):
+            filename=texture_key+"_"+suffix+".png"
+            if suffix=="albedo":
+                faction_path=TEXTURES/"factions"/_FACTION/faction_albedo_name(key,texture_key)
+                if faction_path.is_file(): filename=faction_path.name
+            path=(TEXTURES/"factions"/_FACTION/filename if filename.startswith("factions_") else TEXTURES/filename)
+            if not path.is_file(): return None
+            img=bpy.data.images.load(str(path),check_existing=True)
+            img.colorspace_settings.name=colorspace
+            node=nodes.new("ShaderNodeTexImage")
+            node.name="SOLARIT shared PBR · "+texture_key+" "+suffix
+            node.image=img
+            return node
+
+        albedo=image_node("albedo","sRGB")
+        if albedo:
+            p.inputs["Base Color"].default_value=(1,1,1,1)
+            links.new(albedo.outputs["Color"],p.inputs["Base Color"])
+        roughness=image_node("roughness","Non-Color")
+        if roughness: links.new(roughness.outputs["Color"],p.inputs["Roughness"])
+        normal_image=image_node("normal","Non-Color")
+        if normal_image:
+            normal=nodes.new("ShaderNodeNormalMap"); normal.name="Shallow panel normal · "+texture_key
+            normal.inputs["Strength"].default_value=.16
+            links.new(normal_image.outputs["Color"],normal.inputs["Color"])
+            links.new(normal.outputs["Normal"],p.inputs["Normal"])
     M[key]=m; return m
 
 def box(name,loc,size,key="armor",bevel=.035,rotation=0,parent=None):

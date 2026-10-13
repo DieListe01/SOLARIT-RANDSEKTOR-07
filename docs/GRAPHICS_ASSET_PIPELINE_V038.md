@@ -47,3 +47,8 @@ Die ausführbaren Galerien liegen nach dem Testlauf in `test-output/`:
 - `industrial_showcase_v0.38.0.png`
 - `industrial_detail_zoom_125_v0.38.0.png`
 - `industrial_detail_zoom_150_v0.38.0.png`
+## Iteration v0.38.27 — shared PBR surface detail for faction buildings
+
+All eight Wanderpakt and all eight Prisma buildings now sample the project's tiled 512×512 ceramic, graphite, and steel albedo/normal/roughness maps. Their albedos use the existing faction-tinted material maps; roughness and normal data are shared. The GLB externalizer now visits nested faction asset folders and routes faction albedos to the right texture directory. This replaces flat surface color on structural finishes while keeping the established meshes, names, animation pivots, SubViewport renderer, cache camera, and simulation values.
+
+The Visual group verifies the actual Godot imports and requires each of the 16 faction buildings to expose at least one textured material surface. The normal 512px cache captures regenerate through `BuildingCachePainter`; no building was recolored by changing its game-side palette or stats. At standard cache size the maps add restrained seams, fastener/abrasion texture, and normal response; this is a material pass, not a unique hand-painted texture atlas or a hand-modeled geometry pass.
