@@ -7,6 +7,11 @@ func check(value: bool, message: String) -> void:
 		failures += 1
 		push_error("TERRAIN VISUAL FAIL: "+message)
 
+func visual_mask_kind(mask: Image, point: Vector2) -> int:
+	var x:=clampi(roundi(point.x*8.0-0.5),0,mask.get_width()-1)
+	var y:=clampi(roundi(point.y*8.0-0.5),0,mask.get_height()-1)
+	return int(floor(mask.get_pixel(x,y).r*8.0))
+
 func _initialize() -> void:
 	call_deferred("run")
 
@@ -65,8 +70,23 @@ func run() -> void:
 	check(mask.get_width()==game.sim.grid.width*8 and mask.get_height()==game.sim.grid.height*8,"Visual mask has eight samples per gameplay cell")
 	check(game.renderer.terrain_sprite.texture.get_width()==game.sim.grid.width*8,"Loaded mask keeps map geometry at the gameplay map size")
 	check(int(floor(mask.get_pixel(30*8+4,47*8+4).r*8.0))==6,"Exact cliff cells survive visual mask shaping")
+	var resource_patches: Array=game.sim.db.mission.get("resources",[])
+	var resource_edges_inside:=0
+	var resource_edges_outside:=0
+	for patch_index in resource_patches.size():
+		var patch: Dictionary=resource_patches[patch_index]
+		var patch_cell: Array=patch.get("cell",[])
+		if patch_cell.size()<2: continue
+		var patch_center:=Vector2(float(patch_cell[0])+0.5,float(patch_cell[1])+0.5)
+		var patch_radius:=float(patch.get("radius",0))+0.5
+		check(visual_mask_kind(mask,patch_center)==3,"Solarit deposit interior remains visible in the material mask")
+		for sample_index in 32:
+			var sample_point:=patch_center+Vector2.from_angle(TAU*float(sample_index)/32.0)*patch_radius
+			if visual_mask_kind(mask,sample_point)==3: resource_edges_inside+=1
+			else: resource_edges_outside+=1
+	check(resource_edges_inside>0 and resource_edges_outside>0,"Solarit material boundary is irregular at sub-cell resolution instead of preserving a square-cell outline")
 	var boundary_kinds: Dictionary={}
-	for y_cell in range(38,57,2):
+	for y_cell in range(38,57):
 		var sample:=mask_image.get_pixel(22*8+4,y_cell*8+4).r*8.0
 		boundary_kinds[int(floor(sample))]=true
 	check(boundary_kinds.has(0) and boundary_kinds.has(1),"Soft material edge visibly deviates from its authored straight rectangle")

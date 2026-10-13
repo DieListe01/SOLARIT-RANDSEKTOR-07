@@ -37,13 +37,14 @@ var cue_cooldowns: Dictionary = {}
 var variants: Dictionary = {}
 var cue_indices: Dictionary = {}
 var frontend_player: AudioStreamPlayer
+var stinger_player: AudioStreamPlayer
 var frontend := false
 var engine_voice: AudioStreamPlayer
 var audio_listener: AudioListener2D
 var harvest_loop: AudioStreamPlayer2D
 var voice_duck := 1.0
 var speech: Variant
-const LAYER_NAMES = ["calm","contact","battle","alarm"]
+const LAYER_NAMES = ["calm_a","calm_b","contact","battle_low","battle_high","critical"]
 const CATALOG_PATH := "res://assets/audio/music_catalog.json"
 
 func _ready() -> void:
@@ -65,6 +66,10 @@ func _ready() -> void:
 	frontend_player=AudioStreamPlayer.new()
 	frontend_player.bus="Music"
 	add_child(frontend_player)
+	stinger_player=AudioStreamPlayer.new()
+	stinger_player.bus="Music"
+	stinger_player.volume_db=-3.0
+	add_child(stinger_player)
 	speech=VoiceDirectorScript.new()
 	speech.name="VoiceDirector"
 	add_child(speech)
@@ -86,6 +91,7 @@ func _ready() -> void:
 		variants[cue_name]=bank
 	for cue_name in ["rotate","repair"]:
 		samples[cue_name]=load("res://assets/audio/"+cue_name+".wav")
+	_load_sfx_candidates()
 	for i in 24:
 		var voice := AudioStreamPlayer2D.new()
 		voice.bus="SFX"
@@ -104,8 +110,12 @@ func _ready() -> void:
 		voice_players.append(voice_player)
 	engine_voice=AudioStreamPlayer.new()
 	engine_voice.bus="Ambience"
-	var motor: AudioStreamWAV = load("res://assets/audio/engine.wav").duplicate()
-	motor.loop_mode=AudioStreamWAV.LOOP_FORWARD; motor.loop_begin=0; motor.loop_end=roundi(motor.get_length()*motor.mix_rate)
+	var motor: AudioStream=samples.get("engine",load("res://assets/audio/engine.wav")).duplicate()
+	if motor is AudioStreamWAV:
+		var motor_wav:=motor as AudioStreamWAV
+		motor_wav.loop_mode=AudioStreamWAV.LOOP_FORWARD; motor_wav.loop_begin=0; motor_wav.loop_end=roundi(motor_wav.get_length()*motor_wav.mix_rate)
+	elif motor is AudioStreamOggVorbis:
+		(motor as AudioStreamOggVorbis).loop=true
 	engine_voice.stream=motor; engine_voice.volume_db=-70
 	add_child(engine_voice)
 	harvest_loop=AudioStreamPlayer2D.new()
@@ -113,7 +123,7 @@ func _ready() -> void:
 	harvest_loop.attenuation=0.0
 	harvest_loop.max_distance=1800.0
 	harvest_loop.panning_strength=0.0
-	var harvest_source: AudioStream=load("res://assets/audio/sfx/harvester_work_demo.ogg") as AudioStream
+	var harvest_source: AudioStream=samples.get("harvester_work_demo",load("res://assets/audio/sfx/harvester_work_demo.ogg")) as AudioStream
 	if harvest_source is AudioStreamOggVorbis:
 		var harvest_stream:=harvest_source.duplicate() as AudioStreamOggVorbis
 		harvest_stream.loop=true
@@ -121,6 +131,26 @@ func _ready() -> void:
 		harvest_loop.stream=harvest_stream
 	harvest_loop.volume_db=-70
 	add_child(harvest_loop)
+
+func _load_sfx_candidates() -> void:
+	var parsed: Variant=JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/sfx_catalog.json"))
+	if not parsed is Dictionary: return
+	for cue_name in parsed.get("cues",{}):
+		var bank: Array=[]
+		for clip in parsed.cues[cue_name]:
+			var path:=str(clip.get("path",""))
+			if not path.is_empty() and ResourceLoader.exists(path): bank.append(load(path))
+		if not bank.is_empty():
+			samples[str(cue_name)]=bank[0]
+			variants[str(cue_name)]=bank
+			if str(cue_name)=="impact":
+				for family_name in CombatEffects.FAMILIES.keys():
+					var family_cue:=str(family_name).to_lower()+"_impact"
+					samples[family_cue]=bank[0]; variants[family_cue]=bank
+			elif str(cue_name)=="pulse_shot":
+				samples["energy_shot"]=bank[0]; variants["energy_shot"]=bank
+			elif str(cue_name)=="cannon_shot":
+				samples["ballistic_heavy_shot"]=bank[0]; variants["ballistic_heavy_shot"]=bank
 
 func start(model: Simulation) -> void:
 	if speech!=null: speech.stop()
@@ -132,6 +162,7 @@ func start(model: Simulation) -> void:
 	ended=false
 	paused=false
 	state="BASE_CALM"; pending=state; age=0; intensity=0; last_music_bar=-1
+	set_meta("alert_stinger_played",false)
 	active_arrangement_index=0; previous_arrangement_index=0
 	arrangement_crossfade_elapsed=ARRANGEMENT_CROSSFADE_SECONDS
 	var music_owner:=clampi(int(sim.get("view_owner")),0,maxi(0,sim.factions.size()-1))
@@ -167,6 +198,18 @@ func start(model: Simulation) -> void:
 			var duration: float = layers[i].stream.get_length()
 			layers[i].play(fposmod(sim.time,duration) if duration>0.0 else 0.0)
 	last_music_bar=-1
+	play_global_stinger("mission_start")
+
+func play_global_stinger(stinger_name: String) -> bool:
+	var spec: Dictionary=music_catalog.get("global_stingers",{}).get(stinger_name,{})
+	if spec.is_empty(): return false
+	var stream:=_load_track_stream(spec)
+	if stream==null: return false
+	if stream is AudioStreamOggVorbis: (stream as AudioStreamOggVorbis).loop=false
+	stinger_player.stream=stream
+	stinger_player.volume_linear=clampf(music_volume*0.85,0.0,1.0)
+	stinger_player.play()
+	return true
 
 func _start_adaptive_stems(stem_set: Dictionary, start_time: float) -> bool:
 	var stem_catalog: Dictionary=stem_set.get("layers",{})
@@ -338,6 +381,7 @@ func set_paused(value: bool) -> void:
 	engine_voice.stream_paused=value
 	paused=value
 	frontend_player.stream_paused=value
+	if stinger_player!=null: stinger_player.stream_paused=value
 	for layer in layers: layer.stream_paused=value
 	for stem_player in stem_players: stem_player.stream_paused=value
 	for voice in voices: voice.stream_paused=value
@@ -347,6 +391,7 @@ func set_paused(value: bool) -> void:
 
 func shutdown() -> void:
 	if is_instance_valid(engine_voice): engine_voice.stream_paused=false; engine_voice.stop()
+	if is_instance_valid(stinger_player): stinger_player.stream_paused=false; stinger_player.stop(); stinger_player.stream=null
 	if is_instance_valid(harvest_loop): harvest_loop.stream_paused=false; harvest_loop.stop(); harvest_loop.stream=null
 	frontend_player.stream_paused=false; frontend_player.stop(); frontend_player.stream=null
 	for layer in layers: layer.stream_paused=false; layer.stop(); layer.stream=null
@@ -369,6 +414,8 @@ func _process(dt: float) -> void:
 	if frontend and not paused:
 		frontend_player.volume_db=move_toward(frontend_player.volume_db,linear_to_db(maxf(0.001,music_volume*0.7)),dt*12)
 		return
+	if stinger_player!=null and stinger_player.playing:
+		stinger_player.volume_linear=clampf(music_volume*0.85*voice_duck,0.0,1.0)
 	if sim==null or (layers.is_empty() and stem_players.is_empty()) or paused: return
 	tactical_scan_timer-=dt
 	if tactical_scan_timer<=0.0:
@@ -412,16 +459,22 @@ func _process(dt: float) -> void:
 		state=pending; age=0
 	if sim.result!="" and not ended:
 		ended=true; state=sim.result.to_upper(); cue(sim.result)
+		play_global_stinger("victory" if sim.result.to_lower()=="victory" else "defeat")
 		if speech!=null: speech.request("mission",faction_id)
+	elif state=="BASE_UNDER_ATTACK" and pending==state and not bool(get_meta("alert_stinger_played",false)):
+		play_global_stinger("major_alert")
+		set_meta("alert_stinger_played",true)
 	# Authored stem sets are mixed dynamically when present. Until real faction
 	# stems are supplied, keep the validated complete-mix transition path.
 	_update_arrangement_mix(dt)
 
 func _arrangement_index_for_state(value: String) -> int:
 	match value:
-		"ENEMY_CONTACT", "ECONOMY": return 1 if value=="ENEMY_CONTACT" else 0
-		"SKIRMISH", "BATTLE", "MAJOR_BATTLE": return 2
-		"BASE_UNDER_ATTACK": return 3
+		"ECONOMY": return 1
+		"ENEMY_CONTACT": return 2
+		"SKIRMISH": return 3
+		"BATTLE", "MAJOR_BATTLE": return 4
+		"BASE_UNDER_ATTACK", "VICTORY", "DEFEAT": return 5
 		_: return 0
 
 func _update_arrangement_mix(dt: float) -> void:
@@ -445,7 +498,7 @@ func _update_arrangement_mix(dt: float) -> void:
 			# Equal-power fade prevents a level dip; at most two full arrangements overlap.
 			if i==previous_arrangement_index: weight=cos(blend*PI*0.5)
 			if i==active_arrangement_index: weight=maxf(weight,sin(blend*PI*0.5))
-		var state_gain := 0.72 if active_arrangement_index==0 else (0.82 if active_arrangement_index==1 else (0.92 if active_arrangement_index==2 else 0.86))
+		var state_gain := 0.72 if active_arrangement_index<=1 else (0.82 if active_arrangement_index==2 else (0.92 if active_arrangement_index<=4 else 0.86))
 		var gain := weight*state_gain*music_volume*voice_duck
 		var target_db := linear_to_db(maxf(0.0001,gain))
 		layers[i].volume_db=target_db

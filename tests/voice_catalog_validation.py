@@ -34,6 +34,14 @@ for faction_id in REQUIRED_FACTIONS:
                 path = ROOT / asset.removeprefix("res://")
                 assert path.is_file(), f"missing voice file: {asset}"
                 assert asset.lower().endswith(".ogg"), f"voice file must be OGG: {asset}"
+                assert line.get("asset_status") in {"candidate", "approved"}, f"untracked voice status: {line_id}"
+                assert line.get("source", {}).get("url"), f"voice source provenance missing: {line_id}"
+                assert line.get("license", {}).get("status") == "cleared" and line["license"].get("commercial_use") is True, f"voice rights not cleared: {line_id}"
+                if line["asset_status"] == "candidate":
+                    assert line.get("human_listening_approval") == "pending", f"unreviewed sample marked approved: {line_id}"
+                else:
+                    review = line.get("listening_review", {})
+                    assert all(review.get(key) for key in ("reviewer", "review_date", "at_30_seconds", "at_5_minutes", "in_match")), f"approved voice lacks review evidence: {line_id}"
             else:
                 assert line.get("asset_state") == "recording_required", f"unmarked missing voice file: {line_id}"
             faction_lines += 1
@@ -49,6 +57,8 @@ for event_name, lines in catalog.get("system", {}).items():
         if asset:
             path = ROOT / asset.removeprefix("res://")
             assert path.is_file() and asset.lower().endswith(".ogg"), f"invalid voice file: {asset}"
+            assert line.get("asset_status") in {"candidate", "approved"}
+            assert line.get("license", {}).get("status") == "cleared" and line["license"].get("commercial_use") is True
         else:
             assert line.get("asset_state") == "recording_required", f"unmarked missing voice file: {line['id']}"
         system_lines += 1

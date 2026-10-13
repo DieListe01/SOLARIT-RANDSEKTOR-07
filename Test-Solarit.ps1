@@ -75,6 +75,7 @@ Add-GodotTest 'Mission' 'campaign_units' $true 300
 
 Add-PythonTest 'Audio' 'audio_asset_validation.py' $pythonPath @((Join-Path $gameRoot 'tests\audio_asset_validation.py')) 300
 Add-PythonTest 'Audio' 'voice_catalog_validation.py' $pythonPath @((Join-Path $gameRoot 'tests\voice_catalog_validation.py')) 300
+Add-PythonTest 'Audio' 'audio_pipeline_validation.py' $pythonPath @((Join-Path $gameRoot 'tests\audio_pipeline_validation.py')) 300
 Add-GodotTest 'Audio' 'audio_integration' $true 300
 Add-GodotTest 'Audio' 'voice_system' $true 300
 

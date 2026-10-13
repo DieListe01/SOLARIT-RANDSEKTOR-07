@@ -1,4 +1,4 @@
-# Graphics and audio pass — 2026-10-12
+# Graphics and audio pass — updated 2026-10-13
 
 ## Terrain diagnosis and change
 
@@ -14,9 +14,9 @@ The visual suite regenerates faction vehicle and building contact sheets and exe
 
 ## Audio status
 
-The installed voice catalog still has no German recordings: every line has an empty asset and is marked `recording_required`. SAPI exposed Microsoft Zira (`en-US`), while a separate read-only check found German OneCore voices Hedda, Katja, and Stefan installed. Their in-game audio quality and redistribution rights have not been checked, so they remain candidates for private auditions only; no generated sample is shipped. Music files named `*_demo.ogg` remain reference compositions, not a final approved soundtrack. Voltage Modular plus SOUND FORGE Audio Studio provide a possible workflow that does not depend on Music Maker, but no production sessions or recordings have been created yet. This pass did not relabel either as finished content.
+The audio pass replaces the demo catalogue with a 194.7-second title candidate, six tactical states per faction, five stingers, 118 German neural-TTS voice candidates, and curated CC0 SFX. They are integrated and technically validated, but all remain `candidate` / `pending` until the human listening gate is completed. The music is curated and mastered CC0 material, not an original commissioned score; the voices are speaker variants of one TTS model, not studio actors. This is a substantial candidate pass, not final professional audio approval.
 
-The demo files are complete arrangements rather than compatible stems. From v0.38.18, tactical states select one full arrangement and transition at bar boundaries; the four complete arrangements are no longer mixed simultaneously. The runtime can now accept authored synchronized stems and fade them by combat state, with a safe fallback to existing arrangements. No authored stems are in the catalog yet, so the shipped music sounds unchanged. The underlying demo compositions remain placeholders and still require replacement and human listening approval.
+Open `test-output/audio-review/index.html` for an individual player for each of the 180 music, voice, and SFX clips; `SOLARIT-Audio-Abnahme-Preview.ogg` is the timestamped medley. All audio paths in the page were checked. The previous review page pointed at superseded demos and has been replaced. The release gate intentionally blocks pending assets. Review still needs to cover the title and tactical music at 30 seconds and five minutes, plus voices and effects during a real match.
 
 ## Iteration v0.38.25 — role-specific Prisma building structure
 
@@ -51,8 +51,17 @@ The maps add close-view surface response but remain stylized, tileable materials
 - PowerShell 7.6.5 is required for the local regression supervisor in this environment: the test supervisor reports valid child exit codes there. Windows PowerShell 5.1 returned a null `Process.ExitCode` for the Python child despite a passing child log; no test or assertion was changed for that host-specific behavior.
 - The GitHub release workflow, export, installer, manifest and publish steps remain required before calling this version released.
 
+## Iteration v0.38.28 — audio candidate package and terrain-mask correction
+
+The renderer now builds an 8× supersampled presentation mask from mission terrain regions and irregular Solarit contours, while leaving the simulation grid intact. A resource-contour pass initially restored unshaped material pixels in the rest of each patch's square bounding box; this was removed so it adds Solarit only inside its contour. `terrain_visual_acceptance.gd` passes and checks generated/baked mask parity across all three missions. The in-game capture still has visible block-like tonal overlays on the ground, so the terrain presentation is not declared fully accepted.
+
+`tools/build_audio_review.py` generates the corrected local audition page. `python tools/audio_pipeline.py --check` passes. The strict release gate remains blocked by pending human listening approvals and must stay so until listening evidence is recorded. No candidate is presented as a final approved score, voice performance, or SFX mix.
+
+The full local regression completed with 50/50 PASS across all 12 groups, including all three Multiplayer tests. Its API test needs local loopback permission; the sandbox-only run failed with Windows `10013`, then the same test and full suite passed with local network access. The suite left no Godot processes behind. The regression summary and per-test stdout/stderr are under `test-output/ci/`.
+
 ## Open work
 
 - Commission or supply German voice recordings for the existing line catalog.
 - Compose, integrate, and listen-test final faction-specific music; the current demos do not meet final audio acceptance.
+- Resolve the remaining block-like ground overlays visible in the current terrain acceptance capture.
 - Conduct the full user-facing 2D/3D, harvesting, production, combat, destruction, and Full HD visual/audio acceptance on a real match recording.

@@ -96,7 +96,10 @@ def main() -> int:
         asset_status = track.get("asset_status")
         approval = track.get("human_listening_approval")
         track_path = str(track.get("path", ""))
-        if asset_status == "placeholder":
+        if asset_status == "candidate":
+            if approval != "pending" or track.get("license", {}).get("status") != "cleared":
+                raise AssertionError(f"{label}: imported CC0 candidate must be pending listening review and have explicit cleared license provenance")
+        elif asset_status == "placeholder":
             if approval != "pending" or not track_path.endswith("_demo.ogg"):
                 raise AssertionError(f"{label}: placeholder must remain pending and visibly named as a demo")
         elif asset_status == "approved":
@@ -119,7 +122,7 @@ def main() -> int:
         if abs(result["duration_seconds"] - duration) > 0.08:
             raise AssertionError(f"{label}: catalog loop {duration:.3f}s differs from file {result['duration_seconds']:.3f}s")
         results.append(result)
-    expected_status = "approved" if approved_count == len(track_rows) else "placeholder_not_final"
+    expected_status = "approved" if approved_count == len(track_rows) else "curated_cc0_candidate_set_pending_human_listening_review"
     if catalog.get("production_status") != expected_status:
         raise AssertionError(f"Music catalog status must be {expected_status!r} for {approved_count}/{len(track_rows)} approved entries")
     out = ROOT / "test-output" / "audio_asset_validation.json"

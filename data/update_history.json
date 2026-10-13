@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.27",
+  "current_version": "0.38.28",
   "entries": [
+    {
+      "version": "0.38.28",
+      "date": "13.10.2026",
+      "title": "Musik-, Sprach- und Sound-Abnahmepaket",
+      "changes": [
+        "Ergänzt mehrminütige Musik-Loops mit sechs Gefechtszuständen für Kobalt, Wanderpakt und Prisma sowie fünf Ereignis-Stinger. Die CC0-Musikauswahl ist im Spiel eingebunden und wartet auf die Hörabnahme.",
+        "118 deutsche Sprachsamples sind für Befehle, Treffer, Ernte, Bau und Mission eingebunden. Es handelt sich um synthetische Piper-Stimmen als prüfpflichtige Kandidaten, nicht um finale Studioaufnahmen.",
+        "Neue CC0-Sci-Fi-Effekte ergänzen Waffen, Metalltreffer, Explosionen, Fahrzeuge und Ernte. Alle neuen Musik-, Sprach- und Effektassets bleiben bis zur Prüfung im Spielkontext als Kandidaten markiert."
+      ]
+    },
     {
       "version": "0.38.27",
       "date": "13.10.2026",

@@ -23,12 +23,13 @@ func run() -> void:
 	await process_frame
 	check(director.catalog.get("schema_version", 0) == 1, "Central voice catalog loads")
 	check(AudioServer.get_bus_index("Voice") >= 0, "Dedicated Voice bus is present")
-	check(director.clips.is_empty(), "Unrecorded demo voice files are not falsely substituted")
+	check(director.clips.size() == 118, "All German faction/system candidate samples preload from their licensed catalogue")
 	check(director.request("select", "forge", 100), "Unit request resolves to a catalog entry")
 	var first_line: String = director.last_line_id
 	check(not first_line.is_empty(), "Resolved voice line has a stable text ID")
 	check(not director.request("select", "forge", 100), "Per-unit/event cooldown suppresses repeated selection")
 	director.tick(3.0)
+	director.stop()
 	check(director.request("select", "forge", 101), "Another unit can respond after global cooldown")
 	check(director.last_line_id != first_line, "Repeated category rotates to a different line")
 	var test_only_stream: AudioStream = load("res://assets/audio/complete.wav")

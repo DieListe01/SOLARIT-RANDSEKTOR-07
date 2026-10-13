@@ -2839,6 +2839,7 @@ func on_event(kind: String, pos: Vector2, message: String) -> void:
 		return
 	if visible and kind=="complete":
 		if message.begins_with("ZIEL ERFÜLLT"):
+			music.play_global_stinger("objective_complete")
 			music.speech.request("mission",str(sim.factions[local_owner()]))
 		else: music.speech.request("build_complete",str(sim.factions[local_owner()]))
 	elif visible and kind=="ready":

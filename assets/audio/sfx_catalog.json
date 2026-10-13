@@ -1,0 +1,1007 @@
+{
+  "schema_version": 1,
+  "production_status": "cc0_sfx_candidates_pending_human_listening_review",
+  "cues": {
+    "select": [
+      {
+        "id": "kenney_select_click",
+        "path": "res://assets/audio/sfx/kenney/laserSmall_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "move": [
+      {
+        "id": "kenney_move",
+        "path": "res://assets/audio/sfx/kenney/spaceEngine_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "explosion": [
+      {
+        "id": "kenney_explosion_00",
+        "path": "res://assets/audio/sfx/kenney/explosionCrunch_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_explosion_03",
+        "path": "res://assets/audio/sfx/kenney/explosionCrunch_003.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "impact": [
+      {
+        "id": "kenney_impact_00",
+        "path": "res://assets/audio/sfx/kenney/impactMetal_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_impact_02",
+        "path": "res://assets/audio/sfx/kenney/impactMetal_002.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "pulse_shot": [
+      {
+        "id": "kenney_laser_small",
+        "path": "res://assets/audio/sfx/kenney/laserSmall_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "cannon_shot": [
+      {
+        "id": "kenney_laser_large",
+        "path": "res://assets/audio/sfx/kenney/laserLarge_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "harvest_collect_demo": [
+      {
+        "id": "kenney_harvest_collect",
+        "path": "res://assets/audio/sfx/kenney/impactMetal_002.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "harvest_unload_demo": [
+      {
+        "id": "kenney_harvest_unload",
+        "path": "res://assets/audio/sfx/kenney/doorClose_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "engine": [
+      {
+        "id": "kenney_engine",
+        "path": "res://assets/audio/sfx/kenney/engineCircular_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "harvester_work_demo": [
+      {
+        "id": "kenney_harvester_loop",
+        "path": "res://assets/audio/sfx/kenney/engineCircular_002.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "ballistic_light_shot": [
+      {
+        "id": "kenney_ballistic_light_shot_01",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_light_shot_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_ballistic_light_shot_02",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_light_shot_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_ballistic_light_shot_03",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_light_shot_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "ballistic_heavy_shot": [
+      {
+        "id": "kenney_ballistic_heavy_shot_01",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_heavy_shot_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_ballistic_heavy_shot_02",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_heavy_shot_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_ballistic_heavy_shot_03",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_heavy_shot_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "autocannon_shot": [
+      {
+        "id": "kenney_autocannon_shot_01",
+        "path": "res://assets/audio/sfx/kenney/variants/autocannon_shot_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_autocannon_shot_02",
+        "path": "res://assets/audio/sfx/kenney/variants/autocannon_shot_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_autocannon_shot_03",
+        "path": "res://assets/audio/sfx/kenney/variants/autocannon_shot_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "artillery_shot": [
+      {
+        "id": "kenney_artillery_shot_01",
+        "path": "res://assets/audio/sfx/kenney/variants/artillery_shot_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_artillery_shot_02",
+        "path": "res://assets/audio/sfx/kenney/variants/artillery_shot_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_artillery_shot_03",
+        "path": "res://assets/audio/sfx/kenney/variants/artillery_shot_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "missile_shot": [
+      {
+        "id": "kenney_missile_shot_01",
+        "path": "res://assets/audio/sfx/kenney/variants/missile_shot_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_missile_shot_02",
+        "path": "res://assets/audio/sfx/kenney/variants/missile_shot_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_missile_shot_03",
+        "path": "res://assets/audio/sfx/kenney/variants/missile_shot_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "siege_shot": [
+      {
+        "id": "kenney_siege_shot_01",
+        "path": "res://assets/audio/sfx/kenney/variants/siege_shot_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_siege_shot_02",
+        "path": "res://assets/audio/sfx/kenney/variants/siege_shot_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_siege_shot_03",
+        "path": "res://assets/audio/sfx/kenney/variants/siege_shot_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "special_shot": [
+      {
+        "id": "kenney_special_shot_01",
+        "path": "res://assets/audio/sfx/kenney/variants/special_shot_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_special_shot_02",
+        "path": "res://assets/audio/sfx/kenney/variants/special_shot_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_special_shot_03",
+        "path": "res://assets/audio/sfx/kenney/variants/special_shot_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "energy_shot": [
+      {
+        "id": "kenney_energy_shot_01",
+        "path": "res://assets/audio/sfx/kenney/variants/energy_shot_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_energy_shot_02",
+        "path": "res://assets/audio/sfx/kenney/variants/energy_shot_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_energy_shot_03",
+        "path": "res://assets/audio/sfx/kenney/variants/energy_shot_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "ballistic_light_impact": [
+      {
+        "id": "kenney_ballistic_light_impact_01",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_light_impact_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_ballistic_light_impact_02",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_light_impact_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_ballistic_light_impact_03",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_light_impact_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "ballistic_heavy_impact": [
+      {
+        "id": "kenney_ballistic_heavy_impact_01",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_heavy_impact_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_ballistic_heavy_impact_02",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_heavy_impact_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_ballistic_heavy_impact_03",
+        "path": "res://assets/audio/sfx/kenney/variants/ballistic_heavy_impact_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "autocannon_impact": [
+      {
+        "id": "kenney_autocannon_impact_01",
+        "path": "res://assets/audio/sfx/kenney/variants/autocannon_impact_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_autocannon_impact_02",
+        "path": "res://assets/audio/sfx/kenney/variants/autocannon_impact_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_autocannon_impact_03",
+        "path": "res://assets/audio/sfx/kenney/variants/autocannon_impact_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "artillery_impact": [
+      {
+        "id": "kenney_artillery_impact_01",
+        "path": "res://assets/audio/sfx/kenney/variants/artillery_impact_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_artillery_impact_02",
+        "path": "res://assets/audio/sfx/kenney/variants/artillery_impact_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_artillery_impact_03",
+        "path": "res://assets/audio/sfx/kenney/variants/artillery_impact_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "missile_impact": [
+      {
+        "id": "kenney_missile_impact_01",
+        "path": "res://assets/audio/sfx/kenney/variants/missile_impact_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_missile_impact_02",
+        "path": "res://assets/audio/sfx/kenney/variants/missile_impact_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_missile_impact_03",
+        "path": "res://assets/audio/sfx/kenney/variants/missile_impact_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "energy_impact": [
+      {
+        "id": "kenney_energy_impact_01",
+        "path": "res://assets/audio/sfx/kenney/variants/energy_impact_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_energy_impact_02",
+        "path": "res://assets/audio/sfx/kenney/variants/energy_impact_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_energy_impact_03",
+        "path": "res://assets/audio/sfx/kenney/variants/energy_impact_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "siege_impact": [
+      {
+        "id": "kenney_siege_impact_01",
+        "path": "res://assets/audio/sfx/kenney/variants/siege_impact_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_siege_impact_02",
+        "path": "res://assets/audio/sfx/kenney/variants/siege_impact_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_siege_impact_03",
+        "path": "res://assets/audio/sfx/kenney/variants/siege_impact_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "special_impact": [
+      {
+        "id": "kenney_special_impact_01",
+        "path": "res://assets/audio/sfx/kenney/variants/special_impact_01.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_special_impact_02",
+        "path": "res://assets/audio/sfx/kenney/variants/special_impact_02.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      },
+      {
+        "id": "kenney_special_impact_03",
+        "path": "res://assets/audio/sfx/kenney/variants/special_impact_03.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ]
+  },
+  "weapon_variants": "Three derived CC0 variants per weapon-family shot and impact cue; subtle pitch shifts only; pending in-game listening approval."
+}

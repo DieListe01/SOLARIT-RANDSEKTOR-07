@@ -762,14 +762,25 @@ func _build_visual_terrain_mask(grid: WorldGrid) -> Image:
 	const MASK_SCALE:=8
 	var width:=grid.width*MASK_SCALE
 	var height:=grid.height*MASK_SCALE
+	var mission_regions: Array=sim.db.mission.get("terrain_regions",[])
+	var terrain_without_resources:=PackedInt32Array()
+	terrain_without_resources.resize(grid.width*grid.height)
+	terrain_without_resources.fill(0)
+	for region in mission_regions:
+		var region_type:=_terrain_visual_class(str(region.get("type","sand")))
+		if region_type<0: continue
+		var rect: Array=region.get("rect",[])
+		if rect.size()<4: continue
+		for cell_y in range(maxi(0,int(rect[1])),mini(grid.height,int(rect[1])+int(rect[3]))):
+			for cell_x in range(maxi(0,int(rect[0])),mini(grid.width,int(rect[0])+int(rect[2]))):
+				terrain_without_resources[cell_y*grid.width+cell_x]=region_type
 	var base_pixels:=PackedByteArray()
 	base_pixels.resize(grid.width*grid.height)
-	for index in base_pixels.size(): base_pixels[index]=_terrain_mask_byte(grid.terrain[index])
+	for index in base_pixels.size(): base_pixels[index]=_terrain_mask_byte(terrain_without_resources[index])
 	var base_mask:=Image.create_from_data(grid.width,grid.height,false,Image.FORMAT_R8,base_pixels)
 	base_mask.resize(width,height,Image.INTERPOLATE_NEAREST)
 	var pixels:=base_mask.get_data()
 	const SAND_MASK_BYTE:=16
-	var mission_regions: Array=sim.db.mission.get("terrain_regions",[])
 	for region_index in mission_regions.size():
 		var region: Dictionary=mission_regions[region_index]
 		var type_index:=_terrain_visual_class(str(region.get("type","sand")))
@@ -788,8 +799,8 @@ func _build_visual_terrain_mask(grid: WorldGrid) -> Image:
 			var cell_y:=y/MASK_SCALE
 			for x in range(x0,x1):
 				var cell_x:=x/MASK_SCALE
-				var gameplay_class:=grid.terrain[cell_y*grid.width+cell_x]
-				if gameplay_class==3 or (gameplay_class==6 and not is_cliff_region) or (gameplay_class!=0 and gameplay_class!=type_index): continue
+				var base_class:=terrain_without_resources[cell_y*grid.width+cell_x]
+				if (base_class==6 and not is_cliff_region) or (base_class!=0 and base_class!=type_index): continue
 				var point:=Vector2((float(x)+0.5)/MASK_SCALE,(float(y)+0.5)/MASK_SCALE)
 				var delta:Vector2=abs(point-center)-half_size
 				var signed_distance:=Vector2(maxf(delta.x,0.0),maxf(delta.y,0.0)).length()+minf(maxf(delta.x,delta.y),0.0)
@@ -798,13 +809,40 @@ func _build_visual_terrain_mask(grid: WorldGrid) -> Image:
 				var displacement:float=(macro_noise-0.5)*(3.4 if is_cliff_region else 7.6)+(edge_noise-0.5)*(1.2 if is_cliff_region else 2.2)
 				# Retain the authored cliff interior and keep the gameplay grid exact;
 				# only the presentation band at the region edge is allowed to erode.
-				if is_cliff_region and gameplay_class==type_index and signed_distance < -1.0:
+				if is_cliff_region and base_class==type_index and signed_distance < -1.0:
 					pixels[y*width+x]=_terrain_mask_byte(type_index)
 					continue
 				if signed_distance<=displacement:
 					pixels[y*width+x]=_terrain_mask_byte(type_index)
-				elif gameplay_class==type_index:
+				elif base_class==type_index:
 					pixels[y*width+x]=SAND_MASK_BYTE
+	# The simulation stores Solarit deposits as circular groups of square cells.
+	# Reconstruct only their presentation contour at 8x resolution so the ground
+	# does not show the cell grid as a blocky patch around each crystal field.
+	# Gameplay resource cells, amounts, collisions, and pathfinding are untouched.
+	var resource_patches: Array=sim.db.mission.get("resources",[])
+	for patch_index in resource_patches.size():
+		var patch: Dictionary=resource_patches[patch_index]
+		var cell_value: Array=patch.get("cell",[])
+		if cell_value.size()<2: continue
+		var center:=Vector2(float(cell_value[0])+0.5,float(cell_value[1])+0.5)
+		var radius:=float(patch.get("radius",0))+0.5
+		var padding:=1.0
+		var x0:=maxi(0,floori((center.x-radius-padding)*MASK_SCALE))
+		var y0:=maxi(0,floori((center.y-radius-padding)*MASK_SCALE))
+		var x1:=mini(width,ceili((center.x+radius+padding)*MASK_SCALE))
+		var y1:=mini(height,ceili((center.y+radius+padding)*MASK_SCALE))
+		for y in range(y0,y1):
+			for x in range(x0,x1):
+				var point:=Vector2((float(x)+0.5)/MASK_SCALE,(float(y)+0.5)/MASK_SCALE)
+				var macro_noise:=_terrain_value_noise(point*0.39,float(patch_index*53+101))
+				var edge_noise:=_terrain_value_noise(point*1.17,float(patch_index*67+211))
+				var contour:=radius+(macro_noise-0.5)*0.92+(edge_noise-0.5)*0.32
+				if point.distance_to(center)<=contour:
+					pixels[y*width+x]=_terrain_mask_byte(3)
+				# Keep the shaped terrain value outside the deposit contour. Restoring
+				# the unsmoothed base class here painted the square resource bounding
+				# box back over the already-eroded material transitions.
 	var mask:=Image.create(width,height,false,Image.FORMAT_R8)
 	mask.set_data(width,height,false,Image.FORMAT_R8,pixels)
 	return mask

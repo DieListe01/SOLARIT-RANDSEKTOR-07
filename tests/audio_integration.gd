@@ -18,31 +18,36 @@ func run() -> void:
 	director=MusicDirector.new()
 	root.add_child(director)
 	await process_frame
-	check(director.music_catalog.get("schema_version",0)==2,"Central music catalog loads")
-	check(str(director.music_catalog.get("production_status",""))=="placeholder_not_final","Music production catalog explicitly reports placeholders, not a final soundtrack")
+	check(director.music_catalog.get("schema_version",0)==3,"Central music catalog loads curated candidate schema")
+	check(str(director.music_catalog.get("production_status",""))=="curated_cc0_candidate_set_pending_human_listening_review","Music remains explicitly pending human listening approval")
 	for faction_id in ["forge","drift","lumen"]:
 		var faction: Dictionary=director.music_catalog.get("factions",{}).get(faction_id,{})
 		check(not faction.is_empty(),"Music catalog defines faction "+faction_id)
-		for track_state in ["calm","contact","battle","alarm"]:
+		for track_state in ["calm_a","calm_b","contact","battle_low","battle_high","critical"]:
 			var choices: Array=faction.get("tracks",{}).get(track_state,[])
 			check(not choices.is_empty(),"Music catalog defines "+faction_id+" / "+track_state)
 			if not choices.is_empty():
 				for choice in choices:
-					check(str(choice.get("asset_status",""))=="placeholder" and str(choice.get("human_listening_approval",""))=="pending","Unapproved music stays marked as a placeholder: "+faction_id+" / "+track_state+" / "+str(choice.get("id","")))
+					check(str(choice.get("asset_status",""))=="candidate" and str(choice.get("human_listening_approval",""))=="pending","Unapproved music stays marked as a candidate pending review: "+faction_id+" / "+track_state+" / "+str(choice.get("id","")))
+					check(str(choice.get("license",{}).get("status",""))=="cleared" and bool(choice.get("license",{}).get("commercial_use",false)),"Music provenance explicitly clears CC0 use: "+faction_id+" / "+track_state)
 				var loaded_track: AudioStream=director._load_track_stream(choices[0])
 				check(loaded_track is AudioStreamOggVorbis,"Catalog OGG imports for "+faction_id+" / "+track_state)
 				if loaded_track is AudioStreamOggVorbis:
-					check((loaded_track as AudioStreamOggVorbis).loop and loaded_track.get_length()>90.0,"Long catalog loop is configured for "+faction_id+" / "+track_state)
+					check((loaded_track as AudioStreamOggVorbis).loop and loaded_track.get_length()>=175.0,"Three-minute catalog loop is configured for "+faction_id+" / "+track_state)
 	var title: AudioStream=director._load_track_stream(director.music_catalog.get("title_track",{}))
-	check(str(director.music_catalog.get("title_track",{}).get("asset_status",""))=="placeholder" and str(director.music_catalog.get("title_track",{}).get("human_listening_approval",""))=="pending","Title demo is not falsely approved as final music")
+	check(str(director.music_catalog.get("title_track",{}).get("asset_status",""))=="candidate" and str(director.music_catalog.get("title_track",{}).get("human_listening_approval",""))=="pending","Title candidate is not falsely approved as final music")
 	check(title is AudioStreamOggVorbis and title.get_length()>=120.0,"Title score is a long OGG source")
+	check(director.music_catalog.get("global_stingers",{}).size()==5,"Mission, objective, alert, victory and defeat stingers are present")
+	check(director.play_global_stinger("mission_start"),"Mission-start stinger resolves and plays")
+	var sfx: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/sfx_catalog.json"))
+	check(sfx.get("cues",{}).size()>=8 and director.samples.get("cannon_shot") is AudioStreamOggVorbis,"Curated CC0 SFX bank loads over demo cues")
 	check(director.harvest_loop.stream is AudioStreamOggVorbis,"Harvester has a compressed mechanical work loop")
 	check(director.samples.get("harvest_start_demo")!=null and director.samples.get("harvest_collect_demo")!=null and director.samples.get("harvest_unload_demo")!=null,"Harvester start, collection and unload cues load")
 	var sim := Simulation.new(Catalog.new())
 	director.start(sim)
 	await create_timer(0.15).timeout
-	check(director.layers.size()==4,"Four synchronized state arrangements are ready for bar-aligned selection")
-	check(director.selected_tracks.size()==4,"Music tracks resolve from catalog metadata")
+	check(director.layers.size()==6,"Six synchronized tactical music states are ready for bar-aligned selection")
+	check(director.selected_tracks.size()==6,"Music tracks resolve from catalog metadata")
 	check(director.faction_id==str(sim.factions[0]),"Mission music uses the selected faction family")
 	var head: float = director.layers[0].get_playback_position()
 	for layer in director.layers:
@@ -52,7 +57,7 @@ func run() -> void:
 			check((layer.stream as AudioStreamOggVorbis).loop,"Long music stem loops in the audio stream")
 		check(layer.stream.get_length()>90.0,"Runtime music stem is at least 90 seconds before repeating")
 	check(float(director.selected_tracks[0].get("bpm",0))>0.0,"Track tempo metadata is available to bar transitions")
-	check(director._arrangement_index_for_state("BASE_CALM")==0 and director._arrangement_index_for_state("ENEMY_CONTACT")==1 and director._arrangement_index_for_state("BATTLE")==2 and director._arrangement_index_for_state("BASE_UNDER_ATTACK")==3,"Tactical states select the corresponding full-mix arrangement")
+	check(director._arrangement_index_for_state("BASE_CALM")==0 and director._arrangement_index_for_state("ECONOMY")==1 and director._arrangement_index_for_state("ENEMY_CONTACT")==2 and director._arrangement_index_for_state("SKIRMISH")==3 and director._arrangement_index_for_state("BATTLE")==4 and director._arrangement_index_for_state("BASE_UNDER_ATTACK")==5,"Six tactical states select their corresponding music arrangements")
 	director.cue("explosion",0.5,Vector2(1200,500))
 	var spatial_voice: AudioStreamPlayer2D
 	for player in director.voices:
@@ -85,10 +90,10 @@ func run() -> void:
 	check(director.state=="BASE_UNDER_ATTACK","Base attack enables intense arrangement")
 	var mix_deadline := Time.get_ticks_msec()+3500
 	while director.arrangement_crossfade_elapsed<MusicDirector.ARRANGEMENT_CROSSFADE_SECONDS and Time.get_ticks_msec()<mix_deadline: await process_frame
-	check(director.layers[3].volume_db>-20,"Alarm arrangement audible after the bar-aligned transition")
+	check(director.layers[5].volume_db>-20,"Critical arrangement audible after the bar-aligned transition")
 	var non_alarm_arrangements_quiet := true
-	for i in 3: non_alarm_arrangements_quiet=non_alarm_arrangements_quiet and director.layers[i].volume_db<=-20
-	check(non_alarm_arrangements_quiet,"Complete calm/contact/battle mixes are not summed under the alarm arrangement")
+	for i in 5: non_alarm_arrangements_quiet=non_alarm_arrangements_quiet and director.layers[i].volume_db<=-20
+	check(non_alarm_arrangements_quiet,"Other full mixes are not summed under the critical arrangement")
 	director.set_paused(true)
 	var paused_head: float = director.layers[0].get_playback_position()
 	var paused_intensity: float = director.intensity
@@ -102,7 +107,7 @@ func run() -> void:
 	check(director.state=="VICTORY" and director.ended,"Victory overrides combat state")
 	check(director.voices.any(func(v):return v.playing),"Victory jingle plays")
 	director.shutdown()
-	var stem_path:=str(director.music_catalog.factions.forge.tracks.calm[0].path)
+	var stem_path:=str(director.music_catalog.factions.forge.tracks.calm_a[0].path)
 	director.music_catalog.factions.forge["adaptive_stems"]={
 		"bpm":108,"beats_per_bar":4,"beat_unit":4,"loop_start_seconds":0.0,"loop_end_seconds":106.667,
 		"layers":{
@@ -114,7 +119,7 @@ func run() -> void:
 	director.music_catalog.factions.forge.adaptive_stems.layers.combat.path="res://assets/audio/music/missing_test_stem.ogg"
 	director.start(sim)
 	await process_frame
-	check(director.stem_players.is_empty() and director.layers.size()==4,"Incomplete adaptive stem set falls back cleanly to the existing full-mix catalog")
+	check(director.stem_players.is_empty() and director.layers.size()==6,"Incomplete adaptive stem set falls back cleanly to the existing full-mix catalog")
 	director.shutdown()
 	director.music_catalog.factions.forge.adaptive_stems.layers.combat.path=stem_path
 	director.start(sim)
