@@ -773,26 +773,34 @@ func _build_visual_terrain_mask(grid: WorldGrid) -> Image:
 	for region_index in mission_regions.size():
 		var region: Dictionary=mission_regions[region_index]
 		var type_index:=_terrain_visual_class(str(region.get("type","sand")))
-		if type_index<0 or type_index==6: continue
+		if type_index<0: continue
+		var is_cliff_region:bool=type_index==6
 		var rect: Array=region.get("rect",[])
 		if rect.size()<4: continue
 		var left:=int(rect[0]); var top:=int(rect[1]); var region_width:=int(rect[2]); var region_height:=int(rect[3])
 		var center:=Vector2(left+region_width*0.5,top+region_height*0.5)
 		var half_size:=Vector2(region_width,region_height)*0.5
-		var x0:=maxi(0,(left-4)*MASK_SCALE); var y0:=maxi(0,(top-4)*MASK_SCALE)
-		var x1:=mini(width,(left+region_width+4)*MASK_SCALE); var y1:=mini(height,(top+region_height+4)*MASK_SCALE)
+		# Scan beyond each authored rectangle by the full maximum contour drift.
+		# The wider visual edge keeps large material regions from reading as tiles.
+		var x0:=maxi(0,(left-7)*MASK_SCALE); var y0:=maxi(0,(top-7)*MASK_SCALE)
+		var x1:=mini(width,(left+region_width+7)*MASK_SCALE); var y1:=mini(height,(top+region_height+7)*MASK_SCALE)
 		for y in range(y0,y1):
 			var cell_y:=y/MASK_SCALE
 			for x in range(x0,x1):
 				var cell_x:=x/MASK_SCALE
 				var gameplay_class:=grid.terrain[cell_y*grid.width+cell_x]
-				if gameplay_class==3 or gameplay_class==6 or (gameplay_class!=0 and gameplay_class!=type_index): continue
+				if gameplay_class==3 or (gameplay_class==6 and not is_cliff_region) or (gameplay_class!=0 and gameplay_class!=type_index): continue
 				var point:=Vector2((float(x)+0.5)/MASK_SCALE,(float(y)+0.5)/MASK_SCALE)
 				var delta:Vector2=abs(point-center)-half_size
 				var signed_distance:=Vector2(maxf(delta.x,0.0),maxf(delta.y,0.0)).length()+minf(maxf(delta.x,delta.y),0.0)
 				var macro_noise:=_terrain_value_noise(point*0.21,float(region_index*31+7))
 				var edge_noise:=_terrain_value_noise(point*0.68,float(region_index*47+19))
-				var displacement:float=(macro_noise-0.5)*4.6+(edge_noise-0.5)*1.1
+				var displacement:float=(macro_noise-0.5)*(3.4 if is_cliff_region else 7.6)+(edge_noise-0.5)*(1.2 if is_cliff_region else 2.2)
+				# Retain the authored cliff interior and keep the gameplay grid exact;
+				# only the presentation band at the region edge is allowed to erode.
+				if is_cliff_region and gameplay_class==type_index and signed_distance < -1.0:
+					pixels[y*width+x]=_terrain_mask_byte(type_index)
+					continue
 				if signed_distance<=displacement:
 					pixels[y*width+x]=_terrain_mask_byte(type_index)
 				elif gameplay_class==type_index:

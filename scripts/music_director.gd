@@ -5,6 +5,9 @@ const VoiceDirectorScript := preload("res://scripts/voice_director.gd")
 
 var sim: Simulation
 var layers: Array[AudioStreamPlayer] = []
+var stem_players: Array[AudioStreamPlayer] = []
+var stem_names: Array[String] = []
+var adaptive_stem_set: Dictionary = {}
 var voices: Array[AudioStreamPlayer2D] = []
 var voice_players: Array[AudioStreamPlayer] = []
 var samples: Dictionary = {}
@@ -137,24 +140,66 @@ func start(model: Simulation) -> void:
 	tactical_scan_timer=0.0; cached_movers=0; cached_visible_enemies=0
 	for layer in layers: layer.stream_paused=false; layer.stop(); layer.stream=null; layer.queue_free()
 	layers.clear()
+	for stem_player in stem_players: stem_player.stream_paused=false; stem_player.stop(); stem_player.stream=null; stem_player.queue_free()
+	stem_players.clear()
+	stem_names.clear()
+	adaptive_stem_set.clear()
 	selected_tracks.clear()
-	for name_value in LAYER_NAMES:
-		var layer := AudioStreamPlayer.new()
-		var track := _choose_track(faction_id,name_value)
-		var stream := _load_track_stream(track)
-		if stream == null:
-			push_error("Music track missing: "+str(track.get("path","")))
-			continue
-		layer.stream=stream
-		layer.bus="Music"
-		layer.volume_db=-60 if name_value!="calm" else -7
-		add_child(layer)
-		layers.append(layer)
-		selected_tracks.append(track)
-	for i in layers.size():
-		var duration: float = layers[i].stream.get_length()
-		layers[i].play(fposmod(sim.time,duration) if duration>0.0 else 0.0)
+	var faction_data: Dictionary=music_catalog.get("factions",{}).get(faction_id,{})
+	var stem_set: Dictionary=faction_data.get("adaptive_stems",{})
+	if not stem_set.is_empty() and _start_adaptive_stems(stem_set,sim.time):
+		selected_tracks.append(stem_set)
+	else:
+		for name_value in LAYER_NAMES:
+			var layer := AudioStreamPlayer.new()
+			var track := _choose_track(faction_id,name_value)
+			var stream := _load_track_stream(track)
+			if stream == null:
+				push_error("Music track missing: "+str(track.get("path","")))
+				continue
+			layer.stream=stream
+			layer.bus="Music"
+			layer.volume_db=-60 if name_value!="calm" else -7
+			add_child(layer)
+			layers.append(layer)
+			selected_tracks.append(track)
+		for i in layers.size():
+			var duration: float = layers[i].stream.get_length()
+			layers[i].play(fposmod(sim.time,duration) if duration>0.0 else 0.0)
 	last_music_bar=-1
+
+func _start_adaptive_stems(stem_set: Dictionary, start_time: float) -> bool:
+	var stem_catalog: Dictionary=stem_set.get("layers",{})
+	if stem_catalog.is_empty() or not stem_catalog.has("atmosphere"):
+		return false
+	var ordered_names: Array[String]=["atmosphere","pulse","bass","rhythm","percussion","motif","combat","critical"]
+	var prepared: Array[Dictionary]=[]
+	for stem_name in ordered_names:
+		if not stem_catalog.has(stem_name): continue
+		var spec: Dictionary=stem_catalog[stem_name]
+		var stream:=_load_track_stream({
+			"path":str(spec.get("path","")),
+			"loop_start_seconds":float(stem_set.get("loop_start_seconds",0.0)),
+			"loop_end_seconds":float(stem_set.get("loop_end_seconds",0.0))
+		})
+		if stream==null:
+			push_warning("Adaptive music stem unavailable; retaining full-mix fallback: "+stem_name)
+			return false
+		prepared.append({"name":stem_name,"stream":stream,"gain":clampf(float(spec.get("gain",1.0)),0.0,2.0)})
+	if prepared.is_empty(): return false
+	adaptive_stem_set=stem_set.duplicate(true)
+	for item in prepared:
+		var stem_player:=AudioStreamPlayer.new()
+		stem_player.stream=item.stream
+		stem_player.bus="Music"
+		stem_player.volume_db=-70.0
+		add_child(stem_player)
+		stem_players.append(stem_player)
+		stem_names.append(str(item.name))
+		var duration: float=stem_player.stream.get_length()
+		stem_player.play(fposmod(start_time,duration) if duration>0.0 else 0.0)
+	_update_stem_mix(0.0)
+	return true
 
 func _choose_track(for_faction: String, for_state: String) -> Dictionary:
 	var faction: Dictionary = music_catalog.get("factions",{}).get(for_faction,{})
@@ -294,6 +339,7 @@ func set_paused(value: bool) -> void:
 	paused=value
 	frontend_player.stream_paused=value
 	for layer in layers: layer.stream_paused=value
+	for stem_player in stem_players: stem_player.stream_paused=value
 	for voice in voices: voice.stream_paused=value
 	for voice_player in voice_players: voice_player.stream_paused=value
 	if harvest_loop!=null: harvest_loop.stream_paused=value
@@ -304,6 +350,7 @@ func shutdown() -> void:
 	if is_instance_valid(harvest_loop): harvest_loop.stream_paused=false; harvest_loop.stop(); harvest_loop.stream=null
 	frontend_player.stream_paused=false; frontend_player.stop(); frontend_player.stream=null
 	for layer in layers: layer.stream_paused=false; layer.stop(); layer.stream=null
+	for stem_player in stem_players: stem_player.stream_paused=false; stem_player.stop(); stem_player.stream=null
 	for voice in voices: voice.stream_paused=false; voice.stop(); voice.stream=null
 	for voice_player in voice_players: voice_player.stream_paused=false; voice_player.stop(); voice_player.stream=null
 	if speech!=null: speech.stop()
@@ -322,7 +369,7 @@ func _process(dt: float) -> void:
 	if frontend and not paused:
 		frontend_player.volume_db=move_toward(frontend_player.volume_db,linear_to_db(maxf(0.001,music_volume*0.7)),dt*12)
 		return
-	if sim==null or layers.is_empty() or paused: return
+	if sim==null or (layers.is_empty() and stem_players.is_empty()) or paused: return
 	tactical_scan_timer-=dt
 	if tactical_scan_timer<=0.0:
 		tactical_scan_timer=0.25
@@ -349,7 +396,7 @@ func _process(dt: float) -> void:
 	elif not sim.buildings(sim.view_owner,"refinery").is_empty(): next="ECONOMY"
 	if next!=pending: pending=next
 	# Minimum dwell plus transitions at a 2-second bar boundary.
-	var playhead: float = layers[0].get_playback_position()
+	var playhead: float = layers[0].get_playback_position() if not layers.is_empty() else stem_players[0].get_playback_position()
 	var bpm := float(music_catalog.get("default_tempo_bpm",120))
 	var beats_per_bar := float(music_catalog.get("default_beats_per_bar",4))
 	var beat_unit := 4.0
@@ -366,9 +413,8 @@ func _process(dt: float) -> void:
 	if sim.result!="" and not ended:
 		ended=true; state=sim.result.to_upper(); cue(sim.result)
 		if speech!=null: speech.request("mission",faction_id)
-	# Catalog entries are complete demo arrangements, not mix-compatible stems.
-	# Select one arrangement and briefly crossfade at the next musical bar instead
-	# of summing calm/contact/battle/alarm full mixes together.
+	# Authored stem sets are mixed dynamically when present. Until real faction
+	# stems are supplied, keep the validated complete-mix transition path.
 	_update_arrangement_mix(dt)
 
 func _arrangement_index_for_state(value: String) -> int:
@@ -379,6 +425,9 @@ func _arrangement_index_for_state(value: String) -> int:
 		_: return 0
 
 func _update_arrangement_mix(dt: float) -> void:
+	if not stem_players.is_empty():
+		_update_stem_mix(dt)
+		return
 	if layers.is_empty(): return
 	var requested_index := _arrangement_index_for_state(state)
 	if ended: requested_index=0
@@ -400,3 +449,24 @@ func _update_arrangement_mix(dt: float) -> void:
 		var gain := weight*state_gain*music_volume*voice_duck
 		var target_db := linear_to_db(maxf(0.0001,gain))
 		layers[i].volume_db=target_db
+
+func _update_stem_mix(dt: float) -> void:
+	if stem_players.is_empty(): return
+	var gains: Dictionary={"atmosphere":0.68,"pulse":0.08,"bass":0.16,"rhythm":0.0,"percussion":0.0,"motif":0.30,"combat":0.0,"critical":0.0}
+	var battle:=clampf(intensity,0.0,1.0)
+	var contact:=1.0 if state in ["ENEMY_CONTACT","SKIRMISH","BATTLE","MAJOR_BATTLE","BASE_UNDER_ATTACK"] else 0.0
+	var combat_state:=1.0 if state in ["BATTLE","MAJOR_BATTLE","BASE_UNDER_ATTACK","VICTORY","DEFEAT"] else 0.0
+	gains["pulse"]=0.08+battle*0.40
+	gains["bass"]=0.16+battle*0.44
+	gains["rhythm"]=contact*(0.16+battle*0.43)
+	gains["percussion"]=combat_state*(0.22+maxf(battle,0.35)*0.52)
+	gains["motif"]=0.30 if state in ["BASE_CALM","ECONOMY"] else 0.18+battle*0.22
+	gains["combat"]=combat_state*clampf((battle-0.25)*0.90,0.0,0.65)
+	gains["critical"]=0.72 if state in ["BASE_UNDER_ATTACK","MAJOR_BATTLE","VICTORY","DEFEAT"] or (sim!=null and sim.base_alarm>0) else 0.0
+	var layer_specs: Dictionary=adaptive_stem_set.get("layers",{})
+	for i in stem_players.size():
+		var stem_name:=stem_names[i]
+		var spec: Dictionary=layer_specs.get(stem_name,{})
+		var gain:=clampf(float(gains.get(stem_name,0.0))*float(spec.get("gain",1.0))*music_volume*voice_duck,0.0,1.5)
+		var target_db:=linear_to_db(maxf(0.0001,gain))
+		stem_players[i].volume_db=move_toward(stem_players[i].volume_db,target_db,maxf(0.0,dt)*10.0)

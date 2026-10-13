@@ -19,10 +19,15 @@ func run() -> void:
 	game.start_game()
 	game.paused = true
 	for _frame in 3: await process_frame
-	game.sim.explored[0].fill(1)
-	game.sim.fog[0].fill(0)
+	for owner in game.sim.explored.size():
+		game.sim.explored[owner].fill(1)
+		game.sim.fog[owner].fill(1)
+		game.sim.known[owner].clear()
 	game.renderer._update_fog_texture()
-	game.renderer.benchmark_disabled_categories.append("fog")
+	game.renderer.benchmark_disabled_categories.clear()
+	for category in ["fog","terrain_detail","tracks","wrecks","combat_vfx","buildings","vehicles","health_selection"]:
+		game.renderer.benchmark_disabled_categories.append(category)
+	game.renderer.heat_layer.visible=false
 	game.renderer.camera = Vector2(640,1440)
 	game.renderer.zoom = 1.3
 	var terrain_before: PackedInt32Array = game.sim.grid.terrain.duplicate()
@@ -65,6 +70,11 @@ func run() -> void:
 		var sample:=mask_image.get_pixel(22*8+4,y_cell*8+4).r*8.0
 		boundary_kinds[int(floor(sample))]=true
 	check(boundary_kinds.has(0) and boundary_kinds.has(1),"Soft material edge visibly deviates from its authored straight rectangle")
+	var cliff_edge_classes: Dictionary={}
+	for y_cell in range(33,63):
+		var sample:=mask_image.get_pixel(29*8+4,y_cell*8+4).r*8.0
+		cliff_edge_classes[int(floor(sample))]=true
+	check(cliff_edge_classes.has(0) and cliff_edge_classes.has(6),"Cliff edge receives presentation-only erosion while retaining its interior")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://test-output"))
 	var capture_path := "res://test-output/terrain_irregular_boundaries.png"
 	var error := root.get_texture().get_image().save_png(capture_path)
@@ -82,6 +92,26 @@ func run() -> void:
 	await create_timer(0.3).timeout
 	var material_only_path := "res://test-output/terrain_material_only.png"
 	check(root.get_texture().get_image().save_png(material_only_path)==OK,"Material-only comparison capture is saved")
+	# Preserve a presentation-neutral image of the baked material classes. This
+	# separates mask defects from shading/noise artifacts during visual review.
+	var diagnostic_shader:=Shader.new()
+	diagnostic_shader.code="""
+	shader_type canvas_item;
+	render_mode unshaded;
+	void fragment() {
+		float kind=floor(texture(TEXTURE,UV).r*8.0);
+		COLOR=vec4(kind/8.0,0.0,0.0,1.0);
+	}
+	"""
+	var diagnostic_material:=ShaderMaterial.new()
+	diagnostic_material.shader=diagnostic_shader
+	var normal_material:Material=game.renderer.terrain_sprite.material
+	game.renderer.terrain_sprite.material=diagnostic_material
+	game.renderer.queue_redraw()
+	await create_timer(0.3).timeout
+	var class_capture_path:="res://test-output/terrain_mask_classes.png"
+	check(root.get_texture().get_image().save_png(ProjectSettings.globalize_path(class_capture_path))==OK,"Material-class diagnostic capture is saved")
+	game.renderer.terrain_sprite.material=normal_material
 	game.music.shutdown()
 	game.queue_free()
 	await process_frame

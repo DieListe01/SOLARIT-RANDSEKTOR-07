@@ -44,18 +44,19 @@ void fragment() {
 	vec2 terrain_cell=(world+warp*27.0)/32.0;
 	float raw_kind=kind_at(TEXTURE,world,vec2(0.0));
 	float kind=kind_at(TEXTURE,world,warp);
-	// Keep cliff silhouettes aligned to their gameplay boundary; only softer
-	// surface families receive the wider visual breakup.
-	if(raw_kind>5.6 || kind>5.6) {
-		kind=raw_kind;
-		terrain_cell=world/32.0;
+	// Keep collision cells exact, but give even cliff silhouettes a restrained
+	// visual breakup so authored rectangular cliff regions do not read as tiles.
+	bool cliff_edge=raw_kind>5.6 || kind>5.6;
+	if(cliff_edge) {
+		warp*=0.34;
+		kind=kind_at(TEXTURE,world,warp);
+		terrain_cell=(world+warp*27.0)/32.0;
 	}
 	vec3 base=material(kind);
 	vec2 local=fract(terrain_cell);
 	vec4 edge_distance=vec4(local.x,1.0-local.x,local.y,1.0-local.y);
 	vec4 edge_weight=1.0-smoothstep(vec4(0.015),vec4(0.42),edge_distance);
-	float edge_warp=0.0;
-	if(raw_kind<5.6 && kind<5.6) edge_warp=1.0;
+	float edge_warp=cliff_edge?0.0:1.0;
 	vec3 adjacent=(material(kind_at(TEXTURE,world+vec2(8,0),warp*edge_warp))*edge_weight.y+
 		material(kind_at(TEXTURE,world-vec2(8,0),warp*edge_warp))*edge_weight.x+
 		material(kind_at(TEXTURE,world+vec2(0,8),warp*edge_warp))*edge_weight.w+

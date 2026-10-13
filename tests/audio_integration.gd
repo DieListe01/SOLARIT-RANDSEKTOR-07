@@ -102,6 +102,35 @@ func run() -> void:
 	check(director.state=="VICTORY" and director.ended,"Victory overrides combat state")
 	check(director.voices.any(func(v):return v.playing),"Victory jingle plays")
 	director.shutdown()
+	var stem_path:=str(director.music_catalog.factions.forge.tracks.calm[0].path)
+	director.music_catalog.factions.forge["adaptive_stems"]={
+		"bpm":108,"beats_per_bar":4,"beat_unit":4,"loop_start_seconds":0.0,"loop_end_seconds":106.667,
+		"layers":{
+			"atmosphere":{"path":stem_path},"pulse":{"path":stem_path},"bass":{"path":stem_path},
+			"rhythm":{"path":stem_path},"percussion":{"path":stem_path},"motif":{"path":stem_path},
+			"combat":{"path":stem_path},"critical":{"path":stem_path}
+		}
+	}
+	director.music_catalog.factions.forge.adaptive_stems.layers.combat.path="res://assets/audio/music/missing_test_stem.ogg"
+	director.start(sim)
+	await process_frame
+	check(director.stem_players.is_empty() and director.layers.size()==4,"Incomplete adaptive stem set falls back cleanly to the existing full-mix catalog")
+	director.shutdown()
+	director.music_catalog.factions.forge.adaptive_stems.layers.combat.path=stem_path
+	director.start(sim)
+	await process_frame
+	check(director.layers.is_empty() and director.stem_players.size()==8,"Optional adaptive stem set replaces full-mix players when authored stems exist")
+	check(director.stem_players.all(func(player): return player.playing),"All available authored stems start together")
+	var stem_playhead:=director.stem_players[0].get_playback_position()
+	check(director.stem_players.all(func(player): return absf(player.get_playback_position()-stem_playhead)<0.05),"Adaptive stems share a synchronized transport")
+	director.state="BASE_CALM"; director.intensity=0.0; director._update_stem_mix(10.0)
+	var calm_combat_db:=director.stem_players[6].volume_db
+	director.state="BASE_UNDER_ATTACK"; director.intensity=1.0; sim.base_alarm=8.0
+	director._update_stem_mix(10.0)
+	check(director.stem_players[6].volume_db>calm_combat_db and director.stem_players[7].volume_db>-10.0,"Combat and critical stems rise for an alarm state while ambience remains available")
+	director.set_paused(true)
+	check(director.stem_players.all(func(player): return player.stream_paused),"Adaptive stems pause with the mission audio")
+	director.shutdown()
 	director.queue_free()
 	await process_frame
 	await create_timer(0.15).timeout

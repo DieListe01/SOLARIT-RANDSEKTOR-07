@@ -1,6 +1,17 @@
 {
-  "current_version": "0.38.23",
+  "current_version": "0.38.24",
   "entries": [
+    {
+      "version": "0.38.24",
+      "date": "13.10.2026",
+      "title": "Geländekanten natürlicher ausformen",
+      "changes": [
+        "Fels- und Klippenkanten werden in den drei ausgelieferten Karten stärker organisch gebrochen, während begehbare Zellen, Kollisionen, Ressourcen und Wegfindung unverändert bleiben.",
+        "Die Terrain-Abnahme speichert zusätzlich ein Materialklassenbild und blendet bekannte Gebäudeflächen sowie andere Renderlayer während der isolierten Maskenprüfung aus.",
+        "Der sichtbare Füllstand des Sammlers bleibt erhalten.",
+        "Die bestehende Musik bleibt als Platzhalter-Demo gekennzeichnet. Die optionale adaptive Stem-Laufzeitunterstützung ist vorbereitet, finale Musik und deutsche Sprachaufnahmen sind weiterhin offen."
+      ]
+    },
     {
       "version": "0.38.23",
       "date": "13.10.2026",
