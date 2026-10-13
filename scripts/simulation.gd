@@ -6,6 +6,7 @@ signal presentation(kind: String, data: Dictionary)
 var db: Catalog
 var grid: WorldGrid
 var entities: Dictionary = {}
+var entities_by_owner: Array = [[],[]]
 var projectiles: Array = []
 var effects: Array = []
 var credits: Array = [0.0,0.0]
@@ -148,6 +149,7 @@ func spawn(kind: String, owner: int, pos: Vector2, building: bool, completed: bo
 		grid.reserve(c,size_value,next_id,true)
 	e.path_goal=e.destination
 	entities[next_id] = e
+	if owner>=0 and owner<entities_by_owner.size(): entities_by_owner[owner].append(e)
 	if building: building_ids.append(next_id)
 	else:
 		mobile_entity_count+=1
@@ -932,8 +934,10 @@ func combat(e: Dictionary, dt: float) -> void:
 		var target_search_started := Time.get_ticks_usec() if profile_enabled else 0
 		var best := float(weapon.range)+100 if e.order=="attack_move" else float(weapon.range)
 		var best_score := INF
-		for other in entities.values():
-			if other.owner==e.owner or not is_visible(other,e.owner): continue
+		var opponent_owner:=1-int(e.owner)
+		var candidates: Array=entities_by_owner[opponent_owner] if opponent_owner>=0 and opponent_owner<entities_by_owner.size() else entities.values()
+		for other in candidates:
+			if not entities.has(other.id) or other.owner==e.owner or not is_visible(other,e.owner): continue
 			var distance: float = e.pos.distance_to(other.pos)
 			# Armed threats take precedence over economy targets during automatic defense.
 			var score := distance+(0.0 if definition(other).has("weapon") else best*2.0)
@@ -1015,6 +1019,7 @@ func destroy(id: int) -> void:
 	effects.append({"pos":e.pos,"life":0.8,"max_life":0.8,"radius":55.0 if e.building else 30.0,"event_backed":true})
 	presentation.emit("destroy",{"id":e.id,"pos":e.pos,"owner":e.owner,"faction":str(e.get("faction_id",factions[e.owner])),"building":e.building,"kind":e.kind,"angle":float(e.get("rotation",0))*PI/2 if e.building else e.angle,"visual_footprint":footprint(e) if e.building else [1,1],"visual_size":maxf(float(footprint(e)[0]),float(footprint(e)[1])) if e.building else 1.0})
 	event.emit("explosion",e.pos,"")
+	if e.owner>=0 and e.owner<entities_by_owner.size(): entities_by_owner[e.owner].erase(e)
 	entities.erase(id)
 	for other in entities.values():
 		if int(other.target)==id:
@@ -1316,6 +1321,7 @@ func restore(save: Dictionary) -> Error:
 	if save.has("control_zone_progress") and not save.control_zone_progress is Dictionary: return ERR_INVALID_DATA
 	grid=WorldGrid.new(db.mission)
 	entities.clear()
+	entities_by_owner=[[],[]]
 	building_ids.clear(); mobile_entity_count=0
 	movement_buckets.clear(); movement_buckets_valid=false
 	path_requests.clear()
@@ -1337,6 +1343,7 @@ func restore(save: Dictionary) -> Error:
 			e.cell=Vector2i(e.cell[0],e.cell[1])
 			grid.reserve(e.cell,footprint(e),e.id,true)
 		entities[e.id]=e
+		if e.owner>=0 and e.owner<entities_by_owner.size(): entities_by_owner[e.owner].append(e)
 		if e.building: building_ids.append(e.id)
 		else: mobile_entity_count+=1
 	credits=save.credits.duplicate()
@@ -1388,7 +1395,7 @@ func configure_versus(config: Dictionary, owner: int = 0) -> void:
 	player_colors[1]=str(config.get("client_color","f34c32"))
 	campaign_tech_level=2
 	credits=[float(config.get("start_credits",4200)),float(config.get("start_credits",4200))]
-	entities.clear(); building_ids.clear(); mobile_entity_count=0
+	entities.clear(); entities_by_owner=[[],[]]; building_ids.clear(); mobile_entity_count=0
 	movement_buckets.clear(); movement_buckets_valid=false
 	projectiles.clear(); path_requests.clear(); effects.clear()
 	grid=WorldGrid.new(db.mission); next_id=1; time=0.0

@@ -25,6 +25,12 @@ Ein optionaler, standardmäßig ausgeschalteter Ereignispuffer erfasst pro gezei
 
 Die Renderer-Regression prüft semantische Key-Grenzen, verbietet fraktions-, orientierungs- und bauphasenübergreifende Fallbacks und hält eine passende Werfttextur über 600 aufeinanderfolgende Produktions-, Freigabe- und Queue-Samples verfügbar. Die RendererCache-Gruppe einschließlich `building_asset_states.gd` sowie `update_info.gd` besteht lokal.
 
+## Performance-Gate und gezielte CPU-Korrektur
+
+Der Tag-Workflow `v0.38.19` bestand alle Regressiongruppen bis auf `performance.gd`; GitHub Actions meldete für 200 bewegte Panzer und 300 Simulationsticks 34,08 ms/Tick bei einem bestehenden Grenzwert von 33,3 ms/Tick. Der Runner war Windows Server 2025 mit EPYC 9V74 und Microsoft-Hyper-V-Videotreiber. Derselbe Test lag lokal vor der Korrektur bei 14,73 ms/Tick. Die Abweichung war ein echtes CPU-Benchmark-Gate, nicht der Renderer; der Renderartefakt-Fix kann diesen `SceneTree`-Simulationstest nicht beeinflussen.
+
+Ursache war die automatische Zielsuche: Jede bewaffnete Einheit durchlief für die Gegnersuche alle Einheiten inklusive sämtlicher Verbündeter. Eine bei Spawn gepflegte Besitzliste reduziert diese Schleife auf gegnerische Einheiten; Zerstörung, Save/Load und Multiplayer-Neustart pflegen den Index mit. Die vorhandene Performance-Assertion bleibt unverändert. Zwei lokale Läufe nach der Korrektur ergaben 10,53 und 10,60 ms/Tick und bestanden; der neue tagbasierte Windows-Workflow muss diese Änderung noch bestätigen.
+
 ## Umfangsgrenze
 
-Diese Korrektur bearbeitet **Prio 1 für den konkret nachgewiesenen Cache-Fallbackpfad**. Sie ist keine vollständige Abnahme des gesamten Grafik-/Audio-Auftrags: Fraktionssilhouetten, Werft-/Harvester-Visual-Impact, Audiohörtest, Langzeitmatch, Multiplayer-/Save-Load-Visuals, neues Gameplay-Testvideo und durchgängige Abwesenheit aller Renderartefakte bleiben separat zu prüfen. Das alte Video ist nicht instrumentiert; für einen zweifelsfreien Laufzeitnachweis muss ein neues Video mit aktivierter Gebäudediagnose aufgenommen werden.
+Dieser Update-Stand bearbeitet den konkret nachgewiesenen Werft-Cache-Fallbackpfad und den durch das Release-Gate belegten CPU-Kostenpunkt. Er ist keine vollständige Abnahme des gesamten Grafik-/Audio-Auftrags: Fraktionssilhouetten, Werft-/Harvester-Visual-Impact, Audiohörtest, Langzeitmatch, Multiplayer-/Save-Load-Visuals, neues Gameplay-Testvideo und durchgängige Abwesenheit aller Renderartefakte bleiben separat zu prüfen. Das alte Video ist nicht instrumentiert; für einen zweifelsfreien Laufzeitnachweis muss ein neues Video mit aktivierter Gebäudediagnose aufgenommen werden.

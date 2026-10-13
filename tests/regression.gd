@@ -70,6 +70,8 @@ func run() -> void:
 	var restored := Simulation.new(db)
 	check(restored.restore(save)==OK,"Save reload")
 	check(restored.entities.size()==sim.entities.size(),"Entity count preserved")
+	for owner_index in 2:
+		check(restored.entities_by_owner[owner_index].size()==restored.entities.values().filter(func(entity):return int(entity.owner)==owner_index).size(),"Save reload rebuilds combat candidates for owner %d" % owner_index)
 	check(restored.credits==sim.credits,"Credits preserved")
 	var resources_preserved: bool = restored.grid.resources.size()==sim.grid.resources.size()
 	for resource_key in sim.grid.resources:
@@ -168,6 +170,7 @@ func run() -> void:
 	defense.ai_timer=99999
 	var defender_id := defense.spawn("tank",0,defense.grid.center(Vector2i(15,39)),false)
 	var foe_id := defense.spawn("tank",1,defense.grid.center(Vector2i(18,39)),false)
+	check(defense.entities_by_owner[0].has(defense.entities[defender_id]) and defense.entities_by_owner[1].has(defense.entities[foe_id]),"Combat candidate index tracks newly spawned units by owner")
 	defense.update_fog()
 	var defender: Dictionary = defense.entities[defender_id]
 	var destination := defense.grid.center(Vector2i(15,45))
@@ -176,11 +179,15 @@ func run() -> void:
 	check(defender.target==foe_id and not defense.projectiles.is_empty(),"Moving combat vehicle automatically fires on a visible armed threat")
 	check(defender.order=="move" and defender.destination==destination and defender.path_pending,"Automatic defense preserves the current travel order")
 	var economy_target := defense.spawn("harvester",1,defense.grid.center(Vector2i(16,39)),false)
+	check(defense.entities_by_owner[1].has(defense.entities[economy_target]),"Combat candidate index includes newly spawned enemy economy units")
 	defense.update_fog(); defender.target=economy_target; defender.reload=0
 	defense.combat(defender,1.0/30)
 	check(defender.target==foe_id,"Automatic defense switches from an economy target to an armed threat")
 	defense.fog[0].fill(0); defender.target=0; defender.reload=0; defense.projectiles.clear()
 	defense.combat(defender,1.0/30)
 	check(defender.target==0 and defense.projectiles.is_empty(),"Automatic defense does not target threats hidden by fog")
+	var destroyed_foe: Dictionary=defense.entities[foe_id]
+	defense.destroy(foe_id)
+	check(not defense.entities_by_owner[1].has(destroyed_foe),"Destroyed units are removed from the combat candidate index")
 	print("REGRESSION: %d checks, %d failures" % [checks,failures.size()])
 	quit(0 if failures.is_empty() else 1)

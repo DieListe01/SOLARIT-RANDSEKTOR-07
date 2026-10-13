@@ -1,14 +1,14 @@
 {
-  "current_version": "0.38.19",
+  "current_version": "0.38.20",
   "entries": [
     {
-      "version": "0.38.19",
+      "version": "0.38.20",
       "date": "13.10.2026",
-      "title": "Gebäudeansichten bei Cache-Misses stabil halten",
+      "title": "Renderstabilität und Zielsuche verbessern",
       "changes": [
-        "Eine fehlende animierte Gebäudeansicht ersetzt nicht mehr kurzzeitig das 3D-Gebäude durch die abweichende prozedurale Ansicht. Bis die neue Pose fertig ist, bleibt eine passende letzte 3D-Ansicht derselben Gebäudefamilie sichtbar.",
-        "Fraktion, Gebäudetyp, Ausrichtung, Turmziel, Ausbau, Entladung und Bauphase bleiben getrennte Cache-Familien. Eine Renderer-Regression prüft 600 Produktions-/Werft-Zustandssamples und die Fallback-Auswahl.",
-        "Diagnosemitschnitte können für jeden sichtbaren Gebäudeframe den Schlüssel, die gewählte Textur, den Fallback-Grund, Fraktion, Modellpfad und Animations-/Bauzustand erfassen."
+        "Bei animierten Gebäude-Cache-Misses bleibt die letzte gültige 3D-Ansicht derselben semantischen Gebäudefamilie sichtbar, bis die gewünschte Pose bereitsteht.",
+        "Die automatische Zielsuche durchsucht jetzt nur gegnerische Einheiten. Der 200-Fahrzeuge-Simulationstest sank lokal von 14,73 auf 10,53 ms pro Tick, ohne Bewegungs- oder Kampfregeln zu verändern.",
+        "Gebäude-Fallbacks werden semantisch getrennt geprüft; neue Regressionen kontrollieren 600 Produktionszustandssamples sowie die Besitzindizes der Kampfeinheiten."
       ]
     },
     {
