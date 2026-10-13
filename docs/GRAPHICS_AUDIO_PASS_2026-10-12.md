@@ -18,6 +18,12 @@ The installed voice catalog still has no German recordings: every line has an em
 
 The demo files are complete arrangements rather than compatible stems. From v0.38.18, tactical states select one full arrangement and transition at bar boundaries; the four complete arrangements are no longer mixed simultaneously. The runtime can now accept authored synchronized stems and fade them by combat state, with a safe fallback to existing arrangements. No authored stems are in the catalog yet, so the shipped music sounds unchanged. The underlying demo compositions remain placeholders and still require replacement and human listening approval.
 
+## Iteration v0.38.25 — role-specific Prisma building structure
+
+The contact sheet exposed a weakness that the earlier asset checklist missed: several Prisma buildings were distinguished mainly by repeated rings and their purpose was hard to read at the shared game camera. All eight Prisma Blender sources and GLBs now have role-specific faceted housing meshes. The factory uses an open four-column production portal with guide rails; the refinery keeps an ore separator bed; the repair facility has service cross-members; and the armory has four angular storage magazines. Shared orbital rings were removed from the factory, repair, armory, and levitation feet. The normal Godot building cache and all named animation pivots are retained. The faction contact sheets render again through the actual painter and are available in `test-output/` after the Visual group.
+
+This iteration improves one building family, not the full requested pass. It does not finish Wanderpakt building quality, all faction vehicle families, new licensed music, or German recorded unit voices. The generated models remain stylized hard-surface Blender assets and need a normal-match approval pass after release.
+
 ## Validation
 
 - `Test-Solarit.ps1 -Group Gameplay -OverallTimeoutMinutes 20 -HeartbeatSeconds 30`: 8/8 PASS.

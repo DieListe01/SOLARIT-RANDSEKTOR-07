@@ -89,6 +89,34 @@ def crystal(name,x,z,base,height,width,key="energy"):
     mesh=bpy.data.meshes.new(name+" · facet mesh"); mesh.from_pydata([(a,c,b) for a,b,c in verts],[],faces); mesh.materials.append(material(key))
     obj=bpy.data.objects.new(name,mesh); bpy.context.collection.objects.link(obj); return obj
 
+def angular_housing(name,center,width,height,depth,key="armor",profile=None):
+    """Build a role-shaped hard-surface volume from designed cross-sections.
+
+    This is deliberately not a scaled cube: the contour has clipped corners,
+    faceted shoulders and a different section profile for each building role.
+    Blender bevels and weighted normals keep the large planes readable at RTS
+    cache resolution.
+    """
+    x0,y0,z0=center
+    outline=[(-.30,-.50),(.30,-.50),(.48,-.31),(.50,.25),(.34,.50),(-.34,.50),(-.50,.25),(-.48,-.31)]
+    if profile is None:
+        profile=[(0.0,.72,.76,0.0,0.0),(.16,1.0,.96,0.0,0.0),(.76,1.0,1.0,0.0,0.0),(1.0,.78,.82,0.0,.02)]
+    verts=[]
+    for level,sx,sz,ox,oz in profile:
+        for px,pz in outline:
+            verts.append((x0+ox*width+px*width*sx,z0+oz*depth+pz*depth*sz,y0+level*height))
+    ring_count=len(outline); faces=[tuple(reversed(range(ring_count))),tuple(range((len(profile)-1)*ring_count,len(profile)*ring_count))]
+    for ring in range(len(profile)-1):
+        for i in range(ring_count):
+            a=ring*ring_count+i; b=ring*ring_count+(i+1)%ring_count
+            faces.append((a,b,b+ring_count,a+ring_count))
+    mesh=bpy.data.meshes.new(name+" · designed hard-surface mesh")
+    mesh.from_pydata(verts,[],faces); mesh.materials.append(material(key)); mesh.validate(); mesh.update()
+    obj=bpy.data.objects.new(name,mesh); bpy.context.collection.objects.link(obj)
+    bevel=obj.modifiers.new("Small machined edge highlights","BEVEL"); bevel.width=min(.035,width*.025,height*.03); bevel.segments=2
+    normal=obj.modifiers.new("Planar surface normals","WEIGHTED_NORMAL"); normal.keep_sharp=True
+    return obj
+
 def foundation(root,kind,w,d):
     key="light" if _FACTION=="drift" else "dark"
     if _FACTION=="drift":
@@ -104,7 +132,8 @@ def foundation(root,kind,w,d):
         for a in (0,math.tau/3,math.tau*2/3):
             x=math.cos(a)*w*.38; z=math.sin(a)*d*.38
             cyl("Flux suspension pad",(x,.20,z),.23,.10,"energy","Y",16)
-            torus("Magnetic containment lip",(x,.25,z),.22,.026,"light")
+            crystal("Faceted gravitic foot",x,z,.22,.27,.16,"light")
+            rod("Triangular levitation strut",(x*.70,.40,z*.70),(x,.24,z),.045,"steel")
         box("Floating central armor slab",(0,.43,0),(w*.67,.12,d*.67),"dark",.025)
     # Every building has one bright ownership badge, but never uses it as the
     # main faction distinction.
@@ -187,6 +216,10 @@ def prisma_role(root,kind,w,d):
     if kind=="core":
         # A suspended command prism, not a bunker; its angular crystal stack is
         # visible in monochrome and protected by a rotating sensor crown.
+        angular_housing("Command lattice · faceted levitation vault",(0,.43,0),w*.72,.82,d*.68,"dark",
+            [(0,.56,.72,0,0),(.18,1,.92,0,0),(.58,.82,1,0,.02),(.78,.58,.74,0,.04),(1,.30,.48,0,.06)])
+        for side in (-1,1):
+            plate("Cut-in command armor cheek",[(side*.22,.02),(side*.48,-.12),(side*.40,.31),(side*.20,.44)],.86,1.18,"steel")
         crystal("Command keystone",0,0,.48,1.62,.70,"ceramic")
         for i in range(3):
             a=i*math.tau/3; x=math.cos(a)*.76; z=math.sin(a)*.76
@@ -195,6 +228,10 @@ def prisma_role(root,kind,w,d):
         sensor=pivot("CommandSensorPivot",(0,1.95,0)); torus("Prismatic scan ring",(0,1.95,0),.65,.05,"amber",sensor)
         for i in range(6): crystal("Ring sensor",math.cos(i*math.tau/6)*.65,math.sin(i*math.tau/6)*.65,1.9,.20,.10,"team")
     elif kind=="power":
+        angular_housing("Bipolar flux reactor · split-waist housing",(0,.44,0),w*.78,.70,d*.72,"dark",
+            [(0,.52,.70,0,0),(.14,1,.92,0,0),(.42,.68,.74,0,0),(.72,.92,.86,0,.03),(1,.48,.62,0,.04)])
+        for side in (-1,1):
+            plate("Reactor ceramic heat shield",[(side*.10,.10),(side*.34,.04),(side*.42,.34),(side*.18,.46)],.89,1.12,"ceramic")
         for i in range(6):
             a=i*math.tau/6; x=math.cos(a)*.67; z=math.sin(a)*.67
             crystal("Flux stabilizer %d"%i,x,z,.46,.78,.24,"light")
@@ -204,6 +241,10 @@ def prisma_role(root,kind,w,d):
         crystal("Central phase core",0,0,.58,.95,.35,"ceramic")
         for i in range(4): box("Vector distribution node",(-.48+i*.32,.62,d*.40),(.20,.32,.09),"glass",.02)
     elif kind=="refinery":
+        angular_housing("Ore phase-separator · sloped process bed",(0,.40,-.08),w*.90,.52,d*.74,"steel",
+            [(0,.62,.60,0,0),(.16,1,.92,0,0),(.52,.92,.78,0,-.04),(.78,.62,.55,0,-.08),(1,.42,.40,0,-.10)])
+        for side in (-1,1):
+            plate("Ore intake cheek",[(side*.18,.06),(side*.48,-.08),(side*.34,.32),(side*.16,.26)],.72,.96,"dark")
         for i in range(3):
             x=-.66+i*.66
             crystal("Solarit phase separator",x,-.1,.51,1.04,.32,"light")
@@ -215,15 +256,31 @@ def prisma_role(root,kind,w,d):
             cyl("Light-guided ore conveyor roller",(x,.46,-d*.40),.045,.65,"steel","X",12)
             box("Hexagonal conveyor flight",(x,.52,-d*.40),(.08,.045,.6),"amber",.01)
     elif kind=="factory":
-        for a in range(4):
-            angle=a*math.pi/2; x=math.cos(angle)*.92; z=math.sin(angle)*.92
-            rod("Swept assembly arch foot",(x,.44,z),(x*.66,1.92,z*.66),.075,"steel")
-            rod("Arch phase conductor",(x*.96,.50,z*.96),(x*.67,1.82,z*.67),.022,"energy")
-        for y in (.78,1.34,1.90): torus("Assembly field hoop",(0,y,0),.93-(y-.78)*.11,.035,"light")
-        crane=pivot("ProductionCrane",(0,1.95,0)); box("Prismatic assembly trolley",(0,1.91,0),(.50,.12,.34),"team",.025,parent=crane)
-        for x in (-.3,.3): rod("Suspended manipulator",(x,1.91,0),(x,.80,0),.025,"amber",crane)
+        angular_housing("Fabrication keel · low segmented floor housing",(0,.42,.08),w*.56,.28,d*.62,"dark",
+            [(0,.56,.66,0,0),(.18,1,.94,0,0),(.58,.88,.76,0,0),(1,.62,.54,0,.05)])
+        for side in (-1,1):
+            plate("Split assembly armor wing",[(side*.18,.08),(side*.46,-.18),(side*.40,.15),(side*.22,.28)],.73,1.01,"ceramic")
+        # An unmistakable open production portal: four load-bearing columns,
+        # twin gantry rails and a moving central manipulator replace the generic
+        # orbital hoop silhouette used by the former blockout.
+        for x in (-.88,.88):
+            for z in (-.78,.78):
+                angular_housing("Prismatic gantry column",(x,.46,z),.27,1.34,.30,"steel",
+                    [(0,.56,.60,0,0),(.12,1,1,0,0),(.72,.74,.76,0,0),(1,.50,.60,0,.02)])
+                plate("Column phase rail",[(x-.055,.14),(x+.055,.14),(x+.045,.38),(x-.045,.38)],.72,1.63,"energy")
+        for z in (-.78,.78):
+            angular_housing("Gantry crosshead",(0,1.72,z),1.78,.24,.25,"dark",
+                [(0,.76,.72,0,0),(.16,1,1,0,0),(.82,.94,.88,0,0),(1,.68,.70,0,0)])
+            rod("Phase-rail conductor",(-.84,1.68,z-.12),(.84,1.68,z-.12),.035,"energy")
+        for x in (-.46,.46): rod("Production gantry guide rail",(x,1.66,-.69),(x,1.66,.69),.055,"light")
+        crane=pivot("ProductionCrane",(0,1.82,0)); box("Prismatic assembly trolley",(0,1.76,0),(.54,.18,.40),"team",.035,parent=crane)
+        for x in (-.25,.25): rod("Suspended manipulator",(x,1.70,0),(x,.83,0),.038,"amber",crane)
         crystal("Vehicle fabrication seed",0,0,.47,.42,.33,"energy")
     elif kind=="tower":
+        angular_housing("Beam emitter · three-stage faceted pedestal",(0,.42,0),w*.68,.78,d*.68,"dark",
+            [(0,.56,.58,0,0),(.14,1,1,0,0),(.42,.78,.82,0,0),(.67,.56,.62,0,.02),(1,.36,.38,0,.03)])
+        for side in (-1,1):
+            plate("Emitter ceramic shoulder",[(side*.08,.02),(side*.27,-.06),(side*.22,.22),(side*.09,.27)],.92,1.17,"ceramic")
         plate("Geometric defense dais",[(-.46,-.46),(.46,-.46),(.50,0),(.46,.46),(-.46,.46),(-.50,0)],.44,.74,"steel")
         for x,z in ((-.32,-.32),(.32,-.32),(.32,.32),(-.32,.32)):
             crystal("Tetrahedral lift strut",x,z,.48,.72,.16,"energy")
@@ -231,6 +288,10 @@ def prisma_role(root,kind,w,d):
         for side in (-1,1): cyl("Twin coherent emitter",(side*.18,1.24,-.44),.09,.48,"energy","Z",16,gun)
         torus("Beam alignment bearing",(0,1.13,0),.42,.04,"amber",gun)
     elif kind=="radar":
+        angular_housing("Sensor array · rising signal plinth",(0,.42,0),w*.72,.82,d*.70,"dark",
+            [(0,.58,.72,0,0),(.16,1,.94,0,0),(.50,.78,.72,0,.02),(.80,.52,.52,0,.04),(1,.28,.42,0,.06)])
+        for side in (-1,1):
+            plate("Phased-array battery cheek",[(side*.10,-.06),(side*.34,-.18),(side*.27,.20),(side*.12,.28)],.80,1.08,"steel")
         crystal("Tall sensor monolith",0,0,.48,1.36,.37,"light")
         rotor=pivot("RadarRotor",(0,1.80,0))
         for i in range(3):
@@ -239,21 +300,34 @@ def prisma_role(root,kind,w,d):
             crystal("Wing lens",x,z,1.71,.22,.12,"amber")
         torus("Sensor induction ring",(0,1.80,0),.23,.045,"team",rotor)
     elif kind=="repair":
+        angular_housing("Service cradle · open angular base",(0,.42,0),w*.86,.42,d*.82,"dark",
+            [(0,.60,.62,0,0),(.22,1,1,0,0),(.55,.82,.80,0,0),(.78,.62,.62,0,.03),(1,.48,.46,0,.04)])
+        for side in (-1,1):
+            plate("Service cradle side shield",[(side*.16,-.12),(side*.42,-.28),(side*.36,.25),(side*.18,.33)],.67,.91,"ceramic")
         for a in (0,math.pi/2,math.pi,math.pi*1.5):
             x=math.cos(a)*.6; z=math.sin(a)*.6
             rod("Repair lattice upright",(x,.48,z),(x,1.68,z),.055,"light")
-        for y in (.70,1.32,1.76): torus("Diagnostic service halo",(0,y,0),.73-(y-.7)*.12,.038,"energy")
+        for y in (.74,1.62):
+            rod("Service gantry cross-member",(-.66,y,0),(.66,y,0),.06,"energy")
+            for side in (-1,1): box("Cross-member clamp",(side*.66,y,0),(.12,.15,.28),"steel",.02)
         for side in (-1,1):
             arm=pivot("RepairArmLeft" if side<0 else "RepairArmRight",(side*.55,1.17,0))
             rod("Articulated laser service arm",(side*.55,1.17,0),(side*.21,.88,-.48),.045,"amber",arm)
             cyl("Precision weld emitter",(side*.21,.88,-.48),.10,.15,"team","Y",16,arm)
         plate("Suspended repair platform",[(-.62,-.7),(.62,-.7),(.52,.7),(-.52,.7)],.48,.61,"dark")
     else:
-        for i in range(6):
-            a=i*math.tau/6; x=math.cos(a)*.58; z=math.sin(a)*.58
-            crystal("Vacuum-sealed ordnance prism",x,z,.48,.93,.19,"ceramic")
-            torus("Individually indexed safety collar",(x,.82,z),.22,.025,"amber")
-        lift=pivot("OrdnanceLift",(0,1.55,0)); crystal("Automated ammunition elevator",0,0,1.4,.42,.30,"energy")
+        angular_housing("Ammunition vault · stepped polygon magazine",(0,.42,0),w*.82,.78,d*.82,"dark",
+            [(0,.58,.64,0,0),(.12,1,.92,0,0),(.46,.90,.82,0,0),(.66,.66,.68,0,.04),(1,.38,.44,0,.06)])
+        for side in (-1,1):
+            plate("Magazine blast cheek",[(side*.12,-.10),(side*.38,-.22),(side*.32,.24),(side*.13,.32)],.88,1.13,"steel")
+        for i in range(4):
+            a=math.tau*i/4+math.pi/4; x=math.cos(a)*.60; z=math.sin(a)*.60
+            angular_housing("Vacuum-sealed ordnance magazine %02d"%i,(x,.48,z),.30,.82,.30,"ceramic",
+                [(0,.68,.68,0,0),(.10,1,1,0,0),(.72,.88,.90,0,0),(1,.60,.58,0,.03)])
+            plate("Magazine pressure window %02d"%i,[(x-.065,.08),(x+.065,.08),(x+.045,.31),(x-.045,.31)],.86,.90,"energy")
+        lift=pivot("OrdnanceLift",(0,1.55,0));
+        angular_housing("Automated ammunition elevator",(0,1.4,0),.48,.42,.48,"energy",
+            [(0,.50,.54,0,0),(.2,1,1,0,0),(.72,.74,.76,0,0),(1,.42,.48,0,.04)])
 
 def build(faction,kind):
     global _FACTION,M

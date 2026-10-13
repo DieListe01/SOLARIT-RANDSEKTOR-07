@@ -1,6 +1,17 @@
 {
-  "current_version": "0.38.24",
+  "current_version": "0.38.25",
   "entries": [
+    {
+      "version": "0.38.25",
+      "date": "13.10.2026",
+      "title": "Prisma-Gebäude klarer nach Funktion formen",
+      "changes": [
+        "Alle acht Prisma-Gebäuderollen erhalten stärker zweckgebundene facettierte Baukörper und unterscheidbare Anlagen, darunter ein offenes Werftportal mit Kranbahnen, ein Phasen-Trennbett der Raffinerie und ein Magazinblock für die Rüstung.",
+        "Wiederkehrende Ringgerüste wurden bei Werft, Serviceanlage und Munitionswerk durch funktionsbezogene Tragwerke ersetzt. Editierbare Blender-Quellen, GLBs und die bestehenden Animationsknoten bleiben erhalten.",
+        "Die Gebäudeansichten nutzen weiterhin denselben Godot-SubViewport-Renderer und dieselben spielmechanischen Gebäudedaten.",
+        "Musik-Demos bleiben Platzhalter; finale Kompositionen und deutsche Sprachaufnahmen sind weiterhin offen."
+      ]
+    },
     {
       "version": "0.38.24",
       "date": "13.10.2026",

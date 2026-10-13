@@ -2,6 +2,12 @@
 
 Stand: 09.10.2026
 
+## Iteration v0.38.25 — Prisma-Gebäude nach Funktion differenzieren
+
+Die acht Prisma-Gebäuderollen wurden in den editierbaren Blender-Szenen und GLBs überarbeitet. Facettierte, geformte Hard-Surface-Körper ergänzen die bisherigen Anlagen; Werft, Reparatur und Munitionswerk verwenden nun Portalträger, Servicequerträger bzw. Magazine statt der zuvor wiederholten Orbit-/Ringgerüste. Die Werft behält den adressierbaren `ProductionCrane`-Knoten; alle bestehenden Rollen-Pivots, Godot-Gebäudedaten und der 2.5D-Cache-Renderer bleiben erhalten.
+
+Die Kobalt-/Wanderpakt-/Prisma-Kontaktkarten werden mit dem echten `BuildingCachePainter` bei identischer Kamera neu erzeugt, zusätzlich in Graustufen. Die Phaserfassung prüft für jede Prisma-Rolle auch, dass das jeweilige funktionale Mesh in der importierten GLB-Szene vorhanden ist. Die Darstellung bleibt stilisiertes Low-Poly-Hard-Surface und erreicht noch keine manuell ausgearbeiteten High-End-Assets, aufwändigen Decals oder vollständig materialgeschichteten Oberflächen. Wanderpakt-Gebäude und die Fraktionsfahrzeugfamilien benötigen weiter eigenständige Qualitätsarbeit.
+
 ## Ergebnis
 
 Die acht Gebäuderollen haben nun eigene, zweckgebundene Blender-Modelle: Kommandozentrum, Reaktor, Raffinerie, Montagewerft, Geschützstellung, Radar, Reparaturhangar und Munitionswerk. Die Unterschiede liegen in Grundriss und Silhouette, Anlagen und beweglichen Baugruppen; sie beruhen nicht allein auf Farbvarianten. Alle sieben Kampf- und Aufklärungsfahrzeuge haben ebenfalls rollenspezifische Formen und Geräte. Der bereits spezialisierte Solarit-Sammler bleibt als eigenes Modell erhalten.

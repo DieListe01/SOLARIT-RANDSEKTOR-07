@@ -5,6 +5,16 @@ const CatalogType=preload("res://scripts/catalog.gd")
 const SimulationType=preload("res://scripts/simulation.gd")
 const KINDS=["core","power","refinery","factory","tower","radar","repair","armory"]
 const FACTIONS=["forge","drift","lumen"]
+const LUMEN_ROLE_HOUSINGS={
+	"core":"Command lattice",
+	"power":"Bipolar flux reactor",
+	"refinery":"Ore phase-separator",
+	"factory":"Prismatic gantry column",
+	"tower":"Beam emitter",
+	"radar":"Sensor array",
+	"repair":"Service cradle",
+	"armory":"Ammunition vault",
+}
 const CELL=512
 var captured:Dictionary={}
 
@@ -39,6 +49,13 @@ func run()->void:
 			var imported=painter.get_node_or_null(expected_name) as Node3D
 			assert(imported!=null,"real building painter did not select %s/%s GLB"%[faction,kind])
 			assert(imported.find_child("TeamColor",true,false) is MeshInstance3D,"%s/%s must preserve ownership identification"%[faction,kind])
+			if faction=="lumen":
+				var role_geometry:MeshInstance3D
+				for child in imported.find_children("*","MeshInstance3D",true,false):
+					if str(child.name).begins_with(str(LUMEN_ROLE_HOUSINGS[kind])):
+						role_geometry=child as MeshInstance3D
+						break
+				assert(role_geometry!=null and role_geometry.mesh!=null and role_geometry.mesh.get_surface_count()>0,"Prisma %s must retain its function-specific authored housing mesh"%kind)
 			for pivot in ["CommandSensorPivot","ReactorRotor","RadarRotor","TurretPivot","ProductionCrane","RepairArmLeft","RepairArmRight","OrdnanceLift","UnloadGate"]:
 				if imported.find_child(pivot,true,false)!=null:
 					assert(imported.find_child(pivot,true,false) is Node3D,"%s/%s pivot %s must be poseable"%[faction,kind,pivot])
