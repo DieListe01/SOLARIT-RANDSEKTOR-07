@@ -12,8 +12,8 @@
       "asset_status": "candidate",
       "approval": "pending",
       "source": {
-        "author": "vitalezzz",
-        "url": "https://opengameart.org/content/inevitable"
+        "author": "Bobjt",
+        "url": "https://opengameart.org/content/our-expanse"
       },
       "license": {
         "name": "CC0 1.0",
@@ -26,9 +26,9 @@
         "sample_rate": 48000,
         "channels": 2,
         "bit_depth": 0,
-        "duration_seconds": 194.7
+        "duration_seconds": 148.4
       },
-      "sha256": "64cd808a8f27e160008c45cbf41d4083f9954ab586c7d9f4186abc1011998b88"
+      "sha256": "a9665cf8ce393e448dda5540513e500702dd934a28ad79b0455483bc13a71337"
     },
     {
       "id": "forge_calm_a",
@@ -309,8 +309,8 @@
       "asset_status": "candidate",
       "approval": "pending",
       "source": {
-        "author": "Alexander Ehlers / tricksntraps",
-        "url": "https://opengameart.org/content/t-t-free-cyberpunk-pack-2"
+        "author": "skrjablin",
+        "url": "https://opengameart.org/content/the-final-battle"
       },
       "license": {
         "name": "CC0 1.0",
@@ -541,7 +541,7 @@
         "bit_depth": 0,
         "duration_seconds": 10.0
       },
-      "sha256": "8399c7c3e0b8452234463e2ee7beb9f236a8da77775f3027e953831b35ed68cc"
+      "sha256": "2810caa55859e0569cb68f01af574bb9bd3ca61551602ad65f3713543e6506b9"
     },
     {
       "id": "stinger_objective_complete",
@@ -568,7 +568,7 @@
         "bit_depth": 0,
         "duration_seconds": 5.4775
       },
-      "sha256": "b152d990e32e954c126c93dbfe3966787abccac87374d2e0ddf4eec959dc75a3"
+      "sha256": "b0d4f4e8dde271de4d1d7650353a3fceed0fd0670af6f0605ca4f1a2b5bea250"
     },
     {
       "id": "stinger_major_alert",
@@ -595,7 +595,7 @@
         "bit_depth": 0,
         "duration_seconds": 7.5
       },
-      "sha256": "86992d0bdaf0a91e7612493e87d24bd60b58d7f0fcc42160f02d483b01c25ab8"
+      "sha256": "7fff1232ffd6a1ccafe862ac2efe64a3579286c09db30e7d3876522fb94d0a76"
     },
     {
       "id": "stinger_victory",
@@ -622,7 +622,7 @@
         "bit_depth": 0,
         "duration_seconds": 10.0
       },
-      "sha256": "24428cdbe32a7732ff2babf6d8d4e05f6aedcdedd0a563beac881f317fe22bcf"
+      "sha256": "ac3adcc998c2a34bf4b8fb8f09b64a86ab1efcb99d551f4e284f3bee46762dda"
     },
     {
       "id": "stinger_defeat",
@@ -649,7 +649,7 @@
         "bit_depth": 0,
         "duration_seconds": 8.0
       },
-      "sha256": "8b8447721c98d535f148c78bec6e7e14f5fc3e6b0fa0b73f89ea374128e56740"
+      "sha256": "c2f04c45562fa2ee6d04811bcc1f523103dad609ae6f3e343243b8d24560470e"
     },
     {
       "id": "kenney_select_click",
@@ -876,62 +876,6 @@
       "sha256": "b6f779d21190e0d5638d89858af8b3b06be49003c5180b3b8e145587f528677f"
     },
     {
-      "id": "kenney_harvest_collect",
-      "kind": "sfx",
-      "faction": "global",
-      "state": "harvest_collect_demo",
-      "catalog_path": "res://assets/audio/sfx/kenney/impactMetal_002.ogg",
-      "asset_status": "candidate",
-      "approval": "pending",
-      "source": {
-        "name": "Kenney Sci-Fi Sounds",
-        "url": "https://kenney.nl/assets/sci-fi-sounds",
-        "author": "Kenney"
-      },
-      "license": {
-        "name": "CC0 1.0",
-        "status": "cleared",
-        "commercial_use": true,
-        "attribution": "Kenney (optional)"
-      },
-      "technical": {
-        "codec": "vorbis",
-        "sample_rate": 48000,
-        "channels": 1,
-        "bit_depth": 0,
-        "duration_seconds": 0.4711
-      },
-      "sha256": "f42864fe2efffb507e4f2c3712d766288714cce52b1c1fdc58cef33b4f82c1c8"
-    },
-    {
-      "id": "kenney_harvest_unload",
-      "kind": "sfx",
-      "faction": "global",
-      "state": "harvest_unload_demo",
-      "catalog_path": "res://assets/audio/sfx/kenney/doorClose_000.ogg",
-      "asset_status": "candidate",
-      "approval": "pending",
-      "source": {
-        "name": "Kenney Sci-Fi Sounds",
-        "url": "https://kenney.nl/assets/sci-fi-sounds",
-        "author": "Kenney"
-      },
-      "license": {
-        "name": "CC0 1.0",
-        "status": "cleared",
-        "commercial_use": true,
-        "attribution": "Kenney (optional)"
-      },
-      "technical": {
-        "codec": "vorbis",
-        "sample_rate": 48000,
-        "channels": 1,
-        "bit_depth": 0,
-        "duration_seconds": 0.5316
-      },
-      "sha256": "541246e81342ff2ee9bf2c98dd9f7d966e2fef5fd2b6aab1d0f053bbc66da893"
-    },
-    {
       "id": "kenney_engine",
       "kind": "sfx",
       "faction": "global",
@@ -958,34 +902,6 @@
         "duration_seconds": 5.0
       },
       "sha256": "479055b8e920661487f37a0f9b579859584215f136b51a924c077fab18d0d012"
-    },
-    {
-      "id": "kenney_harvester_loop",
-      "kind": "sfx",
-      "faction": "global",
-      "state": "harvester_work_demo",
-      "catalog_path": "res://assets/audio/sfx/kenney/engineCircular_002.ogg",
-      "asset_status": "candidate",
-      "approval": "pending",
-      "source": {
-        "name": "Kenney Sci-Fi Sounds",
-        "url": "https://kenney.nl/assets/sci-fi-sounds",
-        "author": "Kenney"
-      },
-      "license": {
-        "name": "CC0 1.0",
-        "status": "cleared",
-        "commercial_use": true,
-        "attribution": "Kenney (optional)"
-      },
-      "technical": {
-        "codec": "vorbis",
-        "sample_rate": 48000,
-        "channels": 1,
-        "bit_depth": 0,
-        "duration_seconds": 5.0
-      },
-      "sha256": "0650b5456324d334bcef1106add4fe42b5ef5991a7da8a1196f6f37d49f18018"
     },
     {
       "id": "kenney_ballistic_light_shot_01",
@@ -2330,6 +2246,90 @@
         "duration_seconds": 0.599
       },
       "sha256": "d5c8d00b7acac68063ceb45cc00f16d567e7ee47ae6d4f51ac8aa9b2fa307e9c"
+    },
+    {
+      "id": "kenney_harvest_collect",
+      "kind": "sfx",
+      "faction": "global",
+      "state": "harvest_collect",
+      "catalog_path": "res://assets/audio/sfx/kenney/impactMetal_002.ogg",
+      "asset_status": "candidate",
+      "approval": "pending",
+      "source": {
+        "name": "Kenney Sci-Fi Sounds",
+        "url": "https://kenney.nl/assets/sci-fi-sounds",
+        "author": "Kenney"
+      },
+      "license": {
+        "name": "CC0 1.0",
+        "status": "cleared",
+        "commercial_use": true,
+        "attribution": "Kenney (optional)"
+      },
+      "technical": {
+        "codec": "vorbis",
+        "sample_rate": 48000,
+        "channels": 1,
+        "bit_depth": 0,
+        "duration_seconds": 0.4711
+      },
+      "sha256": "f42864fe2efffb507e4f2c3712d766288714cce52b1c1fdc58cef33b4f82c1c8"
+    },
+    {
+      "id": "kenney_harvest_unload",
+      "kind": "sfx",
+      "faction": "global",
+      "state": "harvest_unload",
+      "catalog_path": "res://assets/audio/sfx/kenney/doorClose_000.ogg",
+      "asset_status": "candidate",
+      "approval": "pending",
+      "source": {
+        "name": "Kenney Sci-Fi Sounds",
+        "url": "https://kenney.nl/assets/sci-fi-sounds",
+        "author": "Kenney"
+      },
+      "license": {
+        "name": "CC0 1.0",
+        "status": "cleared",
+        "commercial_use": true,
+        "attribution": "Kenney (optional)"
+      },
+      "technical": {
+        "codec": "vorbis",
+        "sample_rate": 48000,
+        "channels": 1,
+        "bit_depth": 0,
+        "duration_seconds": 0.5316
+      },
+      "sha256": "541246e81342ff2ee9bf2c98dd9f7d966e2fef5fd2b6aab1d0f053bbc66da893"
+    },
+    {
+      "id": "kenney_harvester_loop",
+      "kind": "sfx",
+      "faction": "global",
+      "state": "harvester_work",
+      "catalog_path": "res://assets/audio/sfx/kenney/engineCircular_002.ogg",
+      "asset_status": "candidate",
+      "approval": "pending",
+      "source": {
+        "name": "Kenney Sci-Fi Sounds",
+        "url": "https://kenney.nl/assets/sci-fi-sounds",
+        "author": "Kenney"
+      },
+      "license": {
+        "name": "CC0 1.0",
+        "status": "cleared",
+        "commercial_use": true,
+        "attribution": "Kenney (optional)"
+      },
+      "technical": {
+        "codec": "vorbis",
+        "sample_rate": 48000,
+        "channels": 1,
+        "bit_depth": 0,
+        "duration_seconds": 5.0
+      },
+      "sha256": "0650b5456324d334bcef1106add4fe42b5ef5991a7da8a1196f6f37d49f18018"
     },
     {
       "id": "voice_forge_select_01",

@@ -20,6 +20,9 @@ Die folgenden lizenzierten Quellen sind für den internen Audio-Abnahmestand ver
 - vitalezzz, *Inevitable*, CC0 1.0; https://opengameart.org/content/inevitable
 - Emma_MA, *Determined Pursuit*, CC0 / Public Domain; https://opengameart.org/content/determined-pursuit-epic-orchestra-loop
 - Basil, *Prepare to Fight*, CC0 1.0; https://opengameart.org/content/prepare-to-fight
+- Bobjt, *Our Expanse*, CC0 1.0; https://opengameart.org/content/our-expanse
+- skrjablin, *The Final Battle*, CC0 1.0 / public domain; https://opengameart.org/content/the-final-battle
+- rubberduck, *60 CC0 Sci-Fi SFX*, CC0 1.0; https://opengameart.org/content/60-cc0-sci-fi-sfx. Downloaded for review; not yet selected for runtime.
 - Thorsten-Voice emotional Piper-Modell und Sprechdatenbank, CC0 1.0; https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/de/de_DE/thorsten_emotional/medium. Nur die generierten Sprachclips werden ausgeliefert; das Inferenzmodell bleibt außerhalb des Spielpakets.
 
 Die Musiktitel sind kuratierte und bearbeitete CC0-Aufnahmen, keine neu komponierte Originalmusik. Die Sprachclips sind neuronale deutsche TTS-Stimmen, keine Studioaufnahmen. Alle Audioeinträge bleiben bis zur Abnahme als `candidate` markiert. Die Renderwerkzeuge verwenden FFmpeg und libvorbis während der Asset-Erzeugung, werden jedoch nicht in den Windows-Spielbuild eingebettet.

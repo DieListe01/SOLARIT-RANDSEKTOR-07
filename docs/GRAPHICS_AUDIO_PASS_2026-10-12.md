@@ -14,7 +14,7 @@ The visual suite regenerates faction vehicle and building contact sheets and exe
 
 ## Audio status
 
-The audio pass replaces the demo catalogue with a 194.7-second title candidate, six tactical states per faction, five stingers, 118 German neural-TTS voice candidates, and curated CC0 SFX. They are integrated and technically validated, but all remain `candidate` / `pending` until the human listening gate is completed. The music is curated and mastered CC0 material, not an original commissioned score; the voices are speaker variants of one TTS model, not studio actors. This is a substantial candidate pass, not final professional audio approval.
+The audio pass replaces the demo catalogue with a 148.4-second title candidate, six tactical states per faction, five stingers, 118 German neural-TTS voice candidates, and curated CC0 SFX. They are integrated and technically validated, but all remain `candidate` / `pending` until the human listening gate is completed. The music is curated and mastered CC0 material, not an original commissioned score; the voices are speaker variants of one TTS model, not studio actors. This is a substantial candidate pass, not final professional audio approval.
 
 Open `test-output/audio-review/index.html` for an individual player for each of the 180 music, voice, and SFX clips; `SOLARIT-Audio-Abnahme-Preview.ogg` is the timestamped medley. All audio paths in the page were checked. The previous review page pointed at superseded demos and has been replaced. The release gate intentionally blocks pending assets. Review still needs to cover the title and tactical music at 30 seconds and five minutes, plus voices and effects during a real match.
 
@@ -58,6 +58,14 @@ The renderer now builds an 8× supersampled presentation mask from mission terra
 `tools/build_audio_review.py` generates the corrected local audition page. `python tools/audio_pipeline.py --check` passes. The strict release gate remains blocked by pending human listening approvals and must stay so until listening evidence is recorded. No candidate is presented as a final approved score, voice performance, or SFX mix.
 
 The full local regression completed with 50/50 PASS across all 12 groups, including all three Multiplayer tests. Its API test needs local loopback permission; the sandbox-only run failed with Windows `10013`, then the same test and full suite passed with local network access. The suite left no Godot processes behind. The regression summary and per-test stdout/stderr are under `test-output/ci/`.
+
+## Iteration v0.38.29 — title and harvester audio revision
+
+The title cue now uses the CC0 loop *Our Expanse* (148.4 seconds), described by its author as a calm space opening with a cinematic build. Wanderpakt high battle now uses the CC0 orchestral *The Final Battle*. These are selected third-party recordings rather than original SOLARIT compositions, and remain `candidate` / `pending`.
+
+The harvester no longer triggers the crystal collection accent on the same frame as harvest start. Its work loop begins with the harvesting state, a metallic pickup accent follows actual cargo thresholds, and a distinct CC0 door mechanism cues unloading. The 60-file CC0 SFX pack was downloaded to an ignored review staging folder but was not imported because its numeric filenames do not identify individual sounds without audition.
+
+The audio review page and manifest were regenerated. The strict release gate still blocks publication until the listening checks have been completed by a person. Focused audio tests and full regression for v0.38.29 are pending in this working-tree change.
 
 ## Open work
 

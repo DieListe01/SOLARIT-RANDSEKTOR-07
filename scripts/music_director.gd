@@ -44,6 +44,8 @@ var audio_listener: AudioListener2D
 var harvest_loop: AudioStreamPlayer2D
 var voice_duck := 1.0
 var speech: Variant
+var harvest_collection_cooldown := 0.0
+var harvest_cargo_buckets: Dictionary = {}
 const LAYER_NAMES = ["calm_a","calm_b","contact","battle_low","battle_high","critical"]
 const CATALOG_PATH := "res://assets/audio/music_catalog.json"
 
@@ -75,9 +77,6 @@ func _ready() -> void:
 	add_child(speech)
 	for name_value in ["select","move","build","complete","ready","alarm","victory","defeat","error","save","shot","explosion","impact","pulse_shot","cannon_shot","siege_shot"]:
 		samples[name_value]=load("res://assets/audio/"+name_value+".wav")
-	samples["harvest_start_demo"]=load("res://assets/audio/sfx/harvest_start_demo.ogg")
-	samples["harvest_collect_demo"]=load("res://assets/audio/sfx/harvest_collect_demo.ogg")
-	samples["harvest_unload_demo"]=load("res://assets/audio/sfx/harvest_unload_demo.ogg")
 	for family_name in CombatEffects.FAMILIES.keys():
 		for event_name in ["shot","impact"]:
 			var cue_name: String = family_name.to_lower()+"_"+event_name
@@ -123,7 +122,7 @@ func _ready() -> void:
 	harvest_loop.attenuation=0.0
 	harvest_loop.max_distance=1800.0
 	harvest_loop.panning_strength=0.0
-	var harvest_source: AudioStream=samples.get("harvester_work_demo",load("res://assets/audio/sfx/harvester_work_demo.ogg")) as AudioStream
+	var harvest_source: AudioStream=samples.get("harvester_work",load("res://assets/audio/sfx/harvester_work_demo.ogg")) as AudioStream
 	if harvest_source is AudioStreamOggVorbis:
 		var harvest_stream:=harvest_source.duplicate() as AudioStreamOggVorbis
 		harvest_stream.loop=true
@@ -174,6 +173,8 @@ func start(model: Simulation) -> void:
 	for stem_player in stem_players: stem_player.stream_paused=false; stem_player.stop(); stem_player.stream=null; stem_player.queue_free()
 	stem_players.clear()
 	stem_names.clear()
+	harvest_cargo_buckets.clear()
+	harvest_collection_cooldown=0.0
 	adaptive_stem_set.clear()
 	selected_tracks.clear()
 	var faction_data: Dictionary=music_catalog.get("factions",{}).get(faction_id,{})
@@ -377,6 +378,26 @@ func set_harvester_working(active: bool, screen_position: Vector2 = Vector2(-1,-
 	harvest_loop.volume_db=linear_to_db(maxf(0.001,sfx_volume*attenuation*0.5))
 	if not harvest_loop.playing: harvest_loop.play()
 
+func _update_harvest_collection_audio() -> void:
+	if sim==null: return
+	var active_harvesters: Dictionary={}
+	for entity in sim.entities.values():
+		if entity.kind!="harvester" or entity.owner!=sim.view_owner or entity.harvest_state!="HARVEST": continue
+		var unit_id:=int(entity.id)
+		active_harvesters[unit_id]=true
+		var cargo_bucket:=floori(float(entity.cargo)/24.0)
+		if not harvest_cargo_buckets.has(unit_id):
+			harvest_cargo_buckets[unit_id]=cargo_bucket
+			continue
+		var previous_bucket:=int(harvest_cargo_buckets[unit_id])
+		if cargo_bucket>previous_bucket and harvest_collection_cooldown<=0.0 and samples.has("harvest_collect"):
+			harvest_cargo_buckets[unit_id]=cargo_bucket
+			var sound_position:=harvest_loop.position if harvest_loop.panning_strength>0.0 else Vector2(-1,-1)
+			cue("harvest_collect",0.24,sound_position)
+			harvest_collection_cooldown=1.0
+	for unit_id in harvest_cargo_buckets.keys():
+		if not active_harvesters.has(unit_id): harvest_cargo_buckets.erase(unit_id)
+
 func set_paused(value: bool) -> void:
 	engine_voice.stream_paused=value
 	paused=value
@@ -408,6 +429,8 @@ func _process(dt: float) -> void:
 	if audio_listener!=null:
 		audio_listener.position=get_viewport().get_visible_rect().size*0.5
 	shot_cooldown=maxf(0,shot_cooldown-dt)
+	harvest_collection_cooldown=maxf(0.0,harvest_collection_cooldown-dt)
+	_update_harvest_collection_audio()
 	for cue_name in cue_cooldowns: cue_cooldowns[cue_name]=maxf(0,float(cue_cooldowns[cue_name])-dt)
 	var voice_active: bool = voice_players.any(func(player: AudioStreamPlayer): return player.playing) or (speech!=null and is_instance_valid(speech.player) and speech.player.playing)
 	voice_duck=move_toward(voice_duck,0.72 if voice_active else 1.0,dt*1.5)

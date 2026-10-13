@@ -134,61 +134,10 @@
         }
       }
     ],
-    "harvest_collect_demo": [
-      {
-        "id": "kenney_harvest_collect",
-        "path": "res://assets/audio/sfx/kenney/impactMetal_002.ogg",
-        "author": "Kenney",
-        "source": "Kenney Sci-Fi Sounds",
-        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
-        "asset_status": "candidate",
-        "human_listening_approval": "pending",
-        "license": {
-          "name": "CC0 1.0",
-          "status": "cleared",
-          "commercial_use": true,
-          "attribution": "Kenney (optional)"
-        }
-      }
-    ],
-    "harvest_unload_demo": [
-      {
-        "id": "kenney_harvest_unload",
-        "path": "res://assets/audio/sfx/kenney/doorClose_000.ogg",
-        "author": "Kenney",
-        "source": "Kenney Sci-Fi Sounds",
-        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
-        "asset_status": "candidate",
-        "human_listening_approval": "pending",
-        "license": {
-          "name": "CC0 1.0",
-          "status": "cleared",
-          "commercial_use": true,
-          "attribution": "Kenney (optional)"
-        }
-      }
-    ],
     "engine": [
       {
         "id": "kenney_engine",
         "path": "res://assets/audio/sfx/kenney/engineCircular_000.ogg",
-        "author": "Kenney",
-        "source": "Kenney Sci-Fi Sounds",
-        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
-        "asset_status": "candidate",
-        "human_listening_approval": "pending",
-        "license": {
-          "name": "CC0 1.0",
-          "status": "cleared",
-          "commercial_use": true,
-          "attribution": "Kenney (optional)"
-        }
-      }
-    ],
-    "harvester_work_demo": [
-      {
-        "id": "kenney_harvester_loop",
-        "path": "res://assets/audio/sfx/kenney/engineCircular_002.ogg",
         "author": "Kenney",
         "source": "Kenney Sci-Fi Sounds",
         "source_url": "https://kenney.nl/assets/sci-fi-sounds",
@@ -992,6 +941,57 @@
         "source": "Kenney Sci-Fi Sounds",
         "source_url": "https://kenney.nl/assets/sci-fi-sounds",
         "processing": "48 kHz runtime conversion; subtle pitch variant",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "harvest_collect": [
+      {
+        "id": "kenney_harvest_collect",
+        "path": "res://assets/audio/sfx/kenney/impactMetal_002.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "harvest_unload": [
+      {
+        "id": "kenney_harvest_unload",
+        "path": "res://assets/audio/sfx/kenney/doorClose_000.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "Kenney (optional)"
+        }
+      }
+    ],
+    "harvester_work": [
+      {
+        "id": "kenney_harvester_loop",
+        "path": "res://assets/audio/sfx/kenney/engineCircular_002.ogg",
+        "author": "Kenney",
+        "source": "Kenney Sci-Fi Sounds",
+        "source_url": "https://kenney.nl/assets/sci-fi-sounds",
         "asset_status": "candidate",
         "human_listening_approval": "pending",
         "license": {

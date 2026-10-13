@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.28",
+  "current_version": "0.38.29",
   "entries": [
+    {
+      "version": "0.38.29",
+      "date": "13.10.2026",
+      "title": "Kinematische Musik und klarere Ernte-Audios",
+      "changes": [
+        "Ersetzt den monotonen Titelmusik-Kandidaten durch den 148-Sekunden-CC0-Track Our Expanse mit ruhigem Einstieg und beschriebenem dynamischem Aufbau. Die orchestrale CC0-Musik The Final Battle ergänzt Wanderpakts hohen Gefechtszustand.",
+        "Startet beim Ernten nur den mechanischen Arbeitsloop; kristalline Metall-Pickups erklingen erst bei tatsächlichem Ladungszuwachs, und die Entladung hat einen separaten Sound. Die gleichzeitige doppelte Wiedergabe beim Arbeitsbeginn entfällt.",
+        "Neue und bestehende Musik-, Stimmen- und Soundkandidaten bleiben bis zur tatsächlichen Hörabnahme Kandidaten und als ausstehend markiert; das Release-Gate bleibt geschlossen."
+      ]
+    },
     {
       "version": "0.38.28",
       "date": "13.10.2026",

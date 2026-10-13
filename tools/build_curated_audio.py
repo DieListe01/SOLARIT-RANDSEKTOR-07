@@ -18,6 +18,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 AUDIO = ROOT / "assets" / "audio"
 SOURCE_ROOT = ROOT / "test-output" / "audio-tools" / "sources"
+PROJECT_SOURCES = ROOT / "tools" / "audio_sources"
 CYBER = SOURCE_ROOT / "cyberpunk"
 DARK = SOURCE_ROOT / "dark_pack" / "ogg"
 CATALOG = AUDIO / "music_catalog.json"
@@ -40,12 +41,14 @@ SOURCES: dict[str, dict[str, str]] = {
     "strange": {"file": "strange_experiments_80bpm.ogg", "root": "cyber", "author": "Alexander Ehlers / tricksntraps", "url": "https://opengameart.org/content/t-t-free-cyberpunk-pack-2", "license": "CC0 1.0"},
     "overload": {"file": "system_overload_154bpm.ogg", "root": "cyber", "author": "Alexander Ehlers / tricksntraps", "url": "https://opengameart.org/content/t-t-free-cyberpunk-pack-2", "license": "CC0 1.0"},
     "sewers": {"file": "through_the_sewers_1766bpm.ogg", "root": "cyber", "author": "Alexander Ehlers / tricksntraps", "url": "https://opengameart.org/content/t-t-free-cyberpunk-pack-2", "license": "CC0 1.0"},
+    "expanse": {"file": "our_expanse_loop.mp3", "root": "project", "author": "Bobjt", "url": "https://opengameart.org/content/our-expanse", "license": "CC0 1.0"},
+    "final_battle": {"file": "the_final_battle.ogg", "root": "project", "author": "skrjablin", "url": "https://opengameart.org/content/the-final-battle", "license": "CC0 1.0"},
 }
 
 
 def source_path(name: str) -> Path:
     spec = SOURCES[name]
-    base = {"source": SOURCE_ROOT, "dark": DARK, "cyber": CYBER}[spec["root"]]
+    base = {"source": SOURCE_ROOT, "project": PROJECT_SOURCES, "dark": DARK, "cyber": CYBER}[spec["root"]]
     return base / spec["file"]
 
 
@@ -109,7 +112,7 @@ def build(overwrite: bool = False) -> None:
             "wanderpakt_calm": ("sewers", "music/wanderpakt/calm_a.ogg"),
             "wanderpakt_contact": ("electric", "music/wanderpakt/contact.ogg"),
             "wanderpakt_battle_low": ("cyborg", "music/wanderpakt/battle_low.ogg"),
-            "wanderpakt_battle_high": ("welcome", "music/wanderpakt/battle_high.ogg"),
+            "wanderpakt_battle_high": ("final_battle", "music/wanderpakt/battle_high.ogg"),
             "wanderpakt_critical": ("prepare", "music/wanderpakt/critical.ogg"),
             "prisma_calm_a": ("sector", "music/prisma/calm_a.ogg"),
             "prisma_calm_b": ("airy", "music/prisma/calm_b.ogg"),
@@ -120,8 +123,8 @@ def build(overwrite: bool = False) -> None:
         }
         # One deterministic OGG per distinct source; paths can be shared by states/factions.
         source_targets: dict[str, Path] = {}
-        master_ogg(source_path("inevitable"), AUDIO / "music/global/first_signal.ogg", masters,
-                   target_duration=194.7, overwrite=overwrite)
+        master_ogg(source_path("expanse"), AUDIO / "music/global/first_signal.ogg", masters,
+                   target_duration=148.4, overwrite=overwrite)
         # A source may feed several faction/state files. Bake every distinct
         # runtime path once; sharing one source file path across states is
         # handled explicitly in the catalog below.
@@ -152,8 +155,8 @@ def build(overwrite: bool = False) -> None:
 
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     catalog["schema_version"] = 3
-    catalog["title_track"] = entry("first_signal", str(output["first_signal"]), "inevitable", 96, "title")
-    catalog["title_track"].update({"loop_end_seconds": 194.7, "transition_points_bars": [0, 8, 16, 24, 32, 40, 48, 56]})
+    catalog["title_track"] = entry("first_signal", str(output["first_signal"]), "expanse", 96, "title")
+    catalog["title_track"].update({"loop_end_seconds": 148.4, "transition_points_bars": [0, 8, 16, 24, 32, 40, 48, 56]})
     specs = {
         "forge": {"display_name": "Kobalt-Konsortium", "motif": [0, 7, 3, 10], "identity": "schwer, industriell, diszipliniert",
             "calm_a": ("kobalt_calm_b", 129, "low"), "calm_b": ("factory", 108, "low"),

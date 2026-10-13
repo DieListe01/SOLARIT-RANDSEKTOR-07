@@ -42,7 +42,8 @@ func run() -> void:
 	var sfx: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/sfx_catalog.json"))
 	check(sfx.get("cues",{}).size()>=8 and director.samples.get("cannon_shot") is AudioStreamOggVorbis,"Curated CC0 SFX bank loads over demo cues")
 	check(director.harvest_loop.stream is AudioStreamOggVorbis,"Harvester has a compressed mechanical work loop")
-	check(director.samples.get("harvest_start_demo")!=null and director.samples.get("harvest_collect_demo")!=null and director.samples.get("harvest_unload_demo")!=null,"Harvester start, collection and unload cues load")
+	check(director.samples.get("harvest_collect") is AudioStreamOggVorbis and director.samples.get("harvest_unload") is AudioStreamOggVorbis,"Harvester collection and unload cues load from the CC0 SFX bank")
+	check(not director.samples.has("harvest_start_demo"),"Harvest start no longer plays legacy demo audio over the work loop")
 	var sim := Simulation.new(Catalog.new())
 	director.start(sim)
 	await create_timer(0.15).timeout
@@ -83,6 +84,12 @@ func run() -> void:
 	sim.set_harvest_state(collector,"HARVEST")
 	sim.set_harvest_state(collector,"UNLOAD")
 	check(harvest_events==["harvest_start","harvest_stop","harvest_unload"],"Harvester work-state transitions emit one-shot sound cues without per-frame repeats")
+	collector.harvest_state="HARVEST"; collector.cargo=0.0
+	director.harvest_cargo_buckets.clear(); director.harvest_collection_cooldown=0.0
+	director._update_harvest_collection_audio()
+	collector.cargo=24.0
+	director._update_harvest_collection_audio()
+	check(director.voices.any(func(player: AudioStreamPlayer2D): return player.playing and player.stream==director.samples.get("harvest_collect")),"Crystal pickup accent is triggered by actual gathered cargo, not duplicated at work start")
 	await wait_for_state("ENEMY_CONTACT")
 	check(director.state=="ENEMY_CONTACT","Contact state enters on a musical bar boundary")
 	sim.combat_heat=1.0; sim.base_alarm=8.0

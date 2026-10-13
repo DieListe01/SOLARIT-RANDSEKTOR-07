@@ -9,7 +9,7 @@
     "beats_per_bar": 4,
     "beat_unit": 4,
     "loop_start_seconds": 0.0,
-    "loop_end_seconds": 194.7,
+    "loop_end_seconds": 148.4,
     "weight": 1.0,
     "intensity": "title",
     "transition_points_bars": [
@@ -25,14 +25,14 @@
     "asset_status": "candidate",
     "human_listening_approval": "pending",
     "source": {
-      "author": "vitalezzz",
-      "url": "https://opengameart.org/content/inevitable"
+      "author": "Bobjt",
+      "url": "https://opengameart.org/content/our-expanse"
     },
     "license": {
       "name": "CC0 1.0",
       "status": "cleared",
       "commercial_use": true,
-      "attribution": "vitalezzz"
+      "attribution": "Bobjt"
     }
   },
   "factions": {
@@ -399,14 +399,14 @@
             "asset_status": "candidate",
             "human_listening_approval": "pending",
             "source": {
-              "author": "Alexander Ehlers / tricksntraps",
-              "url": "https://opengameart.org/content/t-t-free-cyberpunk-pack-2"
+              "author": "skrjablin",
+              "url": "https://opengameart.org/content/the-final-battle"
             },
             "license": {
               "name": "CC0 1.0",
               "status": "cleared",
               "commercial_use": true,
-              "attribution": "Alexander Ehlers / tricksntraps"
+              "attribution": "skrjablin"
             }
           }
         ],

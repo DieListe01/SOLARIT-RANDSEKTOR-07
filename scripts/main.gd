@@ -2829,13 +2829,11 @@ func on_event(kind: String, pos: Vector2, message: String) -> void:
 			if kind=="harvest_start":
 				var collector_id:=_nearest_friendly_harvester(pos)
 				if collector_id>0 and sim.entities.has(collector_id): music.speech.request("harvest_start",str(sim.entities[collector_id].get("faction_id",faction)),collector_id)
-				music.cue("harvest_start_demo",0.8,audio_position)
-				music.cue("harvest_collect_demo",0.55,audio_position)
 				music.set_harvester_working(true,audio_position)
 			else:
 				var unloading_id:=_nearest_friendly_harvester(pos)
 				if unloading_id>0 and sim.entities.has(unloading_id): music.speech.request("harvest_unload",str(sim.entities[unloading_id].get("faction_id",faction)),unloading_id)
-				music.cue("harvest_unload_demo",0.9,audio_position)
+				music.cue("harvest_unload",0.9,audio_position)
 		return
 	if visible and kind=="complete":
 		if message.begins_with("ZIEL ERFÜLLT"):
