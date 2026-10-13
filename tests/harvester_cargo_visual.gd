@@ -5,6 +5,8 @@ const LEVELS: Array[int] = [0, 2, 4, 6, 8]
 const FACTIONS: Array[String] = ["forge", "drift", "lumen"]
 const TILE_SIZE := 160
 const CROP := Rect2i(620, 240, 700, 640)
+const MIN_STEP_PIXEL_DIFFERENCE := 0.0015
+const MIN_EMPTY_FULL_PIXEL_DIFFERENCE := 0.01
 
 func _initialize() -> void:
 	print("Checking visible H09 Solarit cargo states: 0 / 25 / 50 / 75 / 100 percent")
@@ -64,14 +66,15 @@ func run() -> void:
 			quit(1)
 			return
 		var total_change := pixel_difference(images.front(), images.back())
-		if total_change <= 0.002:
+		if total_change <= MIN_EMPTY_FULL_PIXEL_DIFFERENCE:
 			push_error("empty and full %s harvester rendered too similarly: %.4f" % [faction, total_change])
 			quit(1)
 			return
+		print("%s cargo empty-to-full rendered pixel difference %.4f" % [faction, total_change])
 		for index in range(1, images.size()):
 			var step_change := pixel_difference(images[index - 1], images[index])
-			print("%s cargo %d%% -> %d%%: rendered pixel difference %.4f" % [faction, LEVELS[index - 1] * 100 / 8, LEVELS[index] * 100 / 8, pixel_difference(images[index - 1], images[index])])
-			if step_change <= 0.0002:
+			print("%s cargo %d%% -> %d%%: rendered pixel difference %.4f" % [faction, LEVELS[index - 1] * 100 / 8, LEVELS[index] * 100 / 8, step_change])
+			if step_change <= MIN_STEP_PIXEL_DIFFERENCE:
 				push_error("%s cargo stage %d/8 -> %d/8 did not visibly alter the pose: %.4f" % [faction, LEVELS[index - 1], LEVELS[index], step_change])
 				quit(1)
 				return

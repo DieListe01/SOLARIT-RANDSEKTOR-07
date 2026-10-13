@@ -24,6 +24,14 @@ The contact sheet exposed a weakness that the earlier asset checklist missed: se
 
 This iteration improves one building family, not the full requested pass. It does not finish Wanderpakt building quality, all faction vehicle families, new licensed music, or German recorded unit voices. The generated models remain stylized hard-surface Blender assets and need a normal-match approval pass after release.
 
+## Iteration v0.38.26 — make harvester cargo levels read at gameplay scale
+
+The 0/25/50/75/100% comparison showed that cargo existed in all three authored harvesters but some crystals were too tightly grouped and low above the hopper. The Blender sources now distribute larger clusters over a wider footprint and raise the later row; the Wanderpakt and Prisma asset generator has a `--only-harvester` mode so this targeted bake does not rewrite unrelated faction vehicles. The shared cache camera, cargo-state quantization, movement, and gameplay values are unchanged.
+
+The normal 160×160 in-game cache crop now records empty-to-full mean RGB differences of 0.01227 for Kobalt, 0.04845 for Wanderpakt, and 0.05125 for Prisma. The smallest 25%-step difference is 0.00198 (Kobalt); the others are at least 0.00752. `tests/harvester_cargo_visual.gd` now enforces >0.01 empty-to-full and >0.0015 for every adjacent load step. The focused RendererCache test passes on the local RTX 3060 / Vulkan renderer. These images show cache-scale model differences; final confirmation still requires a real match at normal camera zoom.
+
+This visible cargo pass is not the complete graphics/audio brief. Final music, German recorded voices, normal-match capture/inspection, and the remaining asset/production audits remain open.
+
 ## Validation
 
 - `Test-Solarit.ps1 -Group Gameplay -OverallTimeoutMinutes 20 -HeartbeatSeconds 30`: 8/8 PASS.

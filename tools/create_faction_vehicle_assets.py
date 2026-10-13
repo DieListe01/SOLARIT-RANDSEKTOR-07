@@ -11,6 +11,7 @@ import importlib.util
 import math
 import os
 import shutil
+import sys
 from array import array
 from pathlib import Path
 
@@ -162,16 +163,16 @@ def role_hardware(kind,width,length,height,faction):
         for stage in range(1,9):
             cargo=bpy.data.objects.new("CargoStage%02d"%stage,None); bpy.context.collection.objects.link(cargo)
             lane=(stage-1)%4; row=(stage-1)//4
-            cx=-width*.22+lane*width*.145; cz=length*.12+row*length*.12
-            radius=.18+(stage%3)*.025
-            verts=[(cx+math.cos(i*math.tau/6)*radius,height*1.00+row*.10+math.sin(i*math.tau/6)*radius,cz+math.sin(i*math.tau/6)*radius) for i in range(6)]
-            verts += [(cx,height*1.28+row*.10,cz),(cx+radius*.25,height*1.14+row*.10,cz-radius*.25)]
+            cx=-width*.31+lane*width*.205; cz=length*.10+row*length*.15
+            radius=.27+(stage%3)*.035
+            verts=[(cx+math.cos(i*math.tau/6)*radius,height*1.01+row*.17+math.sin(i*math.tau/6)*radius,cz+math.sin(i*math.tau/6)*radius) for i in range(6)]
+            verts += [(cx,height*1.43+row*.17,cz),(cx+radius*.25,height*1.21+row*.17,cz-radius*.25)]
             faces=[(i,(i+1)%6,6 if i%2==0 else 7) for i in range(6)]+[(i,7,(i+1)%6) for i in range(6)]
             gem=author.mesh("Solarit ore cargo facet",verts,faces,"energy",.006); keep_world_parent(gem,cargo)
-            second_radius=radius*.68
-            second_center=(cx+radius*.72,height*1.01+row*.10,cz+radius*.48)
+            second_radius=radius*.74
+            second_center=(cx+radius*.72,height*1.04+row*.17,cz+radius*.48)
             second_verts=[(second_center[0]+math.cos(i*math.tau/6)*second_radius,second_center[1]+math.sin(i*math.tau/6)*second_radius,second_center[2]+math.sin(i*math.tau/6)*second_radius) for i in range(6)]
-            second_verts += [(second_center[0],height*1.21+row*.10,second_center[2])]
+            second_verts += [(second_center[0],height*1.32+row*.17,second_center[2])]
             second_faces=[(i,(i+1)%6,6) for i in range(6)]
             gem=author.mesh("Solarit ore secondary cargo shard",second_verts,second_faces,"energy",.006); keep_world_parent(gem,cargo)
         for node_name,key in (("DamageLight","dark"),("DamageHeavy","hazard")):
@@ -357,13 +358,15 @@ def design(kind:str,faction:str):
 
 def main():
     bpy.context.preferences.filepaths.save_version=0
+    kinds=("harvester",) if "--only-harvester" in sys.argv else ROLE
     for faction in ("drift","lumen"):
-        for kind in ROLE: design(kind,faction)
+        for kind in kinds: design(kind,faction)
     spec=importlib.util.spec_from_file_location("externalize",os.path.join(ROOT,"tools","externalize_glb_textures.py"))
     module=importlib.util.module_from_spec(spec); assert spec and spec.loader; spec.loader.exec_module(module)
     for faction in ("drift","lumen"):
         texture_root=Path(TEXTURE_SOURCE)/"factions"/faction
-        for path in Path(OUT).glob(f"{faction}_*.glb"):
+        pattern=f"{faction}_harvester.glb" if "--only-harvester" in sys.argv else f"{faction}_*.glb"
+        for path in Path(OUT).glob(pattern):
             module.externalize(path,texture_root=texture_root)
 
 if __name__=="__main__": main()
