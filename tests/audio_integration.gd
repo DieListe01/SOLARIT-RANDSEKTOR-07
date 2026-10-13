@@ -19,6 +19,7 @@ func run() -> void:
 	root.add_child(director)
 	await process_frame
 	check(director.music_catalog.get("schema_version",0)==2,"Central music catalog loads")
+	check(str(director.music_catalog.get("production_status",""))=="placeholder_not_final","Music production catalog explicitly reports placeholders, not a final soundtrack")
 	for faction_id in ["forge","drift","lumen"]:
 		var faction: Dictionary=director.music_catalog.get("factions",{}).get(faction_id,{})
 		check(not faction.is_empty(),"Music catalog defines faction "+faction_id)
@@ -26,11 +27,14 @@ func run() -> void:
 			var choices: Array=faction.get("tracks",{}).get(track_state,[])
 			check(not choices.is_empty(),"Music catalog defines "+faction_id+" / "+track_state)
 			if not choices.is_empty():
+				for choice in choices:
+					check(str(choice.get("asset_status",""))=="placeholder" and str(choice.get("human_listening_approval",""))=="pending","Unapproved music stays marked as a placeholder: "+faction_id+" / "+track_state+" / "+str(choice.get("id","")))
 				var loaded_track: AudioStream=director._load_track_stream(choices[0])
 				check(loaded_track is AudioStreamOggVorbis,"Catalog OGG imports for "+faction_id+" / "+track_state)
 				if loaded_track is AudioStreamOggVorbis:
 					check((loaded_track as AudioStreamOggVorbis).loop and loaded_track.get_length()>90.0,"Long catalog loop is configured for "+faction_id+" / "+track_state)
 	var title: AudioStream=director._load_track_stream(director.music_catalog.get("title_track",{}))
+	check(str(director.music_catalog.get("title_track",{}).get("asset_status",""))=="placeholder" and str(director.music_catalog.get("title_track",{}).get("human_listening_approval",""))=="pending","Title demo is not falsely approved as final music")
 	check(title is AudioStreamOggVorbis and title.get_length()>=120.0,"Title score is a long OGG source")
 	check(director.harvest_loop.stream is AudioStreamOggVorbis,"Harvester has a compressed mechanical work loop")
 	check(director.samples.get("harvest_start_demo")!=null and director.samples.get("harvest_collect_demo")!=null and director.samples.get("harvest_unload_demo")!=null,"Harvester start, collection and unload cues load")

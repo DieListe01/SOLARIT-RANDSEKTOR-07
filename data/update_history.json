@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.20",
+  "current_version": "0.38.21",
   "entries": [
+    {
+      "version": "0.38.21",
+      "date": "13.10.2026",
+      "title": "Musikproduktion klar als Platzhalter gekennzeichnet",
+      "changes": [
+        "Die vorhandenen Musik-Demos bleiben ausdrücklich als Platzhalter markiert, bis eigens produzierte Tracks die Hörabnahme bestehen.",
+        "Der Musik-Katalog und Godots taktgenaue Zustandswechsel sind für den späteren Austausch der Originalkompositionen vorbereitet.",
+        "Ein Produktionsbericht hält verfügbare Werkzeuge, technische Grenzen und noch offene Schritte des Audio-Passes fest."
+      ]
+    },
     {
       "version": "0.38.20",
       "date": "13.10.2026",
