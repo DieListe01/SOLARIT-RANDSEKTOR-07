@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.18",
+  "current_version": "0.38.19",
   "entries": [
+    {
+      "version": "0.38.19",
+      "date": "13.10.2026",
+      "title": "Gebäudeansichten bei Cache-Misses stabil halten",
+      "changes": [
+        "Eine fehlende animierte Gebäudeansicht ersetzt nicht mehr kurzzeitig das 3D-Gebäude durch die abweichende prozedurale Ansicht. Bis die neue Pose fertig ist, bleibt eine passende letzte 3D-Ansicht derselben Gebäudefamilie sichtbar.",
+        "Fraktion, Gebäudetyp, Ausrichtung, Turmziel, Ausbau, Entladung und Bauphase bleiben getrennte Cache-Familien. Eine Renderer-Regression prüft 600 Produktions-/Werft-Zustandssamples und die Fallback-Auswahl.",
+        "Diagnosemitschnitte können für jeden sichtbaren Gebäudeframe den Schlüssel, die gewählte Textur, den Fallback-Grund, Fraktion, Modellpfad und Animations-/Bauzustand erfassen."
+      ]
+    },
     {
       "version": "0.38.18",
       "date": "12.10.2026",

@@ -135,6 +135,10 @@ var building_cache_queue: Array[Dictionary] = []
 var building_cache_worker_active := false
 var building_cache_hits := 0
 var building_cache_misses := 0
+var building_cache_fallbacks := 0
+var building_cache_fallback_keys: Dictionary = {}
+var building_visual_diagnostics_enabled := false
+var building_visual_event_log: Array[Dictionary] = []
 var profile_total_ms := 0.0
 var profile_terrain_ms := 0.0
 var profile_ground_fx_ms := 0.0
@@ -165,6 +169,8 @@ func _exit_tree() -> void:
 	pending_pose_keys.clear()
 	building_cache_queue.clear()
 	building_cache_pending.clear()
+	building_cache_fallback_keys.clear()
+	building_visual_event_log.clear()
 	for viewport in vehicle_cache_viewports.values():
 		if is_instance_valid(viewport): viewport.queue_free()
 	vehicle_cache_viewports.clear()
@@ -374,6 +380,53 @@ func building_cache_key(entity: Dictionary) -> String:
 		construction_stage=_construction_stage_index(ratio)
 	return "%s|%d|%s|%d|%d|%d|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage,1 if unloading else 0,animation_frame,construction_stage]
 
+static func building_cache_family_key(key: String) -> String:
+	# Construction, faction, orientation, upgrades, unloading and tower aim stay
+	# strict. Activity and animation are dynamic factory/rotor poses over the same
+	# structure; borrowing their last rendered view prevents a one-frame model
+	# replacement while the requested SubViewport pose is being rendered.
+	var parts := key.split("|",false)
+	if parts.size()!=10: return ""
+	parts.remove_at(8)
+	parts.remove_at(5)
+	return "|".join(parts)
+
+func building_cache_fallback_texture(key: String) -> Texture2D:
+	var family := building_cache_family_key(key)
+	if family.is_empty(): return null
+	var fallback_key := str(building_cache_fallback_keys.get(family,""))
+	if fallback_key.is_empty(): return null
+	var texture := building_texture_cache.get(fallback_key) as Texture2D
+	if texture==null:
+		building_cache_fallback_keys.erase(family)
+		return null
+	building_texture_times[fallback_key]=elapsed
+	return texture
+
+func record_building_visual_event(entity: Dictionary, requested_key: String, chosen_key: String, reason: String) -> void:
+	if not building_visual_diagnostics_enabled or building_visual_event_log.size()>=8192: return
+	var owner := int(entity.get("owner",-1))
+	var faction := str(sim.factions[owner]) if sim!=null and owner>=0 and owner<sim.factions.size() else "unknown"
+	var kind := str(entity.get("kind","unknown"))
+	var faction_path := "res://assets/models/buildings/factions/%s_%s.glb" % [faction,kind]
+	var model_path := faction_path if ResourceLoader.exists(faction_path,"PackedScene") else "res://assets/models/buildings/%s.glb" % kind
+	var animation_frame := _building_animation_frame(entity)
+	var production_stage := _factory_visual_stage(entity) if kind=="factory" else 0
+	var chosen_texture := building_texture_cache.get(chosen_key) as Texture2D if not chosen_key.is_empty() else null
+	var construction_stage := 5
+	if not bool(entity.get("complete",true)):
+		var total := maxf(0.01,float(sim.definition(entity).time))
+		construction_stage=_construction_stage_index(clampf(float(entity.get("build_progress",0.0))/total,0.0,1.0))
+	building_visual_event_log.append({
+		"frame":Engine.get_process_frames(),"entity_id":int(entity.get("id",0)),"faction":faction,"building_type":kind,
+		"model_path":model_path,"glb_path":model_path if model_path.ends_with(".glb") and ResourceLoader.exists(model_path,"PackedScene") else "",
+		"construction_state":construction_stage,"production_state":production_stage,"damage_state":industrial_art.damage_state(entity) if industrial_art.has_method("damage_state") else "runtime_overlay",
+		"animation_state":animation_frame,"orientation":posmod(int(entity.get("rotation",0)),4),"cache_key":requested_key,
+		"chosen_cache_key":chosen_key,"texture_instance_id":chosen_texture.get_instance_id() if chosen_texture!=null else 0,
+		"fallback_key":str(building_cache_fallback_keys.get(building_cache_family_key(requested_key),"")),
+		"cache_hit":reason=="exact_cache_hit","fallback_reason":reason
+	})
+
 func _building_animation_frame(entity: Dictionary) -> int:
 	if entity.kind in ["core", "radar"]: return posmod(int(elapsed*1.1),8)
 	if entity.kind=="power": return posmod(int(elapsed*1.8),4)
@@ -420,8 +473,17 @@ func draw_cached_building(entity: Dictionary) -> bool:
 			if entity.kind=="tower": snapshot.turret=float(posmod(roundi(float(entity.get("turret",0.0))*16.0/TAU),16))*TAU/16.0
 			building_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner]})
 			process_building_cache_queue.call_deferred()
-		return false
-	building_cache_hits+=1
+		texture=building_cache_fallback_texture(key)
+		if texture==null:
+			record_building_visual_event(entity,key,"","initial_procedural_fallback")
+			return false
+		building_cache_fallbacks+=1
+		record_building_visual_event(entity,key,str(building_cache_fallback_keys.get(building_cache_family_key(key),"")),"same_family_cached_fallback")
+	else:
+		building_cache_hits+=1
+		building_cache_fallback_keys[building_cache_family_key(key)]=key
+		building_texture_times[key]=elapsed
+		record_building_visual_event(entity,key,key,"exact_cache_hit")
 	draw_texture_rect(texture,Rect2(entity.pos-Vector2(128,128),Vector2(256,256)),false)
 	var footprint:=sim.building_footprint(entity.kind,int(entity.get("rotation",0)))
 	industrial_art.building_damage_overlay(self,entity,Vector2(footprint[0],footprint[1])*sim.grid.tile,elapsed)
@@ -535,12 +597,25 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 		building_cache_pending.erase(key)
 		if is_instance_valid(viewport): viewport.queue_free()
 		return
-	if not is_instance_valid(viewport): return
+	if not is_instance_valid(viewport):
+		building_cache_pending.erase(key)
+		return
 	var image := viewport.get_texture().get_image()
 	if image!=null:
-		if building_texture_cache.size()>=64: building_texture_cache.erase(building_texture_cache.keys()[0])
+		if building_texture_cache.size()>=64:
+			var oldest_key := str(building_texture_cache.keys()[0])
+			var oldest_time := int(building_texture_times.get(oldest_key,0.0)*1000.0)
+			for candidate in building_texture_cache.keys():
+				var candidate_time := int(building_texture_times.get(candidate,0.0)*1000.0)
+				if candidate_time<oldest_time:
+					oldest_key=str(candidate); oldest_time=candidate_time
+			building_texture_cache.erase(oldest_key)
+			building_texture_times.erase(oldest_key)
+			for family in building_cache_fallback_keys.keys():
+				if str(building_cache_fallback_keys[family])==oldest_key: building_cache_fallback_keys.erase(family)
 		building_texture_cache[key]=ImageTexture.create_from_image(image)
 		building_texture_times[key]=elapsed
+		building_cache_fallback_keys[building_cache_family_key(key)]=key
 	building_cache_pending.erase(key)
 	viewport.queue_free()
 
