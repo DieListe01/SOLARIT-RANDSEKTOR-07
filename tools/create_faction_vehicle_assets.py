@@ -157,15 +157,23 @@ def role_hardware(kind,width,length,height,faction):
         beacon.location=(0,height*1.05,-length*.20)
         lamp=cyl("Survey idle beacon",(0,height*1.05,-length*.20),.09,.10,"energy","Y",16)
         keep_world_parent(lamp,beacon)
+        # Distinct large shards rise above the hopper rim as load accumulates;
+        # the previous low facets disappeared behind the operator cab at RTS zoom.
         for stage in range(1,9):
             cargo=bpy.data.objects.new("CargoStage%02d"%stage,None); bpy.context.collection.objects.link(cargo)
             lane=(stage-1)%4; row=(stage-1)//4
             cx=-width*.22+lane*width*.145; cz=length*.12+row*length*.12
-            radius=.10+(stage%3)*.018
-            verts=[(cx+math.cos(i*math.tau/6)*radius,height*.94+row*.09+math.sin(i*math.tau/6)*radius,cz+math.sin(i*math.tau/6)*radius) for i in range(6)]
-            verts += [(cx,height*1.12+row*.09,cz),(cx+radius*.25,height*1.04+row*.09,cz-radius*.25)]
+            radius=.18+(stage%3)*.025
+            verts=[(cx+math.cos(i*math.tau/6)*radius,height*1.00+row*.10+math.sin(i*math.tau/6)*radius,cz+math.sin(i*math.tau/6)*radius) for i in range(6)]
+            verts += [(cx,height*1.28+row*.10,cz),(cx+radius*.25,height*1.14+row*.10,cz-radius*.25)]
             faces=[(i,(i+1)%6,6 if i%2==0 else 7) for i in range(6)]+[(i,7,(i+1)%6) for i in range(6)]
             gem=author.mesh("Solarit ore cargo facet",verts,faces,"energy",.006); keep_world_parent(gem,cargo)
+            second_radius=radius*.68
+            second_center=(cx+radius*.72,height*1.01+row*.10,cz+radius*.48)
+            second_verts=[(second_center[0]+math.cos(i*math.tau/6)*second_radius,second_center[1]+math.sin(i*math.tau/6)*second_radius,second_center[2]+math.sin(i*math.tau/6)*second_radius) for i in range(6)]
+            second_verts += [(second_center[0],height*1.21+row*.10,second_center[2])]
+            second_faces=[(i,(i+1)%6,6) for i in range(6)]
+            gem=author.mesh("Solarit ore secondary cargo shard",second_verts,second_faces,"energy",.006); keep_world_parent(gem,cargo)
         for node_name,key in (("DamageLight","dark"),("DamageHeavy","hazard")):
             damage=bpy.data.objects.new(node_name,None); bpy.context.collection.objects.link(damage)
             for shard in range(3 if node_name=="DamageLight" else 5):

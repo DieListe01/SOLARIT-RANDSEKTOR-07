@@ -289,17 +289,18 @@ def crystal_cluster_mesh(name, center, scale, parent):
 
 
 def create_cargo_and_damage(rig):
-    # Each cargo stage adds two jagged facets within the hopper, so cache
-    # variants at 0..8 units reflect the actual quantized simulation load.
+    # Each cargo stage adds a pair of large, faceted Solarit clusters. Keep the
+    # crystal tips above the armored hopper lip so load changes remain legible
+    # in the fixed isometric game camera after the 3D pose is reduced to a sprite.
     for stage in range(1,9):
         node=empty("CargoStage%02d"%stage,(0,0,0)); node.parent=rig
         base=stage-1
         lane=base%4
         row=base//4
-        cx=-0.31+lane*0.20
-        cz=0.46+row*0.20
-        crystal_cluster_mesh("Solarit cargo shard %02dA"%stage,(cx,1.48+row*0.10,cz),0.22+(stage%3)*0.03,node)
-        crystal_cluster_mesh("Solarit cargo shard %02dB"%stage,(cx+0.09,1.47+row*0.1,cz+0.04),0.16+(stage%2)*0.04,node)
+        cx=-0.43+lane*0.27
+        cz=0.42+row*0.28
+        crystal_cluster_mesh("Solarit cargo shard %02dA"%stage,(cx,1.56+row*0.12,cz),0.36+(stage%3)*0.045,node)
+        crystal_cluster_mesh("Solarit cargo shard %02dB"%stage,(cx+0.12,1.58+row*0.12,cz+0.06),0.31+(stage%2)*0.055,node)
     light=empty("DamageLight",(0,0,0)); light.parent=rig
     for i,(x,z) in enumerate(((-1.14,-0.54),(1.14,0.31),(0.52,-1.17))):
         vertices=[(x-0.10,1.31,z-0.17),(x+0.09,1.30,z-0.11),(x+0.04,1.30,z+0.15),(x-0.13,1.30,z+0.08),(x+0.01,1.37,z-0.01)]

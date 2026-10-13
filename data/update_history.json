@@ -1,6 +1,17 @@
 {
-  "current_version": "0.38.21",
+  "current_version": "0.38.22",
   "entries": [
+    {
+      "version": "0.38.22",
+      "date": "13.10.2026",
+      "title": "Füllstand des Sammlers sichtbar machen",
+      "changes": [
+        "Die acht Ladungsstufen des H09-Solarit-Sammlers sind in der normalen isometrischen Ansicht klarer sichtbar.",
+        "Die getrennten Wanderpakt- und Prisma-Sammlermodelle zeigen ihren anwachsenden Kristallvorrat ebenfalls oberhalb der offenen Lade.",
+        "Die Fraktionsfahrzeuge wurden aus ihren editierbaren Blender-Quellen neu exportiert und erneut auf Import, Animationen und Rollenmerkmale geprüft.",
+        "Die Musik bleibt als Platzhalter-Demo gekennzeichnet: Für den geforderten hochwertigen Soundtrack fehlen weiterhin DAW, lizenzierte Klangquellen und Hörabnahme."
+      ]
+    },
     {
       "version": "0.38.21",
       "date": "13.10.2026",

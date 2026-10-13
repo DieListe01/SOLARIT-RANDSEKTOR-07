@@ -96,6 +96,7 @@ Add-GodotTest 'Visual' 'factory_production_visuals' $false 600
 
 Add-GodotTest 'RendererCache' 'prototype_25d' $true 300
 Add-GodotTest 'RendererCache' 'authored_assets' $true 300
+Add-GodotTest 'RendererCache' 'harvester_cargo_visual' $false 300
 Add-GodotTest 'RendererCache' 'destruction_assets' $true 300
 Add-GodotTest 'RendererCache' 'building_asset_states' $true 300
 Add-GodotTest 'RendererCache' 'factory_production_preview_cache' $true 600
