@@ -107,14 +107,20 @@ if ($SupervisorSelfTest) {
     $probeDir=Join-Path $ciRoot 'probes'; New-Item -ItemType Directory -Force $probeDir | Out-Null
     $slowPath=Join-Path $probeDir 'ci_runner_slow.ps1'
     $hangPath=Join-Path $probeDir 'ci_runner_hang.ps1'
+    $childPath=Join-Path $probeDir 'ci_runner_child.ps1'
+    $childPidPath=Join-Path $probeDir 'ci_runner_child.pid'
     $afterPath=Join-Path $probeDir 'ci_runner_after_timeout.ps1'
-    Set-Content -LiteralPath $slowPath -Value "Write-Output 'slow probe started'; Start-Sleep -Seconds 8; Write-Output 'slow probe complete'" -Encoding utf8
-    Set-Content -LiteralPath $hangPath -Value "Write-Output 'hang probe started'; while (`$true) { Start-Sleep -Seconds 1 }" -Encoding utf8
-    Set-Content -LiteralPath $afterPath -Value "Write-Output 'post-timeout probe started'; exit 0" -Encoding utf8
     $probeShell=(Get-Command pwsh -ErrorAction SilentlyContinue).Source
     if (-not $probeShell) { $probeShell=(Get-Command powershell -ErrorAction Stop).Source }
+    Set-Content -LiteralPath $slowPath -Value "Write-Output 'slow probe started'; Start-Sleep -Seconds 8; Write-Output 'slow probe complete'" -Encoding utf8
+    Set-Content -LiteralPath $childPath -Value "while (`$true) { Start-Sleep -Seconds 1 }" -Encoding utf8
+    $quotedChildPath='"' + $childPath + '"'
+    $quotedChildPidPath='"' + $childPidPath + '"'
+    Remove-Item -LiteralPath $childPidPath -Force -ErrorAction SilentlyContinue
+    Set-Content -LiteralPath $hangPath -Value "`$child=Start-Process -FilePath '$probeShell' -ArgumentList @('-NoProfile','-File',$quotedChildPath) -PassThru -WindowStyle Hidden; Set-Content -LiteralPath $quotedChildPidPath -Value `$child.Id; Write-Output ('hang probe started child PID '+`$child.Id); while (`$true) { Start-Sleep -Seconds 1 }" -Encoding utf8
+    Set-Content -LiteralPath $afterPath -Value "`$childPid=[int](Get-Content -LiteralPath '$childPidPath' -Raw); if (Get-Process -Id `$childPid -ErrorAction SilentlyContinue) { Write-Error 'timeout left child process alive'; exit 9 }; Write-Output 'post-timeout probe started; child process is gone'; exit 0" -Encoding utf8
     $tests.Add([pscustomobject]@{Group='CIHarness';Name='ci_runner_slow';File='CI harness: heartbeat';Kind='PowerShell';Executable=$probeShell;Arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $slowPath));TimeoutSeconds=20})
-    $tests.Add([pscustomobject]@{Group='CIHarness';Name='ci_runner_hang';File='CI harness: timeout cleanup';Kind='PowerShell';Executable=$probeShell;Arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $hangPath));TimeoutSeconds=10})
+    $tests.Add([pscustomobject]@{Group='CIHarness';Name='ci_runner_hang';File='CI harness: timeout cleanup';Kind='PowerShell';Executable=$probeShell;Arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $hangPath));TimeoutSeconds=10;ExpectedTimeout=$true;OwnedPidFiles=@($childPidPath)})
     $tests.Add([pscustomobject]@{Group='CIHarness';Name='ci_runner_after_timeout';File='CI harness: clean next process';Kind='PowerShell';Executable=$probeShell;Arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $afterPath));TimeoutSeconds=20})
 }
 Add-GodotTest 'Multiplayer' 'network_protocol' $true 300
@@ -151,33 +157,90 @@ $overallWatch = [System.Diagnostics.Stopwatch]::StartNew()
 $overallDeadline = [DateTime]::UtcNow.AddMinutes($OverallTimeoutMinutes)
 $failed = $false
 
-function Get-ProcessTree([int]$RootPid) {
+function Get-ProcessTreeBounded([int]$RootPid, [int]$TimeoutSeconds = 2) {
+    # CIM can stall on hosted Windows runners. Never perform this inventory in
+    # the test watchdog's critical path; use a thread job with a hard wait bound.
+    $job = $null
     try {
-        $all = @(Get-CimInstance Win32_Process -ErrorAction Stop)
-        $ids = [System.Collections.Generic.HashSet[int]]::new()
-        [void]$ids.Add($RootPid)
-        $changed = $true
-        while ($changed) {
-            $changed = $false
-            foreach ($item in $all) {
-                if ($ids.Contains([int]$item.ParentProcessId) -and $ids.Add([int]$item.ProcessId)) { $changed = $true }
-            }
+        $job = Start-ThreadJob -ArgumentList $RootPid -ScriptBlock {
+            param([int]$RequestedRootPid)
+            try {
+                $all = @(Get-CimInstance Win32_Process -ErrorAction Stop)
+                $ids = [System.Collections.Generic.HashSet[int]]::new()
+                [void]$ids.Add($RequestedRootPid)
+                $changed = $true
+                while ($changed) {
+                    $changed = $false
+                    foreach ($item in $all) {
+                        if ($ids.Contains([int]$item.ParentProcessId) -and $ids.Add([int]$item.ProcessId)) { $changed = $true }
+                    }
+                }
+                $all | Where-Object { $ids.Contains([int]$_.ProcessId) } | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine,WorkingSetSize,UserModeTime,KernelModeTime
+            } catch { }
         }
-        return @($all | Where-Object { $ids.Contains([int]$_.ProcessId) } | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine,WorkingSetSize,UserModeTime,KernelModeTime)
-    } catch { return @() }
+        if ($job | Wait-Job -Timeout ([math]::Max(1,$TimeoutSeconds))) {
+            return @(Receive-Job -Job $job -ErrorAction SilentlyContinue)
+        }
+        Stop-Job -Job $job -ErrorAction SilentlyContinue
+        return @()
+    } catch {
+        if ($job) { Stop-Job -Job $job -ErrorAction SilentlyContinue }
+        return @()
+    } finally {
+        if ($job) { Remove-Job -Job $job -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+function Get-BestEffortCiSystemInfo([int]$TimeoutSeconds = 3) {
+    if (-not (Get-Command Start-ThreadJob -ErrorAction SilentlyContinue)) {
+        return [pscustomobject]@{ OS=$null; CPU=$null; GPU=@(); Error='ThreadJob unavailable; optional CIM inventory skipped' }
+    }
+    $job = $null
+    try {
+        $job = Start-ThreadJob -ScriptBlock {
+            $os = $null; $cpu = $null; $gpu = @(); $errors = [System.Collections.Generic.List[string]]::new()
+            try { $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop } catch { $errors.Add("OS: $($_.Exception.Message)") }
+            try { $cpu = Get-CimInstance Win32_Processor -ErrorAction Stop | Select-Object -First 1 } catch { $errors.Add("CPU: $($_.Exception.Message)") }
+            try { $gpu = @(Get-CimInstance Win32_VideoController -ErrorAction Stop | ForEach-Object { $_.Name }) } catch { $errors.Add("GPU: $($_.Exception.Message)") }
+            [pscustomobject]@{ OS=$os; CPU=$cpu; GPU=$gpu; Error=($errors -join '; ') }
+        }
+        if ($job | Wait-Job -Timeout ([math]::Max(1,$TimeoutSeconds))) {
+            $result = Receive-Job -Job $job -ErrorAction SilentlyContinue | Select-Object -Last 1
+            if ($result) { return $result }
+            return [pscustomobject]@{ OS=$null; CPU=$null; GPU=@(); Error='CIM inventory returned no data' }
+        }
+        Stop-Job -Job $job -ErrorAction SilentlyContinue
+        return [pscustomobject]@{ OS=$null; CPU=$null; GPU=@(); Error="CIM inventory exceeded ${TimeoutSeconds}s and was skipped" }
+    } catch {
+        if ($job) { Stop-Job -Job $job -ErrorAction SilentlyContinue }
+        return [pscustomobject]@{ OS=$null; CPU=$null; GPU=@(); Error=$_.Exception.Message }
+    } finally {
+        if ($job) { Remove-Job -Job $job -Force -ErrorAction SilentlyContinue }
+    }
 }
 
 function Get-TrackedProcessDetails([System.Collections.Generic.HashSet[int]]$OwnedPids) {
-    try {
-        $all=@(Get-CimInstance Win32_Process -ErrorAction Stop)
-        return @($all | Where-Object { $OwnedPids.Contains([int]$_.ProcessId) } | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine,WorkingSetSize,UserModeTime,KernelModeTime)
-    } catch { return @() }
+    if (-not $OwnedPids -or $OwnedPids.Count -eq 0) { return @() }
+    $snapshot = @(Get-ProcessTreeBounded ($OwnedPids | Select-Object -First 1) 2)
+    return @($snapshot | Where-Object { $OwnedPids.Contains([int]$_.ProcessId) })
 }
 
 function Stop-OwnedPids([System.Collections.Generic.HashSet[int]]$OwnedPids, [int]$RootPid) {
-    $children = @($OwnedPids | Where-Object { $_ -ne $RootPid })
-    foreach ($ownedId in $children) { Stop-Process -Id $ownedId -Force -ErrorAction SilentlyContinue }
-    if ($RootPid) { Stop-Process -Id $RootPid -Force -ErrorAction SilentlyContinue }
+    if ($RootPid) {
+        # taskkill /T operates on this test's root process tree and avoids
+        # needing a successful WMI snapshot to enforce the timeout.
+        try {
+            $killer = Start-Process -FilePath "$env:SystemRoot\System32\taskkill.exe" -ArgumentList @('/PID',[string]$RootPid,'/T','/F') -WindowStyle Hidden -PassThru
+            if (-not $killer.WaitForExit(2000)) {
+                Stop-Process -Id $killer.Id -Force -ErrorAction SilentlyContinue
+                Stop-Process -Id $RootPid -Force -ErrorAction SilentlyContinue
+            }
+            $killer.Dispose()
+        } catch { Stop-Process -Id $RootPid -Force -ErrorAction SilentlyContinue }
+    }
+    foreach ($ownedId in @($OwnedPids | Where-Object { $_ -ne $RootPid })) {
+        Stop-Process -Id $ownedId -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Get-LogTail([string]$Path, [int]$Count = 10) {
@@ -195,7 +258,7 @@ function Write-CiSummary([switch]$AddStepSummary) {
     if ($AddStepSummary -and $env:GITHUB_STEP_SUMMARY) {
         $groupRows = $allRecords | Group-Object Group | ForEach-Object {
             $items = @($_.Group); $duration=($items | Measure-Object DurationSeconds -Sum).Sum
-                    '| {0} | {1} | {2} | {3} | {4} | {5:N1}s |' -f $_.Name,$items.Count,@($items | Where-Object Status -eq 'PASS').Count,@($items | Where-Object Status -eq 'FAIL').Count,@($items | Where-Object Timeout).Count,$duration
+        '| {0} | {1} | {2} | {3} | {4} | {5:N1}s |' -f $_.Name,$items.Count,@($items | Where-Object Status -eq 'PASS').Count,@($items | Where-Object Status -eq 'FAIL').Count,@($items | Where-Object { $_.Timeout -and -not $_.ExpectedTimeout }).Count,$duration
         }
         $top = @($allRecords | Sort-Object DurationSeconds -Descending | Select-Object -First 10)
         $markdown = @('', '### Regression test summary', '', '| Group | Tests | Pass | Fail | Timeout | Duration |','|---|---:|---:|---:|---:|---:|') + @($groupRows) + @('', '#### Slowest tests', '', '| Test | Group | Status | Duration |','|---|---|---|---:|')
@@ -207,7 +270,9 @@ function Write-CiSummary([switch]$AddStepSummary) {
 }
 
 function Write-FailureContext($Entry, [int]$ProcessId, [double]$RuntimeSeconds, [string]$StdoutPath, [string]$StderrPath, [bool]$TimedOut, [System.Collections.Generic.HashSet[int]]$OwnedPids=$null) {
-    $treeSource = if ($OwnedPids) { @(Get-TrackedProcessDetails $OwnedPids) } elseif ($ProcessId) { @(Get-ProcessTree $ProcessId) } else { @() }
+    $root = if ($ProcessId) { $ProcessId } elseif ($OwnedPids -and $OwnedPids.Count) { @($OwnedPids)[0] } else { 0 }
+    $treeSource = if ($root) { @(Get-ProcessTreeBounded $root 2) } else { @() }
+    if ($OwnedPids) { $treeSource = @($treeSource | Where-Object { $OwnedPids.Contains([int]$_.ProcessId) }) }
     $tree = if ($treeSource.Count) { @($treeSource | ForEach-Object { 'PID {0} PPID {1} {2} working_set_mb={3:N1} cpu_ms={4:N0} :: {5}' -f $_.ProcessId,$_.ParentProcessId,$_.Name,($_.WorkingSetSize/1MB),(($_.UserModeTime+$_.KernelModeTime)/10000),$_.CommandLine }) } else { @('<process tree unavailable or already exited>') }
     @(
         "workflow=$env:GITHUB_WORKFLOW"
@@ -228,14 +293,13 @@ function Write-FailureContext($Entry, [int]$ProcessId, [double]$RuntimeSeconds, 
 }
 
 try {
-    $os = $null; $cpu = $null; $videoAdapters=@()
-    try { $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop } catch { Write-Host "System inventory unavailable: $($_.Exception.Message)" }
-    try { $cpu = Get-CimInstance Win32_Processor -ErrorAction Stop | Select-Object -First 1 } catch { Write-Host "CPU inventory unavailable: $($_.Exception.Message)" }
-    try { $videoAdapters=@(Get-CimInstance Win32_VideoController -ErrorAction Stop | ForEach-Object {$_.Name}) } catch { Write-Host "GPU inventory unavailable: $($_.Exception.Message)" }
+    $systemInfo = Get-BestEffortCiSystemInfo 3
+    $os = $systemInfo.OS; $cpu = $systemInfo.CPU; $videoAdapters=@($systemInfo.GPU)
+    if ($systemInfo.Error) { Write-Host "System inventory unavailable: $($systemInfo.Error)" }
     $disk = $null
     try { $disk = Get-PSDrive -Name ([System.IO.Path]::GetPathRoot($gameRoot).TrimEnd(':\')) -ErrorAction Stop } catch { Write-Host "Free disk inventory unavailable: $($_.Exception.Message)" }
     Write-Host 'CI ENVIRONMENT' -ForegroundColor Cyan
-    Write-Host "Windows=$($os.Caption) $($os.Version) | CPU=$(if($cpu){$cpu.Name}else{$env:PROCESSOR_IDENTIFIER}) | RAM_GB=$(if($os){[math]::Round($os.TotalVisibleMemorySize / 1MB,1)}else{'unavailable'}) | FreeDisk_GB=$(if($disk){[math]::Round($disk.Free / 1GB,1)}else{'unavailable'})"
+    Write-Host "Windows=$(if($os){$os.Caption}else{'unavailable'}) $(if($os){$os.Version}else{'unavailable'}) | CPU=$(if($cpu){$cpu.Name}else{'unavailable'}) | RAM_GB=$(if($os){[math]::Round($os.TotalVisibleMemorySize / 1MB,1)}else{'unavailable'}) | FreeDisk_GB=$(if($disk){[math]::Round($disk.Free / 1GB,1)}else{'unavailable'})"
     Write-Host "PowerShell=$($PSVersionTable.PSVersion) | Python=$(& $pythonPath --version 2>&1) | Godot=$enginePath | Renderer=Godot test-specific (headless/rendered per catalog)"
     Write-Host "GPU/Display: $($videoAdapters -join '; ')"
     Write-Host "Visible test groups in this invocation: $((@($selected | Select-Object -ExpandProperty Group -Unique)) -join ', ')"
@@ -252,6 +316,7 @@ try {
         $process = $null
         $testPid = $null
         $ownedProcessIds = [System.Collections.Generic.HashSet[int]]::new()
+            $descendantsDiscovered = $false
         $status = 'FAIL'
         $exitCode = $null
         $timedOut = $false
@@ -265,9 +330,16 @@ try {
             $lastHeartbeat = [DateTime]::UtcNow
             while ($true) {
                 $process.Refresh()
-                foreach ($owned in @(Get-ProcessTree $testPid)) { [void]$ownedProcessIds.Add([int]$owned.ProcessId) }
-                $runningOwnedChildren=@($ownedProcessIds | Where-Object { $_ -ne $testPid -and (Get-Process -Id $_ -ErrorAction SilentlyContinue) })
-                if ($process.HasExited -and $runningOwnedChildren.Count -eq 0) { $process.WaitForExit(); $process.Refresh(); $exitCode = $process.ExitCode; break }
+                if ($process.HasExited -and -not $descendantsDiscovered) {
+                    # Snapshot descendants once at parent exit. The watchdog
+                    # itself never waits synchronously on CIM between checks.
+                    foreach ($owned in @(Get-ProcessTreeBounded $testPid 2)) { [void]$ownedProcessIds.Add([int]$owned.ProcessId) }
+                    $descendantsDiscovered = $true
+                }
+                if ($process.HasExited) {
+                    $runningOwnedChildren=@($ownedProcessIds | Where-Object { $_ -ne $testPid -and (Get-Process -Id $_ -ErrorAction SilentlyContinue) })
+                    if ($runningOwnedChildren.Count -eq 0) { $process.WaitForExit(); $process.Refresh(); $exitCode = $process.ExitCode; break }
+                }
                 $now = [DateTime]::UtcNow
                 if ($watch.Elapsed.TotalSeconds -ge $entry.TimeoutSeconds) { $timedOut=$true; break }
                 if ($now -ge $overallDeadline) { $timedOut=$true; break }
@@ -277,17 +349,24 @@ try {
                     if ((Test-Path -LiteralPath $stderrPath) -and (Get-Item -LiteralPath $stderrPath).Length -gt 0) { $recent += Get-LogTail $stderrPath 3 }
                     $logItem = Get-Item -LiteralPath $stdoutPath -ErrorAction SilentlyContinue
                     $errorLogItem = Get-Item -LiteralPath $stderrPath -ErrorAction SilentlyContinue
-                    $tree = @(Get-ProcessTree $testPid)
                     $lastActivity = "stdout=$($logItem.LastWriteTime) ($($logItem.Length) bytes), stderr=$($errorLogItem.LastWriteTime) ($($errorLogItem.Length) bytes)"
-                    Write-Host "[HEARTBEAT] test: $($entry.Name) | group: $($entry.Group) | runtime: $([math]::Floor($watch.Elapsed.TotalSeconds))s | pid: $testPid | running: $(-not $process.HasExited) | last_activity: $lastActivity | child_processes: $($runningOwnedChildren.Count)"
+                    $knownChildren = @($ownedProcessIds | Where-Object { $_ -ne $testPid }).Count
+                    Write-Host "[HEARTBEAT] test: $($entry.Name) | group: $($entry.Group) | runtime: $([math]::Floor($watch.Elapsed.TotalSeconds))s | pid: $testPid | running: $(-not $process.HasExited) | last_activity: $lastActivity | known_child_processes: $knownChildren"
                     foreach ($line in $recent) { Write-Host "[LAST OUTPUT] $line" }
                 }
                 Start-Sleep -Milliseconds 500
             }
             if ($timedOut) {
                 $status='FAIL'
-                $tree = @(Get-TrackedProcessDetails $ownedProcessIds)
-                if(-not $tree.Count){$tree=@(Get-ProcessTree $testPid)}
+                foreach ($pidFile in @($entry.OwnedPidFiles)) {
+                    if (Test-Path -LiteralPath $pidFile) {
+                        $fixturePid=0
+                        if ([int]::TryParse((Get-Content -LiteralPath $pidFile -Raw),[ref]$fixturePid) -and $fixturePid -gt 0) { [void]$ownedProcessIds.Add($fixturePid) }
+                    }
+                }
+                $tree = @(Get-ProcessTreeBounded $testPid 2)
+                foreach ($owned in $tree) { [void]$ownedProcessIds.Add([int]$owned.ProcessId) }
+                if (-not $tree.Count) { $tree=@([pscustomobject]@{ProcessId=$testPid;ParentProcessId=$null;Name='root process';CommandLine='Process-tree inventory unavailable after 2 seconds'}) }
                 Write-Host "TIMEOUT TEST`nname: $($entry.Name)`ngroup: $($entry.Group)`nstart: $($started.ToString('o'))`nruntime: $([math]::Round($watch.Elapsed.TotalSeconds,1))s`npid: $testPid`nprocess tree: $($tree | ConvertTo-Json -Depth 4 -Compress)" -ForegroundColor Red
                 Write-Host 'stdout tail:'; Get-LogTail $stdoutPath 30 | ForEach-Object { Write-Host $_ }
                 Write-Host 'stderr tail:'; Get-LogTail $stderrPath 30 | ForEach-Object { Write-Host $_ }
@@ -299,9 +378,15 @@ try {
                 $remainingGodot=@($remainingOwned | Where-Object { (Get-Process -Id $_ -ErrorAction SilentlyContinue).ProcessName -match '^Godot' })
                 Write-Host "OWNED PROCESS CLEANUP: $(if($remainingOwned.Count){'FAIL'}else{'PASS'}) | remaining owned PIDs: $($remainingOwned -join ',')"
                 Write-Host "OWNED GODOT PROCESS LEFTOVERS: $($remainingGodot.Count) | PIDs: $($remainingGodot -join ',')"
-                throw "Test timed out after $([math]::Round($watch.Elapsed.TotalSeconds,1))s: $($entry.Name) [$($entry.Group)]"
+                if ($remainingOwned.Count -gt 0) { throw "Owned process cleanup failed after timeout: $($entry.Name); PIDs=$($remainingOwned -join ',')" }
+                if ($entry.ExpectedTimeout) {
+                    $status='PASS'
+                    Write-Host "EXPECTED TIMEOUT TEST PASS`nname: $($entry.Name)`nduration: $([math]::Round($watch.Elapsed.TotalSeconds,1))s`nowned_processes_left: 0" -ForegroundColor Green
+                } else {
+                    throw "Test timed out after $([math]::Round($watch.Elapsed.TotalSeconds,1))s: $($entry.Name) [$($entry.Group)]"
+                }
             }
-            if ($exitCode -ne 0) {
+            if (-not ($timedOut -and $entry.ExpectedTimeout) -and $exitCode -ne 0) {
                 $status='FAIL'
                 Write-Host "FAIL TEST`nname: $($entry.Name)`nexit_code: $exitCode`nduration: $([math]::Round($watch.Elapsed.TotalSeconds,1))s" -ForegroundColor Red
                 Write-Host 'stdout tail:'; Get-LogTail $stdoutPath 30 | ForEach-Object { Write-Host $_ }
@@ -309,8 +394,10 @@ try {
                 Write-FailureContext $entry $testPid $watch.Elapsed.TotalSeconds $stdoutPath $stderrPath $false $ownedProcessIds
                 throw "Test failed with exit ${exitCode}: $($entry.Name) [$($entry.Group)]"
             }
-            $status='PASS'
-            Write-Host "PASS TEST`nname: $($entry.Name)`nduration: $([math]::Round($watch.Elapsed.TotalSeconds,1))s`nexit_code: 0" -ForegroundColor Green
+            if (-not $timedOut) {
+                $status='PASS'
+                Write-Host "PASS TEST`nname: $($entry.Name)`nduration: $([math]::Round($watch.Elapsed.TotalSeconds,1))s`nexit_code: 0" -ForegroundColor Green
+            }
         } catch {
             if ($timedOut -or ($process -and -not $process.HasExited)) {
                 if ($process) { Stop-OwnedPids $ownedProcessIds $testPid }
@@ -326,7 +413,7 @@ try {
             $records.Add([pscustomobject]@{
                 Test=$entry.Name; Name=$entry.Name; Group=$entry.Group; Status=$status
                 DurationSeconds=[math]::Round($watch.Elapsed.TotalSeconds,3); ExitCode=$exitCode
-                Timeout=$timedOut; Pid=$testPid
+                Timeout=($timedOut -and -not $entry.ExpectedTimeout); ExpectedTimeout=([bool]$entry.ExpectedTimeout); Pid=$testPid
                 StartedAt=$started.ToString('o'); EndedAt=[DateTime]::Now.ToString('o')
                 Stdout=$stdoutPath; Stderr=$stderrPath
             })

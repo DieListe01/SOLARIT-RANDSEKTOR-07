@@ -107,6 +107,10 @@ jobs:
           Remove-Item -LiteralPath test-output/ci/regression-summary.json,test-output/ci/regression-summary.txt,test-output/ci/CI-FAILURE-CONTEXT.txt -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force test-output/ci/logs | Out-Null
 
+      - name: Run regression supervisor self-test
+        shell: pwsh
+        run: .\Test-Solarit.ps1 -CI -SupervisorSelfTest -Test ci_runner -HeartbeatSeconds 2
+
       - name: Run core regression
         shell: pwsh
         run: .\Test-Solarit.ps1 -CI -Group Core -HeartbeatSeconds 30
