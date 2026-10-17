@@ -1,3 +1,4 @@
+Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 extends SceneTree
 var failures: Array[String] = []
 var checks := 0
@@ -13,6 +14,29 @@ func _initialize() -> void:
 func wait_for_state(expected: String) -> void:
 	var deadline := Time.get_ticks_msec()+30000
 	while director.state!=expected and Time.get_ticks_msec()<deadline: await process_frame
+
+func current_playback_position(player: AudioStreamPlayer) -> float:
+	# AudioStreamPlayer reports the last mixed position; compensate to the
+	# current instant so reading several players does not compare stale samples.
+	return player.get_playback_position()+AudioServer.get_time_since_last_mix()
+
+func wait_for_transport_settle(players: Array[AudioStreamPlayer], label: String) -> void:
+	# Headless CI can expose scheduled starts a few mixer blocks later than the
+	# game thread. Preserve the strict 50 ms requirement and wait only for the
+	# audio server to publish settled playheads before sampling it.
+	var deadline := Time.get_ticks_msec()+2000
+	var stable_frames := 0
+	var positions: Array[float] = []
+	while Time.get_ticks_msec()<deadline:
+		await process_frame
+		positions.clear()
+		for player in players: positions.append(current_playback_position(player))
+		var synced := not players.is_empty() and players.all(func(player: AudioStreamPlayer): return player.playing and absf(current_playback_position(player)-positions[0])<0.05)
+		stable_frames = stable_frames+1 if synced else 0
+		if stable_frames>=2: return
+	var formatted: Array[String] = []
+	for i in positions.size(): formatted.append("%s=%.4f"%[players[i].name,positions[i]])
+	print("AUDIO TRANSPORT DIAGNOSTIC %s: settled_sync=false tolerance=0.050s players=[%s]"%[label,", ".join(formatted)])
 
 func run() -> void:
 	director=MusicDirector.new()
@@ -63,12 +87,13 @@ func run() -> void:
 	check(not director.samples.has("harvest_start_demo"),"Harvest start no longer plays legacy demo audio over the work loop")
 	director.start(sim)
 	await create_timer(0.15).timeout
+	await wait_for_transport_settle(director.layers,"full-mix layers")
 	check(director.layers.size()==6,"Six synchronized tactical music states are ready for bar-aligned selection")
 	check(director.selected_tracks.size()==6,"Music tracks resolve from catalog metadata")
 	check(director.faction_id==str(sim.factions[0]),"Mission music uses the selected faction family")
-	var head: float = director.layers[0].get_playback_position()
+	var head: float = current_playback_position(director.layers[0])
 	for layer in director.layers:
-		check(layer.playing and absf(layer.get_playback_position()-head)<0.05,"Layer transport synchronized")
+		check(layer.playing and absf(current_playback_position(layer)-head)<0.05,"Layer transport synchronized")
 		check(layer.stream is AudioStreamOggVorbis,"Runtime music uses compressed Ogg Vorbis")
 		if layer.stream is AudioStreamOggVorbis:
 			check((layer.stream as AudioStreamOggVorbis).loop,"Long music stem loops in the audio stream")
@@ -180,10 +205,11 @@ func run() -> void:
 	# positions. This check runs headless in CI, where the dummy mixer can lag
 	# one rendered frame behind AudioStreamPlayer.play().
 	await create_timer(0.05).timeout
+	await wait_for_transport_settle(director.stem_players,"adaptive stems")
 	check(director.layers.is_empty() and director.stem_players.size()==8,"Optional adaptive stem set replaces full-mix players when authored stems exist")
 	check(director.stem_players.all(func(player): return player.playing),"All available authored stems start together")
-	var stem_playhead:=director.stem_players[0].get_playback_position()
-	check(director.stem_players.all(func(player): return absf(player.get_playback_position()-stem_playhead)<0.05),"Adaptive stems share a synchronized transport")
+	var stem_playhead:=current_playback_position(director.stem_players[0])
+	check(director.stem_players.all(func(player): return absf(current_playback_position(player)-stem_playhead)<0.05),"Adaptive stems share a synchronized transport")
 	director.state="BASE_CALM"; director.intensity=0.0; director._update_stem_mix(10.0)
 	var calm_combat_db:=director.stem_players[6].volume_db
 	director.state="BASE_UNDER_ATTACK"; director.intensity=1.0; sim.base_alarm=8.0
@@ -197,3 +223,4 @@ func run() -> void:
 	await create_timer(0.15).timeout
 	print("AUDIO INTEGRATION: %d checks, %d failures" % [checks,failures.size()])
 	quit(0 if failures.is_empty() else 1)
+
