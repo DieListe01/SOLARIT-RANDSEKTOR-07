@@ -163,15 +163,30 @@ $overallWatch = [System.Diagnostics.Stopwatch]::StartNew()
 $overallDeadline = [DateTime]::UtcNow.AddMinutes($OverallTimeoutMinutes)
 $failed = $false
 
-function Get-ProcessTreeBounded([int]$RootPid, [int]$TimeoutSeconds = 2) {
+function Get-ProcessTreeBounded([int]$RootPid, [int]$TimeoutSeconds = 2, [datetime]$RootStartedAtUtc = [datetime]::MinValue) {
     # CIM can stall on hosted Windows runners. Never perform this inventory in
     # the test watchdog's critical path; use a thread job with a hard wait bound.
     $job = $null
     try {
-        $job = Start-ThreadJob -ArgumentList $RootPid -ScriptBlock {
-            param([int]$RequestedRootPid)
+        $job = Start-ThreadJob -ArgumentList @($RootPid,$RootStartedAtUtc) -ScriptBlock {
+            param([int]$RequestedRootPid, [datetime]$RequestedRootStartedAtUtc)
             try {
                 $all = @(Get-CimInstance Win32_Process -ErrorAction Stop)
+                # A process may exit before the asynchronous snapshot finishes.
+                # Windows can reuse its PID, so parent-PID matching alone could
+                # claim unrelated system processes as children of this test.
+                $rootItem = $all | Where-Object { [int]$_.ProcessId -eq $RequestedRootPid } | Select-Object -First 1
+                if ($rootItem -and $RequestedRootStartedAtUtc -ne [datetime]::MinValue -and $rootItem.CreationDate) {
+                    $rootCreatedUtc = ([datetime]$rootItem.CreationDate).ToUniversalTime()
+                    if ([math]::Abs(($rootCreatedUtc - $RequestedRootStartedAtUtc).TotalSeconds) -gt 3) { return }
+                }
+                if ($RequestedRootStartedAtUtc -ne [datetime]::MinValue) {
+                    $all = @($all | Where-Object {
+                        if (-not $_.CreationDate) { return $false }
+                        $createdUtc = ([datetime]$_.CreationDate).ToUniversalTime()
+                        $createdUtc -ge $RequestedRootStartedAtUtc.AddSeconds(-2)
+                    })
+                }
                 $ids = [System.Collections.Generic.HashSet[int]]::new()
                 [void]$ids.Add($RequestedRootPid)
                 $changed = $true
@@ -181,7 +196,7 @@ function Get-ProcessTreeBounded([int]$RootPid, [int]$TimeoutSeconds = 2) {
                         if ($ids.Contains([int]$item.ParentProcessId) -and $ids.Add([int]$item.ProcessId)) { $changed = $true }
                     }
                 }
-                $all | Where-Object { $ids.Contains([int]$_.ProcessId) } | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine,WorkingSetSize,UserModeTime,KernelModeTime
+                $all | Where-Object { $ids.Contains([int]$_.ProcessId) } | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine,CreationDate,WorkingSetSize,UserModeTime,KernelModeTime
             } catch { }
         }
         if ($job | Wait-Job -Timeout ([math]::Max(1,$TimeoutSeconds))) {
@@ -311,9 +326,9 @@ function Write-CiSummary([switch]$AddStepSummary) {
     }
 }
 
-function Write-FailureContext($Entry, [int]$ProcessId, [double]$RuntimeSeconds, [string]$StdoutPath, [string]$StderrPath, [bool]$TimedOut, [System.Collections.Generic.HashSet[int]]$OwnedPids=$null) {
+function Write-FailureContext($Entry, [int]$ProcessId, [double]$RuntimeSeconds, [string]$StdoutPath, [string]$StderrPath, [bool]$TimedOut, [System.Collections.Generic.HashSet[int]]$OwnedPids=$null, [datetime]$ProcessStartedAtUtc=[datetime]::MinValue) {
     $root = if ($ProcessId) { $ProcessId } elseif ($OwnedPids -and $OwnedPids.Count) { @($OwnedPids)[0] } else { 0 }
-    $treeSource = if ($root) { @(Get-ProcessTreeBounded $root 2) } else { @() }
+    $treeSource = if ($root) { @(Get-ProcessTreeBounded $root 2 $ProcessStartedAtUtc) } else { @() }
     if ($OwnedPids) { $treeSource = @($treeSource | Where-Object { $OwnedPids.Contains([int]$_.ProcessId) }) }
     $tree = if ($treeSource.Count) { @($treeSource | ForEach-Object { 'PID {0} PPID {1} {2} working_set_mb={3:N1} cpu_ms={4:N0} :: {5}' -f $_.ProcessId,$_.ParentProcessId,$_.Name,($_.WorkingSetSize/1MB),(($_.UserModeTime+$_.KernelModeTime)/10000),$_.CommandLine }) } else { @('<process tree unavailable or already exited>') }
     @(
@@ -359,6 +374,7 @@ try {
         $heldProcessHandle = $null
         $processHandleRefAdded = $false
         $testPid = $null
+        $testProcessStartedAtUtc = [datetime]::MinValue
         $ownedProcessIds = [System.Collections.Generic.HashSet[int]]::new()
             $descendantsDiscovered = $false
         $status = 'FAIL'
@@ -377,6 +393,7 @@ try {
                 else { $env:SOLARIT_TEST_SKIP_POSE_PREWARM = $previousSkipPoseWarmup }
             }
             $testPid = $process.Id
+            $testProcessStartedAtUtc = $process.StartTime.ToUniversalTime()
             $heldProcessHandle = $process.SafeHandle
             $heldProcessHandle.DangerousAddRef([ref]$processHandleRefAdded)
             [void]$ownedProcessIds.Add($testPid)
@@ -386,7 +403,7 @@ try {
                 if ($process.HasExited -and -not $descendantsDiscovered) {
                     # Snapshot descendants once at parent exit. The watchdog
                     # itself never waits synchronously on CIM between checks.
-                    foreach ($owned in @(Get-ProcessTreeBounded $testPid 2)) { [void]$ownedProcessIds.Add([int]$owned.ProcessId) }
+                    foreach ($owned in @(Get-ProcessTreeBounded $testPid 2 $testProcessStartedAtUtc)) { [void]$ownedProcessIds.Add([int]$owned.ProcessId) }
                     $descendantsDiscovered = $true
                 }
                 if ($process.HasExited) {
@@ -422,13 +439,13 @@ try {
                         if ([int]::TryParse((Get-Content -LiteralPath $pidFile -Raw),[ref]$fixturePid) -and $fixturePid -gt 0) { [void]$ownedProcessIds.Add($fixturePid) }
                     }
                 }
-                $tree = @(Get-ProcessTreeBounded $testPid 2)
+                $tree = @(Get-ProcessTreeBounded $testPid 2 $testProcessStartedAtUtc)
                 foreach ($owned in $tree) { [void]$ownedProcessIds.Add([int]$owned.ProcessId) }
                 if (-not $tree.Count) { $tree=@([pscustomobject]@{ProcessId=$testPid;ParentProcessId=$null;Name='root process';CommandLine='Process-tree inventory unavailable after 2 seconds'}) }
                 Write-Host "TIMEOUT TEST`nname: $($entry.Name)`ngroup: $($entry.Group)`nstart: $($started.ToString('o'))`nruntime: $([math]::Round($watch.Elapsed.TotalSeconds,1))s`npid: $testPid`nprocess tree: $($tree | ConvertTo-Json -Depth 4 -Compress)" -ForegroundColor Red
                 Write-Host 'stdout tail:'; Get-LogTail $stdoutPath 30 | ForEach-Object { Write-Host $_ }
                 Write-Host 'stderr tail:'; Get-LogTail $stderrPath 30 | ForEach-Object { Write-Host $_ }
-                Write-FailureContext $entry $testPid $watch.Elapsed.TotalSeconds $stdoutPath $stderrPath $true $ownedProcessIds
+                Write-FailureContext $entry $testPid $watch.Elapsed.TotalSeconds $stdoutPath $stderrPath $true $ownedProcessIds $testProcessStartedAtUtc
                 $ownedSnapshot=@($ownedProcessIds)
                 Stop-OwnedPids $ownedProcessIds $testPid
                 Start-Sleep -Milliseconds 250
@@ -449,7 +466,7 @@ try {
                 Write-Host "FAIL TEST`nname: $($entry.Name)`nexit_code: $exitCode`nduration: $([math]::Round($watch.Elapsed.TotalSeconds,1))s" -ForegroundColor Red
                 Write-Host 'stdout tail:'; Get-LogTail $stdoutPath 30 | ForEach-Object { Write-Host $_ }
                 Write-Host 'stderr tail:'; Get-LogTail $stderrPath 30 | ForEach-Object { Write-Host $_ }
-                Write-FailureContext $entry $testPid $watch.Elapsed.TotalSeconds $stdoutPath $stderrPath $false $ownedProcessIds
+                Write-FailureContext $entry $testPid $watch.Elapsed.TotalSeconds $stdoutPath $stderrPath $false $ownedProcessIds $testProcessStartedAtUtc
                 throw "Test failed with exit ${exitCode}: $($entry.Name) [$($entry.Group)]"
             }
             if (-not $timedOut) {
