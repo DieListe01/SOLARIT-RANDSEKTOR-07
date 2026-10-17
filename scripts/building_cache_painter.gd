@@ -7,6 +7,9 @@ var entity: Dictionary
 var team := Color.WHITE
 var faction := "forge"
 var sim: Simulation
+var resolved_visual_source := ""
+var resolved_visual_kind := ""
+var resolved_visual_faction := ""
 
 func _ready() -> void:
 	var environment_node := WorldEnvironment.new()
@@ -42,6 +45,8 @@ func _ready() -> void:
 	var footprint := Vector2(footprint_data[0],footprint_data[1])*sim.grid.tile
 	_add_shadow(footprint)
 	var kind := str(entity.get("kind", "core"))
+	resolved_visual_kind=kind
+	resolved_visual_faction=faction
 	var faction_asset_path := "res://assets/models/buildings/factions/%s_%s.glb" % [faction,kind]
 	var asset_path := "res://assets/models/buildings/%s.glb" % kind
 	var loaded_faction_model:=ModelAssets.add_optional_glb(self, faction_asset_path, "Faction building",team)
@@ -49,6 +54,7 @@ func _ready() -> void:
 	if not loaded_faction_model:
 		loaded_standard_model=ModelAssets.add_optional_glb(self, asset_path, "Authored building",team)
 	if loaded_faction_model or loaded_standard_model:
+		resolved_visual_source=faction_asset_path if loaded_faction_model else asset_path
 		var model: Node3D=get_node("Faction building" if loaded_faction_model else "Authored building") as Node3D
 		entity["faction"] = faction
 		ModelAssets.apply_building_pose(model, entity)
@@ -61,6 +67,7 @@ func _ready() -> void:
 				model.scale.y=clampf(0.34+(progress-0.5)*2.2,0.34,1.0)
 			_add_construction_rig(footprint/float(sim.grid.tile),construction_stage)
 		return
+	resolved_visual_source="procedural:%s:%s" % [faction,kind]
 	LowpolyModelFactory.building(self,entity,team,faction,footprint)
 
 func _add_construction_rig(footprint: Vector2, stage: int) -> void:

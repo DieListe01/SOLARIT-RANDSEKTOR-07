@@ -8,13 +8,24 @@ const GOLD := Color("e8b963")
 const FOE := Color("e06d4e")
 
 var mission_data: Dictionary = {}
+var elapsed := 0.0
 
 func _ready() -> void:
 	mouse_filter=Control.MOUSE_FILTER_STOP
+	set_process(true)
+
+func _process(delta: float) -> void:
+	elapsed+=delta
+	queue_redraw()
 
 func _draw() -> void:
 	var bounds := Rect2(Vector2.ZERO,size)
-	draw_rect(bounds,INK)
+	draw_rect(bounds,Color("0a1417"))
+	# Quiet technical underlay gives the tactical panel depth without obscuring terrain.
+	for i in range(0,int(size.x),24):
+		draw_line(Vector2(i,0),Vector2(i,size.y),Color(0.82,0.88,0.78,0.025),1.0)
+	for i in range(0,int(size.y),24):
+		draw_line(Vector2(0,i),Vector2(size.x,i),Color(0.82,0.88,0.78,0.025),1.0)
 	var w:=size.x
 	var h:=size.y
 	var map_width:=maxi(1,int(mission_data.get("width",64)))
@@ -43,8 +54,9 @@ func _draw() -> void:
 		if cell.size()<2: continue
 		var center:=Vector2((float(cell[0])+0.5)*tile_w,(float(cell[1])+0.5)*tile_h)
 		var radius:=maxf(3.0,float(patch.get("radius",2))*minf(tile_w,tile_h))
-		draw_circle(center,radius,Color("48d5bd",0.17))
-		draw_circle(center,radius*0.48,Color("81e7d1",0.22))
+		draw_circle(center,radius,Color("48d5bd",0.13))
+		draw_arc(center,radius,0,TAU,32,Color("81e7d1",0.42),1.0)
+		draw_circle(center,radius*0.48,Color("81e7d1",0.20))
 	# Coordinates mirror the map grid for quick orientation without obscuring terrain.
 	for i in range(1,8):
 		draw_line(Vector2(w*float(i)/8.0,0),Vector2(w*float(i)/8.0,h),Color(0.9,0.84,0.69,0.08),0.8)
@@ -70,7 +82,10 @@ func _draw() -> void:
 		if target_found: break
 	if not target_found and starts.size()>1 and starts[1] is Array and starts[1].size()>=2:
 		target=Vector2((float(starts[1][0])+0.5)*tile_w,(float(starts[1][1])+0.5)*tile_h)
-	draw_line(friendly,target,Color(MINT,0.42),1.2)
+	draw_line(friendly,target,Color(MINT,0.52),1.4)
+	for dash in range(1,12):
+		var point:=friendly.lerp(target,float(dash)/12.0)
+		if dash%2==0: draw_circle(point,1.1,Color(0.72,0.9,0.77,0.6))
 	# Enemy structures and known units are shown at their authored map positions.
 	for structure_variant in mission_data.get("structures",[]):
 		var structure: Dictionary=structure_variant
@@ -86,6 +101,19 @@ func _draw() -> void:
 		var cell: Array=unit.get("cell",[])
 		if cell.size()<2: continue
 		draw_circle(Vector2((float(cell[0])+0.5)*tile_w,(float(cell[1])+0.5)*tile_h),maxf(2.3,minf(tile_w,tile_h)*0.65),FOE)
-	draw_circle(friendly,7.0,Color(INK,0.8)); draw_circle(friendly,4.5,MINT)
-	draw_circle(target,8.0,Color(GOLD,0.18)); draw_circle(target,4.0,GOLD)
-	draw_rect(bounds,Color("b39461"),false,1.0)
+	var pulse:=0.5+0.5*sin(elapsed*2.0)
+	draw_arc(friendly,8.0+pulse*3.0,0,TAU,32,Color(MINT,0.52-pulse*0.18),1.2)
+	draw_circle(friendly,7.0,Color(INK,0.82)); draw_circle(friendly,4.5,MINT)
+	draw_arc(target,10.0+pulse*4.0,0,TAU,32,Color(GOLD,0.48-pulse*0.16),1.4)
+	draw_circle(target,8.0,Color(GOLD,0.14)); draw_circle(target,4.0,GOLD)
+	# Slow scan sweep and corner brackets animate the live tactical picture.
+	var scan_x:=fposmod(elapsed*45.0,size.x)
+	draw_rect(Rect2(scan_x-18,0,36,size.y),Color(MINT.r,MINT.g,MINT.b,0.035))
+	draw_line(Vector2(scan_x,0),Vector2(scan_x,size.y),Color(MINT.r,MINT.g,MINT.b,0.16),1.0)
+	var corner:=Color("d8b36f",0.75)
+	for point in [Vector2(7,7),Vector2(size.x-7,7),Vector2(7,size.y-7),Vector2(size.x-7,size.y-7)]:
+		var sx:=1.0 if point.x< size.x*0.5 else -1.0
+		var sy:=1.0 if point.y< size.y*0.5 else -1.0
+		draw_line(point,point+Vector2(sx*13,0),corner,1.4)
+		draw_line(point,point+Vector2(0,sy*13),corner,1.4)
+	draw_rect(bounds,Color("b39461",0.62),false,1.0)

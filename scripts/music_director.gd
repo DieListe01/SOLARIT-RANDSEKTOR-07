@@ -20,10 +20,16 @@ var state := "BASE_CALM"
 var intensity := 0.0
 var age := 0.0
 var last_music_bar := -1
+var pending_age := 0.0
 var active_arrangement_index := 0
 var previous_arrangement_index := 0
 var arrangement_crossfade_elapsed := 1.25
-const ARRANGEMENT_CROSSFADE_SECONDS := 1.25
+const ARRANGEMENT_CROSSFADE_SECONDS := 4.0
+const MIN_STATE_DWELL_SECONDS := 20.0
+const MIN_PENDING_STABILITY_SECONDS := 6.0
+const VOICE_DUCK_GAIN := 0.5011872 # -6 dB while a spoken line is active.
+const VOICE_DUCK_ATTACK_RATE := 9.0
+const VOICE_DUCK_RELEASE_RATE := 1.5
 var pending := "BASE_CALM"
 var music_volume := 0.65
 var sfx_volume := 0.75
@@ -39,9 +45,12 @@ var cue_indices: Dictionary = {}
 var frontend_player: AudioStreamPlayer
 var stinger_player: AudioStreamPlayer
 var frontend := false
+var review_preview := false
 var engine_voice: AudioStreamPlayer
 var audio_listener: AudioListener2D
 var harvest_loop: AudioStreamPlayer2D
+var refinery_ambience_player: AudioStreamPlayer
+var cached_refinery_count := 0
 var voice_duck := 1.0
 var speech: Variant
 var harvest_collection_cooldown := 0.0
@@ -130,6 +139,16 @@ func _ready() -> void:
 		harvest_loop.stream=harvest_stream
 	harvest_loop.volume_db=-70
 	add_child(harvest_loop)
+	refinery_ambience_player=AudioStreamPlayer.new()
+	refinery_ambience_player.bus="Ambience"
+	var refinery_source: AudioStream=samples.get("refinery_ambience") as AudioStream
+	if refinery_source is AudioStreamOggVorbis:
+		var refinery_stream:=refinery_source.duplicate() as AudioStreamOggVorbis
+		refinery_stream.loop=true
+		refinery_stream.loop_offset=0.0
+		refinery_ambience_player.stream=refinery_stream
+	refinery_ambience_player.volume_db=-70.0
+	add_child(refinery_ambience_player)
 
 func _load_sfx_candidates() -> void:
 	var parsed: Variant=JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/sfx_catalog.json"))
@@ -155,12 +174,18 @@ func start(model: Simulation) -> void:
 	if speech!=null: speech.stop()
 	engine_voice.stream_paused=false; engine_voice.volume_db=-70; engine_voice.play()
 	harvest_loop.stream_paused=false; harvest_loop.stop()
+	if refinery_ambience_player!=null:
+		refinery_ambience_player.stream_paused=false
+		refinery_ambience_player.stop()
+		refinery_ambience_player.volume_db=-70.0
+	cached_refinery_count=0
 	frontend=false
+	review_preview=false
 	frontend_player.stop()
 	sim=model
 	ended=false
 	paused=false
-	state="BASE_CALM"; pending=state; age=0; intensity=0; last_music_bar=-1
+	state="BASE_CALM"; pending=state; age=0; pending_age=0.0; intensity=0; last_music_bar=-1
 	set_meta("alert_stinger_played",false)
 	active_arrangement_index=0; previous_arrangement_index=0
 	arrangement_crossfade_elapsed=ARRANGEMENT_CROSSFADE_SECONDS
@@ -201,6 +226,24 @@ func start(model: Simulation) -> void:
 	last_music_bar=-1
 	play_global_stinger("mission_start")
 
+func start_review_preview(model: Simulation) -> void:
+	start(model)
+	review_preview=true
+	# The credits screen is a listening room, not a live mission. Suppress the
+	# tactical scanner so its synthetic test simulation cannot override choices.
+	state="BASE_CALM"
+	pending=state
+	age=0.0
+
+func preview_arrangement(index: int) -> bool:
+	if selected_tracks.is_empty() or not stem_players.is_empty(): return false
+	var next_index:=clampi(index,0,selected_tracks.size()-1)
+	if next_index==active_arrangement_index: return true
+	previous_arrangement_index=active_arrangement_index
+	active_arrangement_index=next_index
+	arrangement_crossfade_elapsed=0.0
+	return true
+
 func play_global_stinger(stinger_name: String) -> bool:
 	var spec: Dictionary=music_catalog.get("global_stingers",{}).get(stinger_name,{})
 	if spec.is_empty(): return false
@@ -211,6 +254,24 @@ func play_global_stinger(stinger_name: String) -> bool:
 	stinger_player.volume_linear=clampf(music_volume*0.85,0.0,1.0)
 	stinger_player.play()
 	return true
+
+func _transition_bar_seconds(track: Dictionary) -> float:
+	# An unmetered ambient loop has no meaningful beat grid. Use the catalog's
+	# neutral two-second transition grid rather than claiming a fabricated BPM.
+	if bool(track.get("unmetered", false)):
+		var default_bpm := maxf(1.0, float(music_catalog.get("default_tempo_bpm", 120)))
+		var default_beats := maxf(1.0, float(music_catalog.get("default_beats_per_bar", 4)))
+		return 60.0 / default_bpm * default_beats
+	var bpm := float(track.get("bpm", music_catalog.get("default_tempo_bpm", 120)))
+	var beats_per_bar := float(track.get("beats_per_bar", music_catalog.get("default_beats_per_bar", 4)))
+	var beat_unit := float(track.get("beat_unit", 4))
+	if bpm <= 0.0:
+		bpm = float(music_catalog.get("default_tempo_bpm", 120))
+	return 60.0 / maxf(1.0, bpm) * maxf(1.0, beats_per_bar) * 4.0 / maxf(1.0, beat_unit)
+
+func _current_transition_track() -> Dictionary:
+	if selected_tracks.is_empty(): return {}
+	return selected_tracks[clampi(active_arrangement_index,0,selected_tracks.size()-1)]
 
 func _start_adaptive_stems(stem_set: Dictionary, start_time: float) -> bool:
 	var stem_catalog: Dictionary=stem_set.get("layers",{})
@@ -293,7 +354,9 @@ func start_frontend(restart: bool = false) -> void:
 	if speech!=null: speech.stop()
 	engine_voice.stop()
 	harvest_loop.stop()
-	frontend=true; sim=null; paused=false; state="FIRST_SIGNAL"
+	if refinery_ambience_player!=null: refinery_ambience_player.stop(); refinery_ambience_player.volume_db=-70.0
+	cached_refinery_count=0
+	frontend=true; review_preview=false; sim=null; paused=false; state="FIRST_SIGNAL"
 	for layer in layers: layer.stream_paused=false; layer.stop()
 	for voice in voices: voice.stream_paused=false; voice.stop()
 	if frontend_player.stream==null:
@@ -378,6 +441,17 @@ func set_harvester_working(active: bool, screen_position: Vector2 = Vector2(-1,-
 	harvest_loop.volume_db=linear_to_db(maxf(0.001,sfx_volume*attenuation*0.5))
 	if not harvest_loop.playing: harvest_loop.play()
 
+func _update_refinery_ambience(dt: float) -> void:
+	if refinery_ambience_player==null or refinery_ambience_player.stream==null: return
+	var target_db: float=-70.0
+	if sim!=null and not paused and cached_refinery_count>0:
+		if not refinery_ambience_player.playing: refinery_ambience_player.play()
+		var gain:=minf(0.12,0.065+float(cached_refinery_count-1)*0.018)*sfx_volume
+		target_db=linear_to_db(maxf(0.0001,gain))
+	refinery_ambience_player.volume_db=move_toward(refinery_ambience_player.volume_db,target_db,maxf(0.0,dt)*4.0)
+	if (sim==null or cached_refinery_count==0 or paused) and refinery_ambience_player.volume_db<=-69.5:
+		refinery_ambience_player.stop()
+
 func _update_harvest_collection_audio() -> void:
 	if sim==null: return
 	var active_harvesters: Dictionary={}
@@ -408,12 +482,14 @@ func set_paused(value: bool) -> void:
 	for voice in voices: voice.stream_paused=value
 	for voice_player in voice_players: voice_player.stream_paused=value
 	if harvest_loop!=null: harvest_loop.stream_paused=value
+	if refinery_ambience_player!=null: refinery_ambience_player.stream_paused=value
 	if speech!=null and is_instance_valid(speech.player): speech.player.stream_paused=value
 
 func shutdown() -> void:
 	if is_instance_valid(engine_voice): engine_voice.stream_paused=false; engine_voice.stop()
 	if is_instance_valid(stinger_player): stinger_player.stream_paused=false; stinger_player.stop(); stinger_player.stream=null
 	if is_instance_valid(harvest_loop): harvest_loop.stream_paused=false; harvest_loop.stop(); harvest_loop.stream=null
+	if is_instance_valid(refinery_ambience_player): refinery_ambience_player.stream_paused=false; refinery_ambience_player.stop(); refinery_ambience_player.stream=null
 	frontend_player.stream_paused=false; frontend_player.stop(); frontend_player.stream=null
 	for layer in layers: layer.stream_paused=false; layer.stop(); layer.stream=null
 	for stem_player in stem_players: stem_player.stream_paused=false; stem_player.stop(); stem_player.stream=null
@@ -433,13 +509,18 @@ func _process(dt: float) -> void:
 	_update_harvest_collection_audio()
 	for cue_name in cue_cooldowns: cue_cooldowns[cue_name]=maxf(0,float(cue_cooldowns[cue_name])-dt)
 	var voice_active: bool = voice_players.any(func(player: AudioStreamPlayer): return player.playing) or (speech!=null and is_instance_valid(speech.player) and speech.player.playing)
-	voice_duck=move_toward(voice_duck,0.72 if voice_active else 1.0,dt*1.5)
+	# Reach a clear dialogue bed quickly, then restore music more gently to avoid
+	# pumping between short combat/command barks.
+	voice_duck=move_toward(voice_duck,VOICE_DUCK_GAIN if voice_active else 1.0,dt*(VOICE_DUCK_ATTACK_RATE if voice_active else VOICE_DUCK_RELEASE_RATE))
 	if frontend and not paused:
 		frontend_player.volume_db=move_toward(frontend_player.volume_db,linear_to_db(maxf(0.001,music_volume*0.7)),dt*12)
 		return
 	if stinger_player!=null and stinger_player.playing:
 		stinger_player.volume_linear=clampf(music_volume*0.85*voice_duck,0.0,1.0)
 	if sim==null or (layers.is_empty() and stem_players.is_empty()) or paused: return
+	if review_preview:
+		_update_arrangement_mix(dt)
+		return
 	tactical_scan_timer-=dt
 	if tactical_scan_timer<=0.0:
 		tactical_scan_timer=0.25
@@ -452,6 +533,8 @@ func _process(dt: float) -> void:
 			if not sim.is_visible(e,sim.view_owner): continue
 			if is_enemy: cached_visible_enemies+=1
 			if is_moving_unit: cached_movers+=1
+		cached_refinery_count=sim.buildings(sim.view_owner,"refinery").size()
+	_update_refinery_ambience(dt)
 	engine_voice.volume_db=move_toward(engine_voice.volume_db,linear_to_db(maxf(0.0001,minf(0.20,cached_movers*0.035)*sfx_volume)),dt*35)
 	age+=dt
 	var desired := clampf(sim.combat_heat+cached_visible_enemies*0.025+(0.4 if sim.base_alarm>0 else 0.0),0,1)
@@ -464,22 +547,23 @@ func _process(dt: float) -> void:
 	elif intensity>0.18: next="SKIRMISH"
 	elif cached_visible_enemies>0: next="ENEMY_CONTACT"
 	elif not sim.buildings(sim.view_owner,"refinery").is_empty(): next="ECONOMY"
-	if next!=pending: pending=next
-	# Minimum dwell plus transitions at a 2-second bar boundary.
-	var playhead: float = layers[0].get_playback_position() if not layers.is_empty() else stem_players[0].get_playback_position()
-	var bpm := float(music_catalog.get("default_tempo_bpm",120))
-	var beats_per_bar := float(music_catalog.get("default_beats_per_bar",4))
-	var beat_unit := 4.0
-	if not selected_tracks.is_empty():
-		bpm=float(selected_tracks[0].get("bpm",bpm))
-		beats_per_bar=float(selected_tracks[0].get("beats_per_bar",beats_per_bar))
-		beat_unit=float(selected_tracks[0].get("beat_unit",4))
-	var bar_seconds := 60.0/maxf(1.0,bpm)*maxf(1.0,beats_per_bar)*4.0/maxf(1.0,beat_unit)
+	if next!=pending:
+		pending=next
+		pending_age=0.0
+	else:
+		pending_age+=dt
+	# Hold each musical state long enough to establish a mood. Ignore short-lived
+	# tactical fluctuations, while allowing urgent base alarms and match results
+	# to move at the next musical boundary.
+	var active_layer_index:=clampi(active_arrangement_index,0,maxi(0,layers.size()-1))
+	var playhead: float = layers[active_layer_index].get_playback_position() if not layers.is_empty() else stem_players[0].get_playback_position()
+	var active_track: Dictionary = _current_transition_track()
+	var bar_seconds := _transition_bar_seconds(active_track)
 	var music_bar := floori(playhead/bar_seconds)
 	var crossed_bar := music_bar!=last_music_bar
 	last_music_bar=music_bar
-	if pending!=state and age>2.0 and crossed_bar:
-		state=pending; age=0
+	if _can_commit_music_state(pending,crossed_bar):
+		state=pending; age=0.0; pending_age=0.0
 	if sim.result!="" and not ended:
 		ended=true; state=sim.result.to_upper(); cue(sim.result)
 		play_global_stinger("victory" if sim.result.to_lower()=="victory" else "defeat")
@@ -490,6 +574,13 @@ func _process(dt: float) -> void:
 	# Authored stem sets are mixed dynamically when present. Until real faction
 	# stems are supplied, keep the validated complete-mix transition path.
 	_update_arrangement_mix(dt)
+
+func _can_commit_music_state(next_state: String, crossed_bar: bool) -> bool:
+	if next_state==state or not crossed_bar:
+		return false
+	if next_state in ["BASE_UNDER_ATTACK", "VICTORY", "DEFEAT"]:
+		return true
+	return age>=MIN_STATE_DWELL_SECONDS and pending_age>=MIN_PENDING_STABILITY_SECONDS
 
 func _arrangement_index_for_state(value: String) -> int:
 	match value:

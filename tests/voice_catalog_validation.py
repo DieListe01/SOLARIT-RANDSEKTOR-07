@@ -9,7 +9,7 @@ REQUIRED_EVENTS = {
     "select": 4, "move": 4, "attack": 4, "damage": 3, "critical": 2,
     "success": 2, "harvester_select": 3, "harvest_start": 2,
     "harvest_full": 2, "harvest_return": 2, "harvest_unload": 2,
-    "harvest_danger": 2,
+    "harvest_danger": 2, "build_start": 2,
 }
 
 catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
@@ -63,7 +63,7 @@ for event_name, lines in catalog.get("system", {}).items():
             assert line.get("asset_state") == "recording_required", f"unmarked missing voice file: {line['id']}"
         system_lines += 1
 
-assert faction_lines == 96, f"unexpected faction voice line count: {faction_lines}"
+assert faction_lines == 102, f"unexpected faction voice line count: {faction_lines}"
 assert system_lines >= 15, f"too few command/system lines: {system_lines}"
 assert catalog.get("recordings_status") == "not_recorded" if not any(
     line.get("asset") for faction in catalog["factions"].values() for group in faction["lines"].values() for line in group

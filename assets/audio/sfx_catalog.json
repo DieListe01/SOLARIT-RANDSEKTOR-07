@@ -985,6 +985,24 @@
         }
       }
     ],
+    "refinery_ambience": [
+      {
+        "id": "oga_bart_refinery_ambience",
+        "path": "res://assets/audio/sfx/industrial/refinery_ambience.ogg",
+        "author": "bart",
+        "source": "Steam boiler sound loop",
+        "source_url": "https://opengameart.org/content/steam-boiler-sound-loop",
+        "processing": "48 kHz stereo Vorbis runtime conversion; low-level facility ambience loop",
+        "asset_status": "candidate",
+        "human_listening_approval": "pending",
+        "license": {
+          "name": "CC0 1.0",
+          "status": "cleared",
+          "commercial_use": true,
+          "attribution": "bart (optional)"
+        }
+      }
+    ],
     "harvester_work": [
       {
         "id": "kenney_harvester_loop",

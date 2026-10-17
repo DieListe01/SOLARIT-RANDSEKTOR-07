@@ -51,9 +51,23 @@ func run() -> void:
 	marker_image.fill(Color.WHITE)
 	var previous_factory_pose:=ImageTexture.create_from_image(marker_image)
 	game.renderer.building_texture_cache[factory_pose_keys[0]]=previous_factory_pose
+	game.renderer.building_texture_metadata[factory_pose_keys[0]]={"cache_key":factory_pose_keys[0],"kind":"factory","owner":0,"faction":"forge","actual_model_source":"procedural:forge:factory","texture_instance_id":previous_factory_pose.get_instance_id()}
 	game.renderer.building_cache_fallback_keys[animation_family_zero]=factory_pose_keys[0]
 	assert(game.renderer.building_cache_fallback_texture(factory_pose_keys[1])==previous_factory_pose,"An animated factory cache miss must retain the last valid 3D pose")
 	assert(game.renderer.building_cache_fallback_texture("|".join(wrong_faction_parts))==null,"A cache miss without a semantically valid prior pose may use first-render fallback only")
+	assert(game.renderer._building_cache_entry_valid(factory_pose_keys[0],previous_factory_pose,"factory",0,"forge"),"Cached building textures retain the identity they were actually rendered from")
+	game.renderer.building_texture_metadata[factory_pose_keys[0]]["cache_key"]=factory_pose_keys[1]
+	assert(not game.renderer._building_cache_entry_valid(factory_pose_keys[0],previous_factory_pose,"factory",0,"forge"),"A texture stored under a mismatched cache identity is rejected")
+	game.renderer.building_texture_metadata[factory_pose_keys[0]]["cache_key"]=factory_pose_keys[0]
+	game.renderer.building_texture_metadata[factory_pose_keys[0]]["actual_model_source"]="res://assets/models/buildings/harvester.glb"
+	assert(not game.renderer._building_cache_entry_valid(factory_pose_keys[0],previous_factory_pose,"factory",0,"forge"),"A texture recorded from an unrelated model source is rejected")
+	game.renderer.building_texture_metadata[factory_pose_keys[0]]["actual_model_source"]="procedural:forge:factory"
+	var snapshot: Dictionary=factory.duplicate(true)
+	snapshot.unloading=false
+	snapshot.building_animation_frame=1
+	snapshot.construction_stage=5
+	assert(game.renderer._building_snapshot_cache_key(snapshot,"forge")==factory_pose_keys[1],"Queued building snapshots reconstruct the exact requested cache identity")
+	assert(game.renderer._building_snapshot_cache_key(snapshot,"drift")!=factory_pose_keys[1],"Queued building snapshots cannot be rendered under another faction's cache key")
 	for frame in 600:
 		game.renderer.elapsed=float(frame)/60.0
 		var phase: int=mini(frame/120,3)
@@ -67,6 +81,15 @@ func run() -> void:
 		var requested_pose: String=game.renderer.building_cache_key(factory)
 		var retained_pose: Texture2D=game.renderer.building_cache_fallback_texture(requested_pose)
 		assert(retained_pose==previous_factory_pose and game.renderer.building_cache_family_key(requested_pose)==animation_family_zero,"600 consecutive factory render samples retain a same-building 3D pose through production, release and next-queue transitions")
+	var spare_image:=Image.create(1,1,false,Image.FORMAT_RGBA8)
+	spare_image.fill(Color("45d8c5"))
+	var spare_factory_pose:=ImageTexture.create_from_image(spare_image)
+	game.renderer.building_texture_cache[factory_pose_keys[2]]=spare_factory_pose
+	game.renderer.building_texture_times[factory_pose_keys[2]]=game.renderer.elapsed+1.0
+	game.renderer.building_texture_metadata[factory_pose_keys[2]]={"cache_key":factory_pose_keys[2],"kind":"factory","owner":0,"faction":"forge","actual_model_source":"procedural:forge:factory","texture_instance_id":spare_factory_pose.get_instance_id()}
+	game.renderer.building_cache_fallback_keys[animation_family_zero]=factory_pose_keys[0]
+	game.renderer._evict_building_cache_entry(factory_pose_keys[0])
+	assert(game.renderer.building_cache_fallback_texture(factory_pose_keys[1])==spare_factory_pose,"Evicting the preferred factory pose preserves a compatible cached animation pose instead of falling back to the procedural renderer")
 	factory.queue=[{"kind":"tank","paid":0}]
 	factory.erase("production_exit_unit")
 	game.renderer.elapsed=3.5
@@ -78,6 +101,7 @@ func run() -> void:
 	game.renderer.building_visual_event_log.clear()
 	game.renderer.building_texture_cache.clear()
 	game.renderer.building_texture_times.clear()
+	game.renderer.building_texture_metadata.clear()
 	game.renderer.building_cache_fallback_keys.clear()
 	var duration:=float(sim.db.units.tank.time)
 	var expected_stages: Array[int] = [1,2,3]
@@ -100,6 +124,16 @@ func run() -> void:
 	factory.build_progress=construction_time*0.95
 	var commissioning_stage:String=game.renderer.building_cache_key(factory)
 	assert(foundation_stage!=frame_stage and frame_stage!=assembly_stage and assembly_stage!=commissioning_stage,"The four authored 3D construction phases must use distinct cached configurations")
+	var foundation_image:=Image.create(1,1,false,Image.FORMAT_RGBA8)
+	foundation_image.fill(Color("45d8c5"))
+	var foundation_texture:=ImageTexture.create_from_image(foundation_image)
+	game.renderer.building_texture_cache[foundation_stage]=foundation_texture
+	game.renderer.building_texture_metadata[foundation_stage]={"cache_key":foundation_stage,"kind":"factory","owner":0,"faction":"forge","actual_model_source":"procedural:forge:factory","texture_instance_id":foundation_texture.get_instance_id()}
+	game.renderer.building_entity_last_pose_keys[factory_id]=foundation_stage
+	assert(game.renderer.building_entity_fallback_texture(factory,frame_stage)==foundation_texture,"A construction-phase cache miss retains this exact building's last valid pose until the new phase is ready")
+	var wrong_owner_factory: Dictionary=factory.duplicate(true)
+	wrong_owner_factory.owner=1
+	assert(game.renderer.building_entity_fallback_texture(wrong_owner_factory,frame_stage)==null,"A previous-entity fallback cannot cross owner or faction identity")
 	factory.complete=true
 	var radar_id:=sim.spawn("radar",0,origin+Vector2(360,0),true)
 	var radar: Dictionary=sim.entities[radar_id]

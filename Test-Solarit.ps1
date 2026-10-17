@@ -1,6 +1,6 @@
 param(
     [switch]$CI,
-    [ValidateSet('Core','Simulation','Gameplay','SaveLoad','ProfileHighscore','Mission','Multiplayer','Audio','UI','Visual','RendererCache','Performance')]
+    [ValidateSet('Core','Simulation','Gameplay','SaveLoad','ProfileHighscore','Mission','Multiplayer','Audio','UI','Visual','RendererCache','Performance','CIHarness')]
     [string]$Group,
     [string]$Test,
     [ValidateRange(1,1440)][int]$OverallTimeoutMinutes = 90,
@@ -80,6 +80,7 @@ Add-GodotTest 'Audio' 'audio_integration' $true 300
 Add-GodotTest 'Audio' 'voice_system' $true 300
 
 Add-GodotTest 'UI' 'ui_integration' $false 600 'gl_compatibility' 'opengl3_angle'
+Add-GodotTest 'UI' 'placement_preview_input' $false 300 'gl_compatibility' 'opengl3_angle'
 Add-GodotTest 'UI' 'frontend' $false 600
 Add-GodotTest 'UI' 'intro_cinematic' $false 600
 Add-GodotTest 'UI' 'update_info' $false 300
@@ -94,6 +95,9 @@ Add-GodotTest 'Visual' 'visual_showcase' $false 600
 Add-GodotTest 'Visual' 'terrain_visual_acceptance' $false 300
 Add-GodotTest 'Visual' 'color_identity' $false 300
 Add-GodotTest 'Visual' 'factory_production_visuals' $false 600
+Add-GodotTest 'Visual' 'building_visual_stability' $false 600
+$tests[-1].Arguments += @('--fullscreen','--resolution','1920x1080')
+Add-GodotTest 'Visual' 'harvester_runtime_visual' $false 600
 
 Add-GodotTest 'RendererCache' 'prototype_25d' $true 300
 Add-GodotTest 'RendererCache' 'authored_assets' $true 300
@@ -316,6 +320,8 @@ try {
         $watch = [System.Diagnostics.Stopwatch]::StartNew()
         Write-Host "==================================================`nSTART TEST`nname: $($entry.Name)`ngroup: $($entry.Group)`ntimestamp: $($started.ToString('o'))`ntimeout_seconds: $($entry.TimeoutSeconds)`nstdout: $stdoutPath`nstderr: $stderrPath`n==================================================" -ForegroundColor Yellow
         $process = $null
+        $heldProcessHandle = $null
+        $processHandleRefAdded = $false
         $testPid = $null
         $ownedProcessIds = [System.Collections.Generic.HashSet[int]]::new()
             $descendantsDiscovered = $false
@@ -328,6 +334,8 @@ try {
             if($entry.Kind -eq 'Godot' -and $entry.Arguments -notcontains '--headless'){$windowStyle='Normal'}
             $process = Start-Process -FilePath $entry.Executable -ArgumentList $argumentLine -WorkingDirectory $gameRoot -WindowStyle $windowStyle -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
             $testPid = $process.Id
+            $heldProcessHandle = $process.SafeHandle
+            $heldProcessHandle.DangerousAddRef([ref]$processHandleRefAdded)
             [void]$ownedProcessIds.Add($testPid)
             $lastHeartbeat = [DateTime]::UtcNow
             while ($true) {
@@ -340,7 +348,12 @@ try {
                 }
                 if ($process.HasExited) {
                     $runningOwnedChildren=@($ownedProcessIds | Where-Object { $_ -ne $testPid -and (Get-Process -Id $_ -ErrorAction SilentlyContinue) })
-                    if ($runningOwnedChildren.Count -eq 0) { $process.WaitForExit(); $process.Refresh(); $exitCode = $process.ExitCode; break }
+                    if ($runningOwnedChildren.Count -eq 0) {
+                        $process.WaitForExit()
+                        $process.Refresh()
+                        $exitCode = $process.ExitCode
+                        break
+                    }
                 }
                 $now = [DateTime]::UtcNow
                 if ($watch.Elapsed.TotalSeconds -ge $entry.TimeoutSeconds) { $timedOut=$true; break }
@@ -361,7 +374,7 @@ try {
             if ($timedOut) {
                 $status='FAIL'
                 foreach ($pidFile in @($entry.OwnedPidFiles)) {
-                    if (Test-Path -LiteralPath $pidFile) {
+                    if (-not [string]::IsNullOrWhiteSpace([string]$pidFile) -and (Test-Path -LiteralPath $pidFile)) {
                         $fixturePid=0
                         if ([int]::TryParse((Get-Content -LiteralPath $pidFile -Raw),[ref]$fixturePid) -and $fixturePid -gt 0) { [void]$ownedProcessIds.Add($fixturePid) }
                     }
@@ -410,6 +423,7 @@ try {
             if ($process) {
                 $process.Refresh()
                 if (-not $process.HasExited) { Stop-OwnedPids $ownedProcessIds $testPid }
+                if ($processHandleRefAdded -and $heldProcessHandle) { $heldProcessHandle.DangerousRelease() }
                 $process.Dispose()
             }
             $records.Add([pscustomobject]@{

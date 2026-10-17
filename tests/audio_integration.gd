@@ -11,7 +11,7 @@ func _initialize() -> void:
 	call_deferred("run")
 
 func wait_for_state(expected: String) -> void:
-	var deadline := Time.get_ticks_msec()+8500
+	var deadline := Time.get_ticks_msec()+30000
 	while director.state!=expected and Time.get_ticks_msec()<deadline: await process_frame
 
 func run() -> void:
@@ -30,6 +30,12 @@ func run() -> void:
 				for choice in choices:
 					check(str(choice.get("asset_status",""))=="candidate" and str(choice.get("human_listening_approval",""))=="pending","Unapproved music stays marked as a candidate pending review: "+faction_id+" / "+track_state+" / "+str(choice.get("id","")))
 					check(str(choice.get("license",{}).get("status",""))=="cleared" and bool(choice.get("license",{}).get("commercial_use",false)),"Music provenance explicitly clears CC0 use: "+faction_id+" / "+track_state)
+					var variant_stream: AudioStream=director._load_track_stream(choice)
+					check(variant_stream is AudioStreamOggVorbis and variant_stream.get_length()>=80.0,"Every selectable music variant imports as a long-form runtime OGG: "+faction_id+" / "+track_state+" / "+str(choice.get("id","")))
+					if variant_stream is AudioStreamOggVorbis:
+						check((variant_stream as AudioStreamOggVorbis).loop,"Every selectable music variant is loop-configured: "+faction_id+" / "+track_state+" / "+str(choice.get("id","")))
+				if track_state=="battle_high":
+					check(choices.size()>=2,"High-intensity battle state has a distinct alternate candidate for "+faction_id)
 				var loaded_track: AudioStream=director._load_track_stream(choices[0])
 				check(loaded_track is AudioStreamOggVorbis,"Catalog OGG imports for "+faction_id+" / "+track_state)
 				if loaded_track is AudioStreamOggVorbis:
@@ -40,11 +46,21 @@ func run() -> void:
 	check(director.music_catalog.get("global_stingers",{}).size()==5,"Mission, objective, alert, victory and defeat stingers are present")
 	check(director.play_global_stinger("mission_start"),"Mission-start stinger resolves and plays")
 	var sfx: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/sfx_catalog.json"))
+	var sim := Simulation.new(Catalog.new())
+	director.sim=sim
 	check(sfx.get("cues",{}).size()>=8 and director.samples.get("cannon_shot") is AudioStreamOggVorbis,"Curated CC0 SFX bank loads over demo cues")
 	check(director.harvest_loop.stream is AudioStreamOggVorbis,"Harvester has a compressed mechanical work loop")
 	check(director.samples.get("harvest_collect") is AudioStreamOggVorbis and director.samples.get("harvest_unload") is AudioStreamOggVorbis,"Harvester collection and unload cues load from the CC0 SFX bank")
+	check(director.samples.get("refinery_ambience") is AudioStreamOggVorbis and director.refinery_ambience_player.stream is AudioStreamOggVorbis,"Refinery ambience loads as a compressed loop candidate")
+	var refinery_sfx:Array=JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/sfx_catalog.json")).cues.get("refinery_ambience",[])
+	check(not refinery_sfx.is_empty() and refinery_sfx[0].asset_status=="candidate" and refinery_sfx[0].human_listening_approval=="pending" and refinery_sfx[0].license.status=="cleared","Industrial runtime sound retains its clear CC0 provenance and pending human review")
+	director.cached_refinery_count=1
+	director._update_refinery_ambience(0.2)
+	check(director.refinery_ambience_player.playing and director.refinery_ambience_player.volume_db>-70.0,"Refinery ambience fades in only while a completed refinery is cached")
+	director.cached_refinery_count=0
+	director._update_refinery_ambience(20.0)
+	check(not director.refinery_ambience_player.playing,"Refinery ambience fades out and stops when no refinery is active")
 	check(not director.samples.has("harvest_start_demo"),"Harvest start no longer plays legacy demo audio over the work loop")
-	var sim := Simulation.new(Catalog.new())
 	director.start(sim)
 	await create_timer(0.15).timeout
 	check(director.layers.size()==6,"Six synchronized tactical music states are ready for bar-aligned selection")
@@ -58,6 +74,26 @@ func run() -> void:
 			check((layer.stream as AudioStreamOggVorbis).loop,"Long music stem loops in the audio stream")
 		check(layer.stream.get_length()>90.0,"Runtime music stem is at least 90 seconds before repeating")
 	check(float(director.selected_tracks[0].get("bpm",0))>0.0,"Track tempo metadata is available to bar transitions")
+	check(is_equal_approx(director._transition_bar_seconds({"unmetered":true,"bpm":0}),2.0),"Unmetered ambient music uses a neutral transition grid instead of a fabricated BPM")
+	check(is_equal_approx(MusicDirector.MIN_STATE_DWELL_SECONDS,20.0) and is_equal_approx(MusicDirector.MIN_PENDING_STABILITY_SECONDS,6.0),"Tactical music requires a 20-second state hold and 6 seconds of stable new intensity")
+	check(is_equal_approx(MusicDirector.ARRANGEMENT_CROSSFADE_SECONDS,4.0),"Tactical music transitions use a 4-second crossfade")
+	var saved_state:=director.state
+	var saved_pending:=director.pending
+	var saved_age:=director.age
+	var saved_pending_age:=director.pending_age
+	director.state="BASE_CALM"; director.pending="ENEMY_CONTACT"
+	director.age=MusicDirector.MIN_STATE_DWELL_SECONDS-0.01; director.pending_age=10.0
+	check(not director._can_commit_music_state(director.pending,true),"A new tactical mix cannot cut in before the current state has had its minimum dwell")
+	director.age=MusicDirector.MIN_STATE_DWELL_SECONDS; director.pending_age=MusicDirector.MIN_PENDING_STABILITY_SECONDS-0.01
+	check(not director._can_commit_music_state(director.pending,true),"A short-lived tactical spike cannot replace the music state")
+	director.pending_age=MusicDirector.MIN_PENDING_STABILITY_SECONDS
+	check(not director._can_commit_music_state(director.pending,false) and director._can_commit_music_state(director.pending,true),"A stable tactical state transitions only at a musical bar boundary")
+	director.pending="BASE_UNDER_ATTACK"; director.age=0.0; director.pending_age=0.0
+	check(director._can_commit_music_state(director.pending,true),"An urgent base alarm bypasses the normal dwell")
+	director.state=saved_state; director.pending=saved_pending; director.age=saved_age; director.pending_age=saved_pending_age
+	director.active_arrangement_index=5
+	check(director._current_transition_track()==director.selected_tracks[5],"Tactical transition timing follows the currently audible arrangement")
+	director.active_arrangement_index=0
 	check(director._arrangement_index_for_state("BASE_CALM")==0 and director._arrangement_index_for_state("ECONOMY")==1 and director._arrangement_index_for_state("ENEMY_CONTACT")==2 and director._arrangement_index_for_state("SKIRMISH")==3 and director._arrangement_index_for_state("BATTLE")==4 and director._arrangement_index_for_state("BASE_UNDER_ATTACK")==5,"Six tactical states select their corresponding music arrangements")
 	director.cue("explosion",0.5,Vector2(1200,500))
 	var spatial_voice: AudioStreamPlayer2D
@@ -68,8 +104,11 @@ func run() -> void:
 	director.cue("core_impact")
 	check(director.voices.any(func(player: AudioStreamPlayer2D): return player.playing and int(player.get_meta("cue_priority",0))==7),"High-priority impact takes a voice over UI cues")
 	check(director.play_voice(load("res://assets/audio/complete.wav")),"Dedicated voice player accepts a voice stream")
-	await create_timer(0.08).timeout
-	check(director.voice_duck<1.0,"Active voice gently ducks music")
+	director._process(0.08)
+	check(director.voice_duck<=0.51,"Active voice reaches the -6 dB music duck within 80 ms")
+	for voice_player in director.voice_players: voice_player.stop()
+	director._process(0.35)
+	check(director.voice_duck>=0.99,"Music restores smoothly within 350 ms after speech ends")
 	director.set_harvester_working(true,Vector2(1200,500))
 	check(director.harvest_loop.playing and is_equal_approx(director.harvest_loop.panning_strength,1.0),"Harvester work loop is positional and starts on work state")
 	director.set_harvester_working(false)
@@ -91,7 +130,7 @@ func run() -> void:
 	director._update_harvest_collection_audio()
 	check(director.voices.any(func(player: AudioStreamPlayer2D): return player.playing and player.stream==director.samples.get("harvest_collect")),"Crystal pickup accent is triggered by actual gathered cargo, not duplicated at work start")
 	await wait_for_state("ENEMY_CONTACT")
-	check(director.state=="ENEMY_CONTACT","Contact state enters on a musical bar boundary")
+	check(director.state=="ENEMY_CONTACT" and director.age<MusicDirector.MIN_STATE_DWELL_SECONDS,"Contact arrangement enters only after its stable dwell and on a musical bar boundary")
 	sim.combat_heat=1.0; sim.base_alarm=8.0
 	await wait_for_state("BASE_UNDER_ATTACK")
 	check(director.state=="BASE_UNDER_ATTACK","Base attack enables intense arrangement")
@@ -114,6 +153,12 @@ func run() -> void:
 	check(director.state=="VICTORY" and director.ended,"Victory overrides combat state")
 	check(director.voices.any(func(v):return v.playing),"Victory jingle plays")
 	director.shutdown()
+	for review_faction in ["forge","drift","lumen"]:
+		director.start_review_preview(Simulation.new(Catalog.new(),review_faction))
+		check(director.faction_id==review_faction and director.selected_tracks.size()==6,"Listening-room preview resolves all six arrangements for "+review_faction)
+		check(director.selected_tracks[0].get("id","")==director.music_catalog.factions[review_faction].tracks.calm_a[0].id,"Listening-room preview uses the selected faction's calm music")
+		check(director.preview_arrangement(4) and director.active_arrangement_index==4,"Listening-room preview selects high battle music for "+review_faction)
+		director.shutdown()
 	var stem_path:=str(director.music_catalog.factions.forge.tracks.calm_a[0].path)
 	director.music_catalog.factions.forge["adaptive_stems"]={
 		"bpm":108,"beats_per_bar":4,"beat_unit":4,"loop_start_seconds":0.0,"loop_end_seconds":106.667,
@@ -131,6 +176,10 @@ func run() -> void:
 	director.music_catalog.factions.forge.adaptive_stems.layers.combat.path=stem_path
 	director.start(sim)
 	await process_frame
+	# Let the audio server apply the scheduled starts before comparing playback
+	# positions. This check runs headless in CI, where the dummy mixer can lag
+	# one rendered frame behind AudioStreamPlayer.play().
+	await create_timer(0.05).timeout
 	check(director.layers.is_empty() and director.stem_players.size()==8,"Optional adaptive stem set replaces full-mix players when authored stems exist")
 	check(director.stem_players.all(func(player): return player.playing),"All available authored stems start together")
 	var stem_playhead:=director.stem_players[0].get_playback_position()

@@ -4,7 +4,7 @@ class_name VoiceDirector
 signal subtitle_requested(text: String, line_id: String)
 
 const CATALOG_PATH := "res://assets/audio/voice/voice_catalog.json"
-const EVENT_COOLDOWNS := {"select": 1.4, "move": 2.2, "attack": 2.0, "damage": 8.0, "critical": 14.0, "success": 8.0, "harvester_select": 1.6, "harvest_start": 8.0, "harvest_full": 10.0, "harvest_return": 8.0, "harvest_unload": 8.0, "harvest_danger": 10.0, "build_complete": 3.0, "unit_ready": 3.0, "base_attack": 12.0, "energy_critical": 20.0, "mission": 20.0}
+const EVENT_COOLDOWNS := {"select": 1.4, "move": 2.2, "attack": 2.0, "damage": 8.0, "critical": 14.0, "success": 8.0, "harvester_select": 1.6, "harvest_start": 8.0, "harvest_full": 10.0, "harvest_return": 8.0, "harvest_unload": 8.0, "harvest_danger": 10.0, "build_start": 4.0, "build_complete": 3.0, "unit_ready": 3.0, "base_attack": 12.0, "energy_critical": 20.0, "mission": 20.0}
 
 var catalog: Dictionary = {}
 var clips: Dictionary = {}
@@ -79,6 +79,21 @@ func request(event_name: String, faction_id: String = "forge", unit_id: int = 0,
 		player.volume_linear = voice_volume
 		player.play()
 	if subtitles_enabled: subtitle_requested.emit(str(line.get("text", "")), last_line_id)
+	return true
+
+func preview(event_name: String, faction_id: String = "forge") -> bool:
+	# Credits-screen auditions bypass gameplay cooldowns while using the same
+	# catalog selection, preloaded clip and Voice bus as live command responses.
+	var line:=_choose_line(event_name,faction_id)
+	if line.is_empty(): return false
+	var clip:AudioStream=clips.get(str(line.get("id","")))
+	if clip==null: return false
+	if player.playing: player.stop()
+	last_line_id=str(line.get("id",""))
+	player.stream=clip
+	player.volume_linear=voice_volume
+	if voice_volume>0.0: player.play()
+	if subtitles_enabled: subtitle_requested.emit(str(line.get("text","")),last_line_id)
 	return true
 
 func _choose_line(event_name: String, faction_id: String) -> Dictionary:

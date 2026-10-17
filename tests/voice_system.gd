@@ -23,7 +23,13 @@ func run() -> void:
 	await process_frame
 	check(director.catalog.get("schema_version", 0) == 1, "Central voice catalog loads")
 	check(AudioServer.get_bus_index("Voice") >= 0, "Dedicated Voice bus is present")
-	check(director.clips.size() == 118, "All German faction/system candidate samples preload from their licensed catalogue")
+	check(director.clips.size() == 124, "All German faction/system candidate samples preload from their licensed catalogue")
+	check(director.preview("attack","lumen"),"Prisma attack voice sample is directly auditionable")
+	check(director.last_line_id.begins_with("voice_lumen_attack_"),"Voice audition selects a preloaded faction-specific attack recording")
+	check(director.preview("build_start", "drift"), "Wanderpakt build-start voice preview resolves a preloaded recording")
+	check(director.last_line_id.begins_with("voice_drift_build_start_"), "Build-start voice is selected from the faction-specific line bank")
+	check(is_zero_approx(director.global_cooldown),"Voice audition does not consume gameplay command cooldown")
+	director.stop()
 	check(director.request("select", "forge", 100), "Unit request resolves to a catalog entry")
 	var first_line: String = director.last_line_id
 	check(not first_line.is_empty(), "Resolved voice line has a stable text ID")
@@ -46,7 +52,7 @@ func run() -> void:
 	director.stop()
 	director.clips.clear()
 	for faction_id in ["forge", "drift", "lumen"]:
-		for event_name in ["select", "move", "attack", "damage", "critical", "success", "harvester_select", "harvest_start", "harvest_full", "harvest_return", "harvest_unload", "harvest_danger"]:
+		for event_name in ["select", "move", "attack", "damage", "critical", "success", "harvester_select", "harvest_start", "harvest_full", "harvest_return", "harvest_unload", "harvest_danger", "build_start"]:
 			check(not director.catalog.factions[faction_id].lines[event_name].is_empty(), faction_id + " has " + event_name + " lines")
 	director.tick(30.0)
 	check(director.request("move", "forge", 200, 10), "A group command is accepted once for its representative")

@@ -82,10 +82,13 @@ func _build_scene() -> void:
 	world_environment.environment = environment
 	world_root.add_child(world_environment)
 	var sun := DirectionalLight3D.new()
+	sun.name = "Intro Sun"
 	sun.rotation_degrees = Vector3(-38.0, -28.0, 0.0)
 	sun.light_color = Color("ffd29a")
 	sun.light_energy = 1.35
-	sun.shadow_enabled = false
+	# The intro is a low-load, fixed 3D scene; directional shadows give the
+	# colony, crystals, and harvester readable ground contact at Full HD.
+	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 55.0
 	world_root.add_child(sun)
 
@@ -402,10 +405,22 @@ func _update_cinematic() -> void:
 	second_title.modulate.a = final_caption
 	progress.size.x = 480.0 * clampf(elapsed / DURATION, 0.0, 1.0)
 	if is_instance_valid(camera):
-		var reveal := smoothstep(3.0, 13.0, elapsed)
-		var target := Vector3(17.0, 12.5, 28.0).lerp(Vector3(14.0, 11.0, 31.0), reveal)
-		camera.position = camera.position.lerp(target, 1.0 - exp(-get_process_delta_time() * 0.15))
-		camera.look_at(Vector3(-0.2, 2.3, 0.2), Vector3.UP)
+		# Drive the shot from the cinematic clock itself. The previous frame-rate
+		# smoothing left the camera near its opening pose in fast-forwarded tests
+		# and made captures depend on the number of intervening frames.
+		var move_in := smoothstep(2.8, 7.2, elapsed)
+		var pull_out := smoothstep(9.0, 12.6, elapsed)
+		var opening_position := Vector3(17.0, 12.5, 28.0)
+		var colony_close_position := Vector3(12.8, 8.2, 20.4)
+		var title_position := Vector3(15.3, 10.4, 25.0)
+		var shot_position := opening_position.lerp(colony_close_position, move_in).lerp(title_position, pull_out)
+		var arc := sin(elapsed * 0.18) * 0.42 * smoothstep(0.0, 3.0, elapsed) * (1.0 - smoothstep(12.0, 15.0, elapsed))
+		camera.position = shot_position + Vector3(arc, 0.0, 0.0)
+		var opening_target := Vector3(-0.2, 2.3, 0.2)
+		var close_target := Vector3(-0.4, 1.6, 1.1)
+		var title_target := Vector3(-0.2, 2.1, 0.2)
+		var shot_target := opening_target.lerp(close_target, move_in).lerp(title_target, pull_out)
+		camera.look_at(shot_target, Vector3.UP)
 	if is_instance_valid(harvester):
 		var drive := smoothstep(5.0, 13.0, elapsed)
 		var harvester_xz := Vector2(12.0, 9.0).lerp(Vector2(9.0, 6.5), drive)

@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.29",
+  "current_version": "0.38.30",
   "entries": [
+    {
+      "version": "0.38.30",
+      "date": "17.10.2026",
+      "title": "Fahrzeug-Posen ohne Gefechtshitches",
+      "changes": [
+        "Fahrzeugansichten werden vor dem Match vorbereitet; im aktiven Gefecht entstehen keine neuen Pose-RenderTargets und keine GPU→CPU-Readbacks.",
+        "Fehlende Fahrzeugrichtungen verwenden sofort die nächste fertige Ansicht. Begrenzte Queue, Familienindex und gespeicherte Fallbacks vermeiden veraltete Aufträge und wiederholte Vollcache-Suchen.",
+        "Die Pose-RenderTargets werden nach dem einmaligen Laden freigegeben. Im 2D-Klassikmodus wird der nicht benötigte 3D-Pose-Prewarm übersprungen."
+      ]
+    },
     {
       "version": "0.38.29",
       "date": "13.10.2026",

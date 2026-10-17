@@ -52,7 +52,7 @@ func setup_scene() -> void:
 	game.renderer.vehicle_cache_capacity = int(VARIANTS[variant].get("cache_capacity", 192))
 	game.renderer.vehicle_cache_diagnostics_enabled = true
 	game.renderer.vehicle_texture_cache.clear()
-	game.renderer.vehicle_cache_pending.clear()
+	game.renderer.pending_pose_keys.clear()
 	game.renderer.vehicle_cache_queue.clear()
 	game.renderer.vehicle_cache_hits_total = 0
 	game.renderer.vehicle_cache_misses_total = 0
@@ -61,7 +61,7 @@ func setup_scene() -> void:
 	game.renderer.vehicle_cache_evictions_total = 0
 	game.renderer.vehicle_cache_recreated_poses_total = 0
 	game.renderer.vehicle_cache_created_keys.clear()
-	game.renderer.vehicle_cache_render_wait_ms_total = 0.0
+	game.renderer.vehicle_cache_completion_latency_ms_total = 0.0
 	game.renderer.vehicle_cache_readback_ms_total = 0.0
 	game.renderer.vehicle_cache_event_log.clear()
 	game.renderer.vehicle_cache_peak_subviewports = 0
@@ -103,12 +103,12 @@ func record_frame(stage: String, index: int, previous_usec: int, previous: Dicti
 	var new_poses: int = renderer.vehicle_cache_new_poses_total - int(previous["poses"])
 	var readbacks: int = renderer.vehicle_cache_readbacks_total - int(previous["readbacks"])
 	var readback_ms: float = renderer.vehicle_cache_readback_ms_total - float(previous["readback_ms"])
-	var subviewport_ms: float = renderer.vehicle_cache_render_wait_ms_total - float(previous["render_wait_ms"])
+	var subviewport_ms: float = renderer.vehicle_cache_completion_latency_ms_total - float(previous["completion_latency_ms"])
 	var moving_vehicles := 0
 	for entity in renderer.sim.entities.values():
 		if not entity.building and entity.velocity.length() > 2.0: moving_vehicles += 1
 	trace_rows.append(",".join([variant,stage,str(index),"%.3f"%frame_duration,"%.2f"%(1000.0/maxf(frame_duration,0.001)),"%.3f"%sim_tick_ms,str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses),str(new_poses),str(readbacks),"%.3f"%readback_ms,"%.3f"%subviewport_ms,str(renderer.vehicle_cache_active_subviewports),str(renderer.vehicle_texture_cache.size()),"%.3f"%renderer.profile_total_ms,"%.3f"%renderer.profile_terrain_ms,"%.3f"%renderer.profile_ground_fx_ms,"%.3f"%renderer.profile_wrecks_ms,"%.3f"%renderer.profile_buildings_ms,"%.3f"%renderer.profile_vehicles_ms,"%.3f"%renderer.profile_tracks_ms,"%.3f"%renderer.profile_projectiles_ms,"%.3f"%renderer.profile_impacts_ms,"%.3f"%renderer.profile_explosions_ms,"%.3f"%renderer.profile_smoke_ms,"%.3f"%renderer.profile_fog_ms,str(renderer.visible_mobile_count),str(moving_vehicles),str(renderer.combat_fx.ruins.size())]))
-	return {"time": now, "poses": renderer.vehicle_cache_new_poses_total, "misses": renderer.vehicle_cache_misses_total, "readbacks": renderer.vehicle_cache_readbacks_total, "readback_ms": renderer.vehicle_cache_readback_ms_total, "render_wait_ms": renderer.vehicle_cache_render_wait_ms_total}
+	return {"time": now, "poses": renderer.vehicle_cache_new_poses_total, "misses": renderer.vehicle_cache_misses_total, "readbacks": renderer.vehicle_cache_readbacks_total, "readback_ms": renderer.vehicle_cache_readback_ms_total, "completion_latency_ms": renderer.vehicle_cache_completion_latency_ms_total}
 
 func run() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -137,7 +137,7 @@ func run() -> void:
 	print("CACHE A/B ", variant, " | ", VARIANTS[variant], " | renderer=", RenderingServer.get_current_rendering_method(), " | resolution=1920x1080")
 	var start := Time.get_ticks_usec()
 	var previous_usec := start
-	var previous := {"poses": 0, "misses": 0, "readbacks": 0, "readback_ms": 0.0, "render_wait_ms": 0.0}
+	var previous := {"poses": 0, "misses": 0, "readbacks": 0, "readback_ms": 0.0, "completion_latency_ms": 0.0}
 	var cold_durations: Array[float] = []
 	var cold_total_ms := 0.0
 	var cold_pose_count := 0
@@ -152,6 +152,7 @@ func run() -> void:
 			game.sim.command(unit_ids.slice(20, 40), Vector2(980 if reverse_targets else 420, 1420), "attack_move")
 		game.sim.tick(1.0 / 30.0)
 		await process_frame
+		if frame % 120 == 0: print("[BENCHMARK HEARTBEAT] variant=",variant," stage=cold_warmup frame=",frame," visible=",game.renderer.visible_mobile_count," poses=",game.renderer.vehicle_cache_new_poses_total," readbacks=",game.renderer.vehicle_cache_readbacks_total)
 		var current := record_frame("cold_warmup", frame, previous_usec, previous)
 		cold_durations.append(float(current.time - previous_usec) / 1000.0)
 		cold_total_ms += float(current.time - previous_usec) / 1000.0
@@ -159,7 +160,7 @@ func run() -> void:
 		cold_miss_count += int(current.misses) - int(previous.misses)
 		cold_readback_count += int(current.readbacks) - int(previous.readbacks)
 		cold_readback_ms += float(current.readback_ms) - float(previous.readback_ms)
-		cold_wait_ms += float(current.render_wait_ms) - float(previous.render_wait_ms)
+		cold_wait_ms += float(current.completion_latency_ms) - float(previous.completion_latency_ms)
 		previous_usec = int(current.time)
 		previous = current
 	var warmup_seconds := float(Time.get_ticks_usec() - start) / 1000000.0
@@ -198,6 +199,7 @@ func run() -> void:
 				if game.sim.entities.has(entity_id): entity_snapshot[entity_id] = game.sim.entities[entity_id].duplicate(true)
 			replay_snapshots.append({"time": game.sim.time, "entities": entity_snapshot})
 		await process_frame
+		if frame % 120 == 0: print("[BENCHMARK HEARTBEAT] variant=",variant," stage=warm_sample frame=",frame," visible=",renderer.visible_mobile_count," moving=",moving_vehicle_sum / maxi(1,frame)," poses=",renderer.vehicle_cache_new_poses_total," readbacks=",renderer.vehicle_cache_readbacks_total)
 		var current := record_frame("warm_sample", frame, last, previous, sim_tick_ms)
 		frame_ms.append(float(current.time - last) / 1000.0)
 		last = int(current.time)
@@ -225,6 +227,16 @@ func run() -> void:
 		cache_size_peak = maxi(cache_size_peak, renderer.vehicle_texture_cache.size())
 		draw_calls += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 	var sample_seconds := float(Time.get_ticks_usec() - start_sample) / 1000000.0
+	var visible_vehicles_avg := float(visible_vehicle_sum) / SAMPLE_FRAMES
+	var moving_vehicles_avg := float(moving_vehicle_sum) / SAMPLE_FRAMES
+	if visible_vehicles_avg < float(VEHICLE_COUNT) * 0.9:
+		push_error("Invalid vehicle cache benchmark: only %.1f of %d vehicles were visible on average" % [visible_vehicles_avg, VEHICLE_COUNT])
+		quit(1)
+		return
+	if moving_vehicles_avg < 8.0:
+		push_error("Invalid moving-combat benchmark: only %.1f vehicles were moving on average" % moving_vehicles_avg)
+		quit(1)
+		return
 	var warm_replay := {}
 	if variant in ["AW", "BW", "CW", "DW", "W"]:
 		# Replay the exact entity poses and simulation clock recorded above. The
@@ -235,7 +247,7 @@ func run() -> void:
 		var replay_before_poses: int = renderer.vehicle_cache_new_poses_total
 		var replay_before_readbacks: int = renderer.vehicle_cache_readbacks_total
 		var replay_before_readback_ms: float = renderer.vehicle_cache_readback_ms_total
-		var replay_previous := {"poses": renderer.vehicle_cache_new_poses_total, "misses": renderer.vehicle_cache_misses_total, "readbacks": renderer.vehicle_cache_readbacks_total, "readback_ms": renderer.vehicle_cache_readback_ms_total, "render_wait_ms": renderer.vehicle_cache_render_wait_ms_total}
+		var replay_previous := {"poses": renderer.vehicle_cache_new_poses_total, "misses": renderer.vehicle_cache_misses_total, "readbacks": renderer.vehicle_cache_readbacks_total, "readback_ms": renderer.vehicle_cache_readback_ms_total, "completion_latency_ms": renderer.vehicle_cache_completion_latency_ms_total}
 		for replay_index in range(replay_snapshots.size()):
 			var pose_frame: Dictionary = replay_snapshots[replay_index]
 			game.sim.time = float(pose_frame.time)
@@ -267,7 +279,7 @@ func run() -> void:
 	cold_sorted.sort()
 	var cold_p99_ms: float = float(cold_sorted[clampi(ceili(float(cold_sorted.size()) * 0.99) - 1, 0, cold_sorted.size() - 1)])
 	var cold_max_ms: float = cold_sorted.back()
-	var after := {"poses": renderer.vehicle_cache_new_poses_total, "misses": renderer.vehicle_cache_misses_total, "readbacks": renderer.vehicle_cache_readbacks_total, "readback_ms": renderer.vehicle_cache_readback_ms_total, "render_wait_ms": renderer.vehicle_cache_render_wait_ms_total}
+	var after := {"poses": renderer.vehicle_cache_new_poses_total, "misses": renderer.vehicle_cache_misses_total, "readbacks": renderer.vehicle_cache_readbacks_total, "readback_ms": renderer.vehicle_cache_readback_ms_total, "completion_latency_ms": renderer.vehicle_cache_completion_latency_ms_total}
 	var created_pose_keys: Dictionary = renderer.vehicle_cache_created_keys
 	var pose_summary := {}
 	for raw_key in created_pose_keys:
@@ -295,9 +307,9 @@ func run() -> void:
 		"unique_pose_keys_seen": created_pose_keys.size(), "unique_pose_keys_by_kind": pose_summary,
 		"readbacks_per_sec": float(after.readbacks - before.readbacks) / sample_seconds,
 		"readback_ms_per_sec": float(after.readback_ms - before.readback_ms) / sample_seconds,
-		"subviewport_render_wait_ms_per_sec": float(after.render_wait_ms - before.render_wait_ms) / sample_seconds,
+		"subviewport_completion_latency_ms_per_sec": float(after.completion_latency_ms - before.completion_latency_ms) / sample_seconds,
 		"active_subviewport_peak": renderer.vehicle_cache_peak_subviewports, "cache_size_end": renderer.vehicle_texture_cache.size(), "cache_size_peak": cache_size_peak,
-		"visible_vehicles_avg": float(visible_vehicle_sum) / SAMPLE_FRAMES, "moving_vehicles_avg": float(moving_vehicle_sum) / SAMPLE_FRAMES, "visible_wrecks_peak": visible_wreck_peak,
+		"visible_vehicles_avg": visible_vehicles_avg, "moving_vehicles_avg": moving_vehicles_avg, "visible_wrecks_peak": visible_wreck_peak,
 		"world_renderer_ms_avg": world_ms / SAMPLE_FRAMES, "world_renderer_parts_ms_avg": {"terrain": render_parts.terrain / SAMPLE_FRAMES, "ground_fx": render_parts.ground_fx / SAMPLE_FRAMES, "wrecks": render_parts.wrecks / SAMPLE_FRAMES, "buildings": render_parts.buildings / SAMPLE_FRAMES, "vehicles": render_parts.vehicles / SAMPLE_FRAMES, "tracks": render_parts.tracks / SAMPLE_FRAMES, "projectiles": render_parts.projectiles / SAMPLE_FRAMES, "impacts": render_parts.impacts / SAMPLE_FRAMES, "explosions": render_parts.explosions / SAMPLE_FRAMES, "smoke": render_parts.smoke / SAMPLE_FRAMES, "fog": render_parts.fog / SAMPLE_FRAMES}, "sim_tick_ms_avg": sim_ms / SAMPLE_FRAMES, "draw_calls_avg": draw_calls / SAMPLE_FRAMES,
 		"video_memory_bytes": int(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)), "static_memory_bytes": int(Performance.get_monitor(Performance.MEMORY_STATIC)),
 		"sample_seconds": sample_seconds, "fully_warm_pose_replay": warm_replay

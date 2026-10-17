@@ -211,30 +211,62 @@ func verify_vehicle_cache_fallback() -> bool:
 	var fallback_key := "cache_test_unit|forge|0|ffffff|1|2|0|2|1|3"
 	game.renderer.vehicle_texture_cache[exact_key]=exact_state
 	game.renderer.vehicle_texture_cache[fallback_key]=nearby_state
+	game.renderer.register_vehicle_cache_pose(exact_key)
+	game.renderer.register_vehicle_cache_pose(fallback_key)
 	var exact_preferred: bool=game.renderer.nearest_vehicle_texture(requested)==exact_state
 	game.renderer.vehicle_texture_cache.erase(exact_key)
+	game.renderer.forget_vehicle_fallbacks_to_pose(exact_key)
 	var fallback_found: bool=game.renderer.nearest_vehicle_texture(requested)==nearby_state
+	var memo_key := "cache_test_unit|forge|0|ffffff|2|2|0|0|0|0"
+	var other_pose := "other_unit|forge|0|ffffff|1|2|0|0|0|0"
+	var other_request := "other_unit|forge|0|ffffff|2|2|0|0|0|0"
+	game.renderer.vehicle_cache_fallback_keys[other_request]={"pose_key":other_pose,"generation":int(game.renderer.vehicle_cache_family_generations.get("other_unit|forge|0|ffffff",0))}
+	var old_generation := int(game.renderer.vehicle_cache_family_generations.get("cache_test_unit|forge|0|ffffff",0))
+	game.renderer.vehicle_texture_cache["cache_test_unit|forge|0|ffffff|3|2|0|0|0|0"]=ImageTexture.create_from_image(image)
+	game.renderer.register_vehicle_cache_pose("cache_test_unit|forge|0|ffffff|3|2|0|0|0|0")
+	var same_family_invalidated := int(game.renderer.vehicle_cache_family_generations.get("cache_test_unit|forge|0|ffffff",0))>old_generation
+	var unrelated_family_preserved := int(game.renderer.vehicle_cache_fallback_keys.get(other_request,{}).get("generation",-2))==int(game.renderer.vehicle_cache_family_generations.get("other_unit|forge|0|ffffff",0))
 	game.renderer.vehicle_texture_cache.erase(fallback_key)
-	game.renderer.vehicle_cache_fallback_keys["cache_test_unit|forge|0|ffffff|2|2|0|0|0|0"]="cache_test_unit|forge|0|ffffff|1|2|0|2|1|3"
-	game.renderer.vehicle_cache_fallback_keys["other_unit|forge|0|ffffff|2|2|0|0|0|0"]="other_unit|forge|0|ffffff|1|2|0|0|0|0"
-	game.renderer.invalidate_vehicle_fallbacks_for_new_pose("cache_test_unit|forge|0|ffffff|3|2|0|0|0|0")
-	var same_family_invalidated: bool=not game.renderer.vehicle_cache_fallback_keys.has("cache_test_unit|forge|0|ffffff|2|2|0|0|0|0")
-	var unrelated_family_preserved: bool=game.renderer.vehicle_cache_fallback_keys.has("other_unit|forge|0|ffffff|2|2|0|0|0|0")
-	game.renderer.forget_vehicle_fallbacks_to_pose("other_unit|forge|0|ffffff|1|2|0|0|0|0")
-	var evicted_pose_forgotten: bool=not game.renderer.vehicle_cache_fallback_keys.has("other_unit|forge|0|ffffff|2|2|0|0|0|0")
+	game.renderer.forget_vehicle_fallbacks_to_pose(fallback_key)
+	var evicted_pose_forgotten: bool=not game.renderer.vehicle_texture_cache.has(fallback_key) and not game.renderer.vehicle_cache_pose_metadata.has(fallback_key)
+	game.renderer.vehicle_cache_generation_frozen=true
+	var queue_before: int=game.renderer.vehicle_cache_queue.size()
+	game.renderer.enqueue_vehicle_pose_request("blocked|forge|0|ffffff|0|0|0|0|0|0",{"id":-8123},Color.WHITE,"forge",0.0)
+	var frozen_queue_ok: bool=game.renderer.vehicle_cache_queue.size()==queue_before and not game.renderer.pending_pose_keys.has("blocked|forge|0|ffffff|0|0|0|0|0|0")
+	game.renderer.vehicle_cache_generation_frozen=false
+	var harvester_turret_reduced := WorldRenderer.vehicle_turret_frame_for_kind("harvester",1.37)==0
 	if not exact_preferred: push_error("VEHICLE CACHE REGRESSION: exact visual state was not preferred")
 	if not fallback_found: push_error("VEHICLE CACHE REGRESSION: missing visual state did not use a nearby cached variant")
-	if not same_family_invalidated or not unrelated_family_preserved or not evicted_pose_forgotten: push_error("VEHICLE CACHE REGRESSION: fallback invalidation was too broad or left an evicted pose indexed")
-	print("VEHICLE CACHE FALLBACK: exact state preferred; family-scoped invalidation retained unrelated fallbacks: %s" % (exact_preferred and fallback_found and same_family_invalidated and unrelated_family_preserved and evicted_pose_forgotten))
+	if not same_family_invalidated or not unrelated_family_preserved or not evicted_pose_forgotten: push_error("VEHICLE CACHE REGRESSION: family generation or eviction index is inconsistent")
+	if not frozen_queue_ok: push_error("VEHICLE CACHE REGRESSION: a frozen match accepted a new pose request")
+	if not harvester_turret_reduced: push_error("VEHICLE CACHE REGRESSION: Harvester has an unnecessary turret pose dimension")
+	print("VEHICLE CACHE FALLBACK: indexed family lookup, versioned memo, frozen queue rejection, and Harvester turret dimension: %s" % (exact_preferred and fallback_found and same_family_invalidated and unrelated_family_preserved and evicted_pose_forgotten and frozen_queue_ok and harvester_turret_reduced))
 	game.renderer.vehicle_cache_fallback_keys.clear()
-	return exact_preferred and fallback_found and same_family_invalidated and unrelated_family_preserved and evicted_pose_forgotten
+	game.renderer.vehicle_texture_cache.erase("cache_test_unit|forge|0|ffffff|3|2|0|0|0|0")
+	game.renderer.forget_vehicle_fallbacks_to_pose("cache_test_unit|forge|0|ffffff|3|2|0|0|0|0")
+	game.renderer.vehicle_cache_fallback_keys.erase(other_request)
+	return exact_preferred and fallback_found and same_family_invalidated and unrelated_family_preserved and evicted_pose_forgotten and frozen_queue_ok and harvester_turret_reduced
 
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute("res://test-output")
 	game=load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	await settle_frames(3)
-	game.skip_intro(); game.set_classic(false); game.start_game(); game.paused=true
+	game.skip_intro(); game.set_classic(false); game.start_game()
+	var warmup_finished:=false
+	for _frame in 3000:
+		await process_frame
+		if not game.vehicle_pose_warmup_active:
+			warmup_finished=true
+			break
+	if not warmup_finished:
+		push_error("RENDER PERFORMANCE SETUP FAILED: vehicle pose baseline did not finish")
+		game.music.shutdown(); game.queue_free(); quit(1); return
+	var cache_ready: bool=game.renderer.vehicle_cache_generation_frozen and game.renderer.vehicle_cache_queue.is_empty() and game.renderer.pending_pose_keys.is_empty() and game.renderer.vehicle_cache_active_subviewports==0
+	if not cache_ready:
+		push_error("RENDER PERFORMANCE SETUP FAILED: active match cache was not frozen and drained")
+		game.music.shutdown(); game.queue_free(); quit(1); return
+	game.paused=true; game.renderer.visual_paused=true
 	game.renderer.profile_enabled=true
 	game.sim.ai_timer=999999
 	await settle_frames(3)

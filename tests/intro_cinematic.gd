@@ -13,6 +13,8 @@ func run() -> void:
 	await process_frame
 	assert(cinematic.process_mode == Node.PROCESS_MODE_ALWAYS, "cinematic advances while the game shell is paused")
 	assert(cinematic.world_root != null and cinematic.camera != null, "intro owns a real 3D scene and camera")
+	var intro_sun := cinematic.world_root.find_child("Intro Sun", true, false) as DirectionalLight3D
+	assert(intro_sun != null and intro_sun.shadow_enabled, "intro lighting casts directional shadows for ground contact")
 	assert(cinematic.world_root.find_child("Cinematic core", true, false) != null, "intro reuses the current command bunker GLB")
 	assert(cinematic.world_root.find_child("Cinematic refinery", true, false) != null, "intro reuses the current refinery GLB")
 	assert(cinematic.world_root.find_child("Cinematic Solarit harvester", true, false) != null, "intro reuses the current animated harvester GLB")
@@ -23,12 +25,14 @@ func run() -> void:
 	await RenderingServer.frame_post_draw
 	assert(cinematic.location_label.modulate.a > 0.9 and cinematic.caption_label.modulate.a > 0.9, "mid-intro location and story captions fade in")
 	assert(cinematic.second_title.modulate.a < 0.1, "final title remains hidden during the landing beat")
+	var landing_camera_position := cinematic.camera.position
 	var landing := root.get_texture().get_image()
 	assert(landing.save_png("res://test-output/intro_3d_landing.png") == OK, "landing beat screenshot is saved")
 	cinematic.elapsed = 13.0
 	await process_frame
 	await RenderingServer.frame_post_draw
 	assert(cinematic.title_label.modulate.a > 0.9 and cinematic.second_title.modulate.a > 0.9, "the final title and closing line fade in over the colony")
+	assert(cinematic.camera.position.distance_to(landing_camera_position) > 1.0, "the timecoded title shot pulls back from the landing composition")
 	var reveal := root.get_texture().get_image()
 	assert(reveal.save_png("res://test-output/intro_3d_title.png") == OK, "3D reveal screenshot is saved")
 	var difference := 0.0

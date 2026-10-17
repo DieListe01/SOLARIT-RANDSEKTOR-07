@@ -301,6 +301,15 @@ def create_cargo_and_damage(rig):
         cz=0.42+row*0.28
         crystal_cluster_mesh("Solarit cargo shard %02dA"%stage,(cx,1.51+row*0.20,cz),0.56+(stage%3)*0.055,node)
         crystal_cluster_mesh("Solarit cargo shard %02dB"%stage,(cx+0.18,1.55+row*0.20,cz+0.07),0.48+(stage%2)*0.06,node)
+        # A pair of large, outward-facing hopper gauges makes the actual fill
+        # state readable when crystals overlap the field at normal RTS zoom.
+        # They are part of the same deterministic cargo stage as the crystals.
+        if stage%2==1:
+            gauge_index=(stage+1)//2
+            gauge_z=0.30+(gauge_index-1)*0.24
+            for side in (-1,1):
+                box_mesh("Solarit hopper fill gauge %02d %s"%(gauge_index,"L" if side<0 else "R"),
+                         (side*0.70,1.47,gauge_z),(0.06,0.20,0.18),"energy",parent=node)
     light=empty("DamageLight",(0,0,0)); light.parent=rig
     for i,(x,z) in enumerate(((-1.14,-0.54),(1.14,0.31),(0.52,-1.17))):
         vertices=[(x-0.10,1.31,z-0.17),(x+0.09,1.30,z-0.11),(x+0.04,1.30,z+0.15),(x-0.13,1.30,z+0.08),(x+0.01,1.37,z-0.01)]

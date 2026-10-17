@@ -175,6 +175,15 @@ def role_hardware(kind,width,length,height,faction):
             second_verts += [(second_center[0],height*1.32+row*.17,second_center[2])]
             second_faces=[(i,(i+1)%6,6) for i in range(6)]
             gem=author.mesh("Solarit ore secondary cargo shard",second_verts,second_faces,"energy",.006); keep_world_parent(gem,cargo)
+            # Side-mounted charge indicators share the same load-state nodes
+            # as the ore, keeping the percentage legible at ordinary RTS zoom.
+            if stage%2==1:
+                gauge_index=(stage+1)//2
+                gauge_z=length*.08+(gauge_index-1)*length*.07
+                for side in (-1,1):
+                    gauge=box("Solarit hopper fill gauge %02d %s"%(gauge_index,"L" if side<0 else "R"),
+                        (side*width*.405,height*.91,gauge_z),(.09,.20,.22),"energy",.018)
+                    keep_world_parent(gauge,cargo)
         for node_name,key in (("DamageLight","dark"),("DamageHeavy","hazard")):
             damage=bpy.data.objects.new(node_name,None); bpy.context.collection.objects.link(damage)
             for shard in range(3 if node_name=="DamageLight" else 5):

@@ -204,6 +204,38 @@
               "commercial_use": true,
               "attribution": "Emma_MA"
             }
+          },
+          {
+            "id": "forge_battle_high_theme_a",
+            "path": "res://assets/audio/music/kobalt/battle_high_theme_a.ogg",
+            "bpm": 0,
+            "beats_per_bar": 4,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 180.0,
+            "weight": 1.0,
+            "intensity": "high",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32
+            ],
+            "asset_status": "candidate",
+            "human_listening_approval": "pending",
+            "source": {
+              "author": "cynicmusic / pixelsphere",
+              "url": "https://opengameart.org/content/battle-theme-a",
+              "title": "Battle Theme A"
+            },
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "cynicmusic / pixelsphere"
+            },
+            "unmetered": true
           }
         ],
         "critical": [
@@ -285,12 +317,12 @@
         "calm_b": [
           {
             "id": "drift_calm_b",
-            "path": "res://assets/audio/music/global/factory_ambience.ogg",
-            "bpm": 108,
+            "path": "res://assets/audio/music/wanderpakt/calm_b.ogg",
+            "bpm": 0,
             "beats_per_bar": 4,
             "beat_unit": 4,
             "loop_start_seconds": 0.0,
-            "loop_end_seconds": 180.0,
+            "loop_end_seconds": 312.726,
             "weight": 1.0,
             "intensity": "low",
             "transition_points_bars": [
@@ -303,15 +335,17 @@
             "asset_status": "candidate",
             "human_listening_approval": "pending",
             "source": {
-              "author": "yd",
-              "url": "https://opengameart.org/content/factory-ambiance"
+              "author": "TinyWorlds",
+              "url": "https://opengameart.org/content/space-graveyard-ambient-track",
+              "title": "Space Graveyard - Ambient Track"
             },
             "license": {
               "name": "CC0 1.0",
               "status": "cleared",
               "commercial_use": true,
-              "attribution": "yd"
-            }
+              "attribution": "TinyWorlds"
+            },
+            "unmetered": true
           }
         ],
         "contact": [
@@ -408,6 +442,38 @@
               "commercial_use": true,
               "attribution": "skrjablin"
             }
+          },
+          {
+            "id": "drift_battle_high_epic",
+            "path": "res://assets/audio/music/wanderpakt/battle_high_epic.ogg",
+            "bpm": 0,
+            "beats_per_bar": 4,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 180.0,
+            "weight": 1.0,
+            "intensity": "high",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32
+            ],
+            "asset_status": "candidate",
+            "human_listening_approval": "pending",
+            "source": {
+              "author": "Tarush Singhal",
+              "url": "https://opengameart.org/content/epic-fight-themeboss-battle",
+              "title": "Epic Fight Theme / Boss Battle"
+            },
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "Tarush Singhal"
+            },
+            "unmetered": true
           }
         ],
         "critical": [
@@ -612,6 +678,70 @@
               "commercial_use": true,
               "attribution": "SRG774"
             }
+          },
+          {
+            "id": "lumen_battle_high_noisy",
+            "path": "res://assets/audio/music/prisma/battle_high_noisy.ogg",
+            "bpm": 0,
+            "beats_per_bar": 4,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 180.0,
+            "weight": 1.0,
+            "intensity": "high",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32
+            ],
+            "asset_status": "candidate",
+            "human_listening_approval": "pending",
+            "source": {
+              "author": "Some Weirdo",
+              "url": "https://opengameart.org/content/noisy-battle",
+              "title": "Noisy Battle"
+            },
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "Some Weirdo"
+            },
+            "unmetered": true
+          },
+          {
+            "id": "lumen_battle_high_space",
+            "path": "res://assets/audio/music/prisma/space_battle.ogg",
+            "bpm": 0,
+            "beats_per_bar": 4,
+            "beat_unit": 4,
+            "loop_start_seconds": 0.0,
+            "loop_end_seconds": 177.230794,
+            "weight": 1.0,
+            "intensity": "high",
+            "transition_points_bars": [
+              0,
+              8,
+              16,
+              24,
+              32
+            ],
+            "asset_status": "candidate",
+            "human_listening_approval": "pending",
+            "source": {
+              "author": "MintoDog",
+              "url": "https://opengameart.org/content/space-battle",
+              "title": "Space Battle"
+            },
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "MintoDog"
+            },
+            "unmetered": true
           }
         ],
         "critical": [

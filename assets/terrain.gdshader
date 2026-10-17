@@ -4,9 +4,18 @@ uniform vec2 map_cells = vec2(64.0);
 uniform vec2 crater_center = vec2(1392.0,1280.0);
 uniform float crater_radius = 145.0;
 float hash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+vec2 noise_gradient(vec2 p) {
+	float angle=hash(p)*6.28318530718;
+	return vec2(cos(angle),sin(angle));
+}
 float noise(vec2 p) {
-	vec2 i=floor(p); vec2 f=fract(p); f=f*f*(3.0-2.0*f);
-	return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+	vec2 i=floor(p); vec2 f=fract(p);
+	vec2 u=f*f*f*(f*(f*6.0-15.0)+10.0);
+	float n00=dot(noise_gradient(i),f);
+	float n10=dot(noise_gradient(i+vec2(1,0)),f-vec2(1,0));
+	float n01=dot(noise_gradient(i+vec2(0,1)),f-vec2(0,1));
+	float n11=dot(noise_gradient(i+vec2(1,1)),f-vec2(1,1));
+	return clamp(0.5+mix(mix(n00,n10,u.x),mix(n01,n11,u.x),u.y)*0.5,0.0,1.0);
 }
 vec3 material(float kind) {
 	if (kind<0.5) return vec3(0.69,0.45,0.27);

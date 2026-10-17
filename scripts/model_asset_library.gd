@@ -66,21 +66,40 @@ static func apply_building_pose(root: Node3D, entity: Dictionary) -> void:
 ## Move each faction's authored production mechanism through the existing four
 ## cached working poses. All moving parts use nodes from that faction's GLB.
 static func _apply_factory_mechanism_pose(root: Node3D, faction: String, frame: int) -> void:
-	var phase := sin(float(frame) * TAU / 4.0)
+	# Four deliberate carriage positions make production readable at normal RTS
+	# zoom, with a raised workpiece and a visible release-ramp cycle.
+	var frame_index := posmod(frame, 4)
+	var carriage_x: float = [-0.48, 0.48, 0.48, -0.48][frame_index]
+	var carriage_z: float = [-0.40, -0.40, 0.40, 0.40][frame_index]
+	var hoist_y: float = [0.92, 0.52, 0.74, 1.02][frame_index]
 	if faction == "forge":
-		_set_yaw(root, "ProductionCrane", phase * 0.34)
+		var crane := root.find_child("ProductionCrane", true, false) as Node3D
+		if crane != null:
+			crane.position.x = carriage_x
+			crane.position.z = carriage_z
 		var ramp := root.find_child("Hydraulic deployment ramp", true, false) as Node3D
-		if ramp != null: ramp.rotation.x = -0.04 - float(frame) * 0.035
+		if ramp != null: ramp.rotation.x = [-0.04, -0.14, -0.34, -0.18][frame_index]
 	elif faction == "drift":
-		var roller := root.find_child("Drive-in roller", true, false) as Node3D
-		if roller != null: roller.position.x += phase * 0.28
+		var crane := root.find_child("ProductionCrane", true, false) as Node3D
+		if crane != null:
+			crane.position.x = carriage_x
+			crane.position.z = carriage_z
+			crane.position.y += [0.0, 0.14, 0.26, 0.10][frame_index]
+		var rollers := root.find_children("Drive-in roller", "MeshInstance3D", true, false)
+		for index in rollers.size():
+			var roller := rollers[index] as Node3D
+			roller.position.y += [0.02, 0.16, 0.24, 0.08][frame_index] * (1.0 if index % 2 == 0 else -0.35)
 		var skid := root.find_child("Vehicle assembly skid", true, false) as Node3D
-		if skid != null: skid.position.z += phase * 0.12
+		if skid != null:
+			skid.position.z += carriage_z * 0.72
 	else:
 		var trolley := root.find_child("Prismatic assembly trolley", true, false) as Node3D
-		if trolley != null: trolley.position.x += phase * 0.18
+		if trolley != null:
+			trolley.position.x += carriage_x
+			trolley.position.z += carriage_z
+			trolley.position.y += hoist_y * 0.18
 		var slab := root.find_child("Floating central armor slab", true, false) as Node3D
-		if slab != null: slab.position.y += 0.10 + absf(phase) * 0.08
+		if slab != null: slab.position.y += [0.04, 0.25, 0.42, 0.18][frame_index]
 
 static func _set_yaw(root: Node, node_name: String, yaw: float) -> void:
 	var node := root.find_child(node_name, true, false) as Node3D

@@ -23,6 +23,7 @@ var hovered_entity_id := 0
 var placement := ""
 var placement_rotation := 0
 var placement_cell := Vector2i.ZERO
+var placement_cell_valid := false
 var debug := false
 var profile_enabled := false
 ## Opt-in diagnostic switches used by the warm-render A/B harness only.
@@ -34,6 +35,8 @@ var benchmark_vfx_tier_override := -1
 var benchmark_track_cap := 1800
 var benchmark_track_min_distance := 3.0
 var benchmark_track_lifetime := 50.0
+var benchmark_track_visibility_diagnostics := false
+var profile_track_segments_in_view := 0
 var benchmark_compact_wrecks := false
 var health_mode := "damaged"
 var selection_rect := Rect2()
@@ -88,6 +91,16 @@ var vehicle_texture_cache: Dictionary = {}
 var pending_pose_keys: Dictionary = {}
 var vehicle_cache_queue: Array[Dictionary] = []
 var vehicle_cache_worker_active := false
+var vehicle_cache_inflight_viewport: SubViewport
+var vehicle_cache_inflight_painter: Node
+var vehicle_cache_inflight_key := ""
+var vehicle_cache_inflight_started_usec := 0
+var vehicle_cache_inflight_callback: Callable
+var vehicle_cache_queued_entity_keys: Dictionary = {}
+var vehicle_cache_stale_requests_dropped_total := 0
+var vehicle_cache_overflow_requests_dropped_total := 0
+var vehicle_cache_queue_peak := 0
+var vehicle_cache_aborted_inflight_total := 0
 ## When true, cache misses only draw the nearest existing pose; no SubViewport
 ## is rendered until the next loading/prewarm window.
 var vehicle_cache_generation_frozen := false
@@ -96,6 +109,15 @@ var vehicle_cache_generation_frozen := false
 var vehicle_cache_viewports: Dictionary = {}
 var vehicle_texture_last_used: Dictionary = {}
 var vehicle_cache_fallback_keys: Dictionary = {}
+var vehicle_cache_family_index: Dictionary = {}
+var vehicle_cache_family_generations: Dictionary = {}
+var vehicle_cache_pose_metadata: Dictionary = {}
+var vehicle_cache_fallback_lookups_total := 0
+var vehicle_cache_fallback_index_hits_total := 0
+var vehicle_cache_fallback_candidates_examined_total := 0
+var vehicle_cache_fallback_empty_total := 0
+var vehicle_cache_procedural_fallback_total := 0
+var vehicle_cache_fallback_search_usec_total := 0
 ## Runtime overrides are only used by the repeatable cache A/B harness. Normal
 ## gameplay remains the unchanged 512x512 / 4x-MSAA reference configuration.
 var vehicle_cache_resolution := VEHICLE_CACHE_SIZE
@@ -113,9 +135,9 @@ var vehicle_cache_readbacks_total := 0
 var vehicle_cache_evictions_total := 0
 var vehicle_cache_active_subviewports := 0
 var vehicle_cache_peak_subviewports := 0
-var vehicle_cache_render_wait_ms_total := 0.0
+var vehicle_cache_completion_latency_ms_total := 0.0
 var vehicle_cache_readback_ms_total := 0.0
-var vehicle_cache_last_render_wait_ms := 0.0
+var vehicle_cache_last_completion_latency_ms := 0.0
 var vehicle_cache_last_readback_ms := 0.0
 var vehicle_cache_event_log: Array[Dictionary] = []
 
@@ -128,17 +150,27 @@ static func vehicle_heading_frame(angle: float) -> int:
 
 static func vehicle_turret_frame(relative: float) -> int:
 	return posmod(roundi((relative+PI)*VEHICLE_TURRET_FRAMES/TAU),VEHICLE_TURRET_FRAMES)
+
+static func vehicle_turret_frame_for_kind(kind: String, relative: float) -> int:
+	return 0 if kind=="harvester" else vehicle_turret_frame(relative)
 var building_texture_cache: Dictionary = {}
 var building_texture_times: Dictionary = {}
+var building_texture_metadata: Dictionary = {}
+## Last successfully displayed cache key per building. Keeps phase transitions
+## on that building's prior authored 3D pose while a new construction pose bakes.
+var building_entity_last_pose_keys: Dictionary = {}
 var building_cache_pending: Dictionary = {}
 var building_cache_queue: Array[Dictionary] = []
 var building_cache_worker_active := false
 var building_cache_hits := 0
 var building_cache_misses := 0
 var building_cache_fallbacks := 0
+var building_cache_readbacks_total := 0
+var building_cache_readback_ms_total := 0.0
 var building_cache_fallback_keys: Dictionary = {}
 var building_visual_diagnostics_enabled := false
 var building_visual_event_log: Array[Dictionary] = []
+var building_visual_diagnostic_output_path := "user://building_visual_events.json"
 var profile_total_ms := 0.0
 var profile_terrain_ms := 0.0
 var profile_ground_fx_ms := 0.0
@@ -154,6 +186,14 @@ var profile_smoke_ms := 0.0
 var profile_fog_ms := 0.0
 var profile_sim_ms := 0.0
 var profile_ui_ms := 0.0
+var profile_phase_setup_ms := 0.0
+var profile_phase_ground_ms := 0.0
+var profile_phase_cull_sort_ms := 0.0
+var profile_phase_entities_ms := 0.0
+var profile_phase_combat_ms := 0.0
+var profile_phase_overlays_ms := 0.0
+var profile_phase_post_ms := 0.0
+var profile_phase_unattributed_ms := 0.0
 var profile_solarit_count := 0
 var profile_ruin_count := 0
 var profile_projectile_count := 0
@@ -161,12 +201,11 @@ var profile_impact_count := 0
 var profile_particle_count := 0
 
 func _exit_tree() -> void:
+	_flush_building_visual_diagnostics()
 	# Cache entries hold references to SubViewport textures and their render
 	# targets. Drop those references explicitly when a match/renderer is torn
 	# down so OpenGL compatibility clients do not leave GPU textures behind.
-	vehicle_cache_generation_frozen=true
-	vehicle_cache_queue.clear()
-	pending_pose_keys.clear()
+	freeze_vehicle_pose_generation(true)
 	building_cache_queue.clear()
 	building_cache_pending.clear()
 	building_cache_fallback_keys.clear()
@@ -177,8 +216,23 @@ func _exit_tree() -> void:
 	vehicle_texture_cache.clear()
 	vehicle_texture_last_used.clear()
 	vehicle_cache_fallback_keys.clear()
+	vehicle_cache_family_index.clear()
+	vehicle_cache_family_generations.clear()
+	vehicle_cache_pose_metadata.clear()
+	vehicle_cache_queued_entity_keys.clear()
 	building_texture_cache.clear()
 	building_texture_times.clear()
+	building_texture_metadata.clear()
+	building_entity_last_pose_keys.clear()
+
+func _flush_building_visual_diagnostics() -> void:
+	if not building_visual_diagnostics_enabled or building_visual_event_log.is_empty(): return
+	var file:=FileAccess.open(building_visual_diagnostic_output_path,FileAccess.WRITE)
+	if file==null:
+		push_warning("Could not write building visual diagnostics: %s" % building_visual_diagnostic_output_path)
+		return
+	file.store_string(JSON.stringify({"schema_version":1,"events":building_visual_event_log},"\t"))
+	print("Building visual diagnostics written: %s (%d events)" % [building_visual_diagnostic_output_path,building_visual_event_log.size()])
 var impact_disc_vertices := PackedVector3Array()
 var impact_disc_colors := PackedColorArray()
 var impact_disc_indices := PackedInt32Array()
@@ -215,45 +269,147 @@ func vehicle_cache_family_prefix(key: String) -> String:
 	if parts.size()<4: return key
 	return "%s|%s|%s|%s" % [parts[0],parts[1],parts[2],parts[3]]
 
-func invalidate_vehicle_fallbacks_for_new_pose(key: String) -> void:
-	# A new texture can improve fallback choices only for the same render family
-	# (unit, faction, owner tint and team color). Preserve all unrelated indexes.
-	var prefix:=vehicle_cache_family_prefix(key)+"|"
-	for requested_key in vehicle_cache_fallback_keys.keys():
-		if str(requested_key).begins_with(prefix): vehicle_cache_fallback_keys.erase(requested_key)
+func register_vehicle_cache_pose(key: String) -> void:
+	var parts: PackedStringArray=key.split("|")
+	if parts.size()!=10: return
+	var family:=vehicle_cache_family_prefix(key)
+	var keys: Array=vehicle_cache_family_index.get(family,[])
+	if not keys.has(key): keys.append(key)
+	vehicle_cache_family_index[family]=keys
+	vehicle_cache_family_generations[family]=int(vehicle_cache_family_generations.get(family,0))+1
+	vehicle_cache_pose_metadata[key]=[
+		int(parts[4]),int(parts[5]),int(parts[6]),int(parts[7]),int(parts[8]),int(parts[9])
+	]
+
+func unregister_vehicle_cache_pose(key: String) -> void:
+	var family:=vehicle_cache_family_prefix(key)
+	var keys: Array=vehicle_cache_family_index.get(family,[])
+	keys.erase(key)
+	if keys.is_empty(): vehicle_cache_family_index.erase(family)
+	else: vehicle_cache_family_index[family]=keys
+	vehicle_cache_pose_metadata.erase(key)
+	vehicle_cache_family_generations[family]=int(vehicle_cache_family_generations.get(family,0))+1
+
+func freeze_vehicle_pose_generation(cancel_inflight: bool = true) -> void:
+	vehicle_cache_generation_frozen=true
+	vehicle_cache_stale_requests_dropped_total+=vehicle_cache_queue.size()
+	vehicle_cache_queue.clear()
+	vehicle_cache_queued_entity_keys.clear()
+	pending_pose_keys.clear()
+	if cancel_inflight and is_instance_valid(vehicle_cache_inflight_viewport):
+		if vehicle_cache_inflight_callback.is_valid() and RenderingServer.frame_post_draw.is_connected(vehicle_cache_inflight_callback):
+			RenderingServer.frame_post_draw.disconnect(vehicle_cache_inflight_callback)
+		vehicle_cache_inflight_viewport.queue_free()
+		vehicle_cache_aborted_inflight_total+=1
+		vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
+		vehicle_cache_inflight_viewport=null
+		vehicle_cache_inflight_painter=null
+		vehicle_cache_inflight_key=""
+		vehicle_cache_inflight_callback=Callable()
+		vehicle_cache_worker_active=false
+
+func enqueue_vehicle_pose_request(key: String, snapshot: Dictionary, team: Color, faction: String, turret_angle: float) -> void:
+	if vehicle_cache_generation_frozen: return
+	var entity_id:=int(snapshot.get("id",-1))
+	if vehicle_cache_queued_entity_keys.has(entity_id):
+		var old_key:=str(vehicle_cache_queued_entity_keys[entity_id])
+		if old_key!=key:
+			for index in range(vehicle_cache_queue.size()-1,-1,-1):
+				if str(vehicle_cache_queue[index].key)==old_key:
+					vehicle_cache_queue.remove_at(index)
+					pending_pose_keys.erase(old_key)
+					vehicle_cache_stale_requests_dropped_total+=1
+					break
+	if pending_pose_keys.has(key): return
+	while vehicle_cache_queue.size()>=VEHICLE_CACHE_PENDING_CAPACITY:
+		var stale: Dictionary=vehicle_cache_queue.pop_front()
+		pending_pose_keys.erase(str(stale.get("key","")))
+		vehicle_cache_queued_entity_keys.erase(int(stale.get("entity",{}).get("id",-1)))
+		vehicle_cache_stale_requests_dropped_total+=1
+		vehicle_cache_overflow_requests_dropped_total+=1
+	pending_pose_keys[key]=true
+	vehicle_cache_queued_entity_keys[entity_id]=key
+	vehicle_cache_queue.append({"key":key,"entity":snapshot,"team":team,"faction":faction,"turret":turret_angle})
+	vehicle_cache_queue_peak=maxi(vehicle_cache_queue_peak,vehicle_cache_queue.size())
+	record_vehicle_cache_event("cache_miss_queued",key)
+	process_vehicle_cache_queue.call_deferred()
+
+func enqueue_vehicle_pose_baseline() -> int:
+	if sim==null or sim.db==null: return 0
+	var kinds: Array=sim.db.units.keys()
+	var owners:=sim.factions.size()
+	if kinds.is_empty() or owners<=0: return 0
+	var heading_count:=mini(VEHICLE_HEADING_FRAMES, maxi(1, vehicle_cache_capacity / maxi(1,kinds.size()*owners)))
+	var queued:=0
+	for owner in owners:
+		var faction:=str(sim.factions[owner])
+		var team:=sim.team_color(owner)
+		var color_key:=team.to_html(false)
+		for raw_kind in kinds:
+			var kind:=str(raw_kind)
+			var relative_turret_frame:=vehicle_turret_frame_for_kind(kind,0.0)
+			for pose_index in heading_count:
+				var heading_frame:=posmod(roundi(float(pose_index)*float(VEHICLE_HEADING_FRAMES)/float(heading_count)),VEHICLE_HEADING_FRAMES)
+				var angle:=float(heading_frame)*TAU/VEHICLE_HEADING_FRAMES
+				var key:="%s|%s|%d|%s|%d|%d|0|0|0|0" % [kind,faction,owner,color_key,heading_frame,relative_turret_frame]
+				if vehicle_texture_cache.has(key) or pending_pose_keys.has(key): continue
+				var snapshot: Dictionary={
+					"id":-100000-owner*10000-kinds.find(raw_kind)*VEHICLE_HEADING_FRAMES-heading_frame,
+					"kind":kind,"owner":owner,"building":false,"pos":Vector2.ZERO,
+					"angle":angle,"turret":angle,"hp":1000.0,"max_hp":1000.0,
+					"velocity":Vector2.ZERO,"cargo":0.0,"harvest_state":"IDLE",
+					"drive_frame":0,"visual_animation_state":0,"animation_frame_count":4,
+					"visual_cargo_state":0,"visual_damage_state":0
+				}
+				enqueue_vehicle_pose_request(key,snapshot,team,faction,0.0)
+				queued+=1
+	return queued
 
 func forget_vehicle_fallbacks_to_pose(key: String) -> void:
-	# Evicting a pose only invalidates requests that actually pointed at it.
-	for requested_key in vehicle_cache_fallback_keys.keys():
-		if str(vehicle_cache_fallback_keys[requested_key])==key: vehicle_cache_fallback_keys.erase(requested_key)
+	# Family generation invalidates memoized choices in O(1), without scanning
+	# every requested key whenever a pose is inserted or evicted.
+	unregister_vehicle_cache_pose(key)
 
 func nearest_vehicle_texture(key: String) -> Texture2D:
-	var cached_fallback_key:=str(vehicle_cache_fallback_keys.get(key,""))
-	if not cached_fallback_key.is_empty() and vehicle_texture_cache.has(cached_fallback_key):
+	vehicle_cache_fallback_lookups_total+=1
+	var search_started:=Time.get_ticks_usec()
+	var family:=vehicle_cache_family_prefix(key)
+	var generation:=int(vehicle_cache_family_generations.get(family,0))
+	var memo: Dictionary=vehicle_cache_fallback_keys.get(key,{})
+	var cached_fallback_key:=str(memo.get("pose_key",""))
+	if int(memo.get("generation",-1))==generation and not cached_fallback_key.is_empty() and vehicle_texture_cache.has(cached_fallback_key):
+		vehicle_cache_fallback_index_hits_total+=1
 		vehicle_texture_last_used[cached_fallback_key]=Time.get_ticks_usec()
+		vehicle_cache_fallback_search_usec_total+=Time.get_ticks_usec()-search_started
 		return vehicle_texture_cache[cached_fallback_key]
 	var requested: PackedStringArray=key.split("|")
 	var best: Texture2D
 	var best_key: String=""
 	var best_distance:=2147483647
-	for candidate in vehicle_texture_cache:
-		var parts: PackedStringArray=str(candidate).split("|")
-		if parts.size()!=10 or requested.size()!=10: continue
-		if parts[0]!=requested[0] or parts[1]!=requested[1] or parts[2]!=requested[2] or parts[3]!=requested[3]: continue
-		var heading_delta:=absi(int(parts[4])-int(requested[4]))
+	if requested.size()!=10:
+		vehicle_cache_fallback_empty_total+=1
+		vehicle_cache_fallback_search_usec_total+=Time.get_ticks_usec()-search_started
+		return null
+	var candidates: Array=vehicle_cache_family_index.get(family,[])
+	for candidate_value in candidates:
+		var candidate:=str(candidate_value)
+		var parts: Array=vehicle_cache_pose_metadata.get(candidate,[])
+		if parts.size()!=6 or not vehicle_texture_cache.has(candidate): continue
+		vehicle_cache_fallback_candidates_examined_total+=1
+		var heading_delta:=absi(int(parts[0])-int(requested[4]))
 		heading_delta=mini(heading_delta,VEHICLE_HEADING_FRAMES-heading_delta)
-		var turret_delta:=absi(int(parts[5])-int(requested[5]))
+		var turret_delta:=absi(int(parts[1])-int(requested[5]))
 		turret_delta=mini(turret_delta,VEHICLE_TURRET_FRAMES-turret_delta)
-		var drive_delta:=absi(int(parts[9])-int(requested[9]))
+		var drive_delta:=absi(int(parts[5])-int(requested[9]))
 		drive_delta=mini(drive_delta,4-drive_delta)
 		# Keep damage, cargo and work state exact while choosing the nearest 3D
 		# body heading and turret view during cache warmup.
 		# During harvest/unload/drive animation or cargo changes, keep using the
 		# closest cached 3D pose while the exact frame renders asynchronously.
 		# Falling back to the live 2D painter here makes the harvester visibly pop.
-		var cargo_delta:=absi(int(parts[7])-int(requested[7]))
-		var state_delta:=0 if parts[8]==requested[8] else 12
-		var damage_delta:=absi(int(parts[6])-int(requested[6]))
+		var cargo_delta:=absi(int(parts[3])-int(requested[7]))
+		var state_delta:=0 if int(parts[4])==int(requested[8]) else 12
+		var damage_delta:=absi(int(parts[2])-int(requested[6]))
 		var distance:=heading_delta*3+turret_delta+drive_delta*2+cargo_delta*2+state_delta+damage_delta*8
 		if distance<best_distance:
 			best_distance=distance
@@ -264,7 +420,10 @@ func nearest_vehicle_texture(key: String) -> Texture2D:
 		# The texture corpus is stable during active play; remember the nearest
 		# ready pose so repeated misses do not scan and split every cache key each
 		# frame. New entries and evictions invalidate this derived index.
-		if vehicle_cache_fallback_keys.size()<4096: vehicle_cache_fallback_keys[key]=best_key
+		if vehicle_cache_fallback_keys.size()<8192: vehicle_cache_fallback_keys[key]={"pose_key":best_key,"generation":generation}
+	else:
+		vehicle_cache_fallback_empty_total+=1
+	vehicle_cache_fallback_search_usec_total+=Time.get_ticks_usec()-search_started
 	return best
 
 func prepare_factory_preview_cache() -> void:
@@ -286,8 +445,10 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	# the independently rotating turret keeps 16 relative aim angles.
 	var heading_frame:=vehicle_heading_frame(entity.angle)
 	var heading_angle:=float(heading_frame)*TAU/VEHICLE_HEADING_FRAMES
-	var turret_frame:=vehicle_turret_frame(relative)
-	var turret_angle:=float(turret_frame)*TAU/VEHICLE_TURRET_FRAMES-PI
+	# The authored Harvester GLB has no Turret node; its cutter/conveyor are
+	# chassis-mounted. Keeping a turret angle in its key creates useless poses.
+	var turret_frame:=vehicle_turret_frame_for_kind(str(entity.kind),relative)
+	var turret_angle:=0.0 if entity.kind=="harvester" else float(turret_frame)*TAU/VEHICLE_TURRET_FRAMES-PI
 	var vehicle_velocity:Vector2=entity.get("velocity",Vector2.ZERO)
 	var moving:bool=vehicle_velocity.length()>5.0
 	var hp_ratio: float=entity.hp/entity.max_hp
@@ -311,9 +472,7 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	if texture==null:
 		vehicle_cache_misses+=1
 		vehicle_cache_misses_total+=1
-		if not pending_pose_keys.has(key) and vehicle_cache_queue.size()<VEHICLE_CACHE_PENDING_CAPACITY:
-			record_vehicle_cache_event("cache_miss_queued",key)
-			pending_pose_keys[key]=true
+		if not vehicle_cache_generation_frozen and not pending_pose_keys.has(key):
 			var snapshot:=entity.duplicate(true)
 			snapshot.angle=heading_angle
 			snapshot.drive_frame=drive_frame
@@ -321,8 +480,7 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 			snapshot.animation_frame_count=animation_frame_count
 			snapshot.visual_cargo_state=cargo_state
 			snapshot.visual_damage_state=damage_state
-			vehicle_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner],"turret":turret_angle})
-			if not vehicle_cache_generation_frozen or visual_paused: process_vehicle_cache_queue.call_deferred()
+			enqueue_vehicle_pose_request(key,snapshot,sim.team_color(entity.owner),sim.factions[entity.owner],turret_angle)
 		texture=nearest_vehicle_texture(key)
 		if texture==null: return false
 	else:
@@ -338,13 +496,15 @@ func draw_cached_vehicle(entity: Dictionary, output: Vector2, scale_value: float
 	return true
 
 func process_vehicle_cache_queue() -> void:
-	if vehicle_cache_worker_active or not is_inside_tree() or (vehicle_cache_generation_frozen and not visual_paused): return
+	if vehicle_cache_worker_active or not is_inside_tree() or vehicle_cache_generation_frozen: return
+	if vehicle_cache_queue.is_empty(): return
 	vehicle_cache_worker_active=true
-	while not vehicle_cache_queue.is_empty() and is_inside_tree():
-		if vehicle_cache_generation_frozen and not visual_paused: break
-		var request: Dictionary=vehicle_cache_queue.pop_front()
-		await _build_vehicle_texture(request.key,request.entity,request.team,request.faction,request.turret)
-	vehicle_cache_worker_active=false
+	var request: Dictionary=vehicle_cache_queue.pop_front()
+	var request_entity: Dictionary=request.get("entity",{})
+	var request_entity_id:=int(request_entity.get("id",-1))
+	if str(vehicle_cache_queued_entity_keys.get(request_entity_id,""))==str(request.get("key","")):
+		vehicle_cache_queued_entity_keys.erase(request_entity_id)
+	_build_vehicle_texture(request.key,request.entity,request.team,request.faction,request.turret)
 
 func evict_vehicle_cache_entry() -> void:
 	if vehicle_texture_cache.is_empty(): return
@@ -380,6 +540,34 @@ func building_cache_key(entity: Dictionary) -> String:
 		construction_stage=_construction_stage_index(ratio)
 	return "%s|%d|%s|%d|%d|%d|%d|%d|%d|%d" % [entity.kind,entity.owner,faction,rotation,turret_frame,active,upgrade_stage,1 if unloading else 0,animation_frame,construction_stage]
 
+func _building_snapshot_cache_key(entity: Dictionary, faction: String) -> String:
+	# Reconstruct the exact request identity from the immutable queued snapshot.
+	# This catches a queued painter whose state no longer corresponds to its key.
+	var kind:=str(entity.get("kind","unknown"))
+	var rotation:=posmod(int(entity.get("rotation",0)),4)
+	var turret_frame:=posmod(roundi(float(entity.get("turret",0.0))*16.0/TAU),16) if kind=="tower" else 0
+	var active:=1 if kind=="factory" and (not entity.get("queue",[]).is_empty() or int(entity.get("production_exit_unit",0))>0) else 0
+	var construction_stage:=int(entity.get("construction_stage",5))
+	return "%s|%d|%s|%d|%d|%d|%d|%d|%d|%d" % [kind,int(entity.get("owner",-1)),faction,rotation,turret_frame,active,int(entity.get("upgrade_level",0)),1 if bool(entity.get("unloading",false)) else 0,int(entity.get("building_animation_frame",0)),construction_stage]
+
+func _building_cache_entry_valid(key: String, texture: Texture2D, expected_kind: String, expected_owner: int, expected_faction: String) -> bool:
+	if texture==null: return false
+	var metadata: Dictionary=building_texture_metadata.get(key,{})
+	var actual_source:=str(metadata.get("actual_model_source",""))
+	var allowed_sources: Array[String]=[
+		"res://assets/models/buildings/factions/%s_%s.glb" % [expected_faction,expected_kind],
+		"res://assets/models/buildings/%s.glb" % expected_kind,
+		"procedural:%s:%s" % [expected_faction,expected_kind]
+	]
+	return (
+		str(metadata.get("cache_key",""))==key
+		and str(metadata.get("kind",""))==expected_kind
+		and int(metadata.get("owner",-1))==expected_owner
+		and str(metadata.get("faction",""))==expected_faction
+		and int(metadata.get("texture_instance_id",0))==texture.get_instance_id()
+		and actual_source in allowed_sources
+	)
+
 static func building_cache_family_key(key: String) -> String:
 	# Construction, faction, orientation, upgrades, unloading and tower aim stay
 	# strict. Activity and animation are dynamic factory/rotor poses over the same
@@ -395,13 +583,74 @@ func building_cache_fallback_texture(key: String) -> Texture2D:
 	var family := building_cache_family_key(key)
 	if family.is_empty(): return null
 	var fallback_key := str(building_cache_fallback_keys.get(family,""))
-	if fallback_key.is_empty(): return null
 	var texture := building_texture_cache.get(fallback_key) as Texture2D
-	if texture==null:
+	var key_parts:=fallback_key.split("|",false)
+	var metadata_valid:=key_parts.size()==10 and _building_cache_entry_valid(fallback_key,texture,str(key_parts[0]),int(key_parts[1]),str(key_parts[2]))
+	if not metadata_valid or building_cache_family_key(fallback_key)!=family:
 		building_cache_fallback_keys.erase(family)
-		return null
+		fallback_key=_repair_building_cache_fallback(family)
+		texture=building_texture_cache.get(fallback_key) as Texture2D
+		key_parts=fallback_key.split("|",false)
+		metadata_valid=not fallback_key.is_empty() and key_parts.size()==10 and _building_cache_entry_valid(fallback_key,texture,str(key_parts[0]),int(key_parts[1]),str(key_parts[2]))
+	if not metadata_valid: return null
 	building_texture_times[fallback_key]=elapsed
 	return texture
+
+func building_entity_fallback_texture(entity: Dictionary, requested_key: String) -> Texture2D:
+	# A construction-stage transition intentionally changes the cache family.
+	# Reuse only this exact entity's last valid authored pose until the requested
+	# phase is ready; never borrow a different building, faction, owner or angle.
+	var entity_id:=int(entity.get("id",0))
+	var fallback_key:=str(building_entity_last_pose_keys.get(entity_id,""))
+	if fallback_key.is_empty() or fallback_key==requested_key: return null
+	var key_parts:=fallback_key.split("|",false)
+	if key_parts.size()!=10: return null
+	if str(key_parts[0])!=str(entity.get("kind","unknown")) or int(key_parts[1])!=int(entity.get("owner",-1)): return null
+	var owner:=int(entity.get("owner",-1))
+	var faction:=str(sim.factions[owner]) if sim!=null and owner>=0 and owner<sim.factions.size() else "unknown"
+	if str(key_parts[2])!=faction or int(key_parts[3])!=posmod(int(entity.get("rotation",0)),4): return null
+	var texture:=building_texture_cache.get(fallback_key) as Texture2D
+	if not _building_cache_entry_valid(fallback_key,texture,str(entity.get("kind","unknown")),owner,faction): return null
+	building_texture_times[fallback_key]=elapsed
+	return texture
+
+func _repair_building_cache_fallback(family: String) -> String:
+	# LRU eviction can remove the family’s preferred pose while other valid
+	# animation poses remain. Keep one of those poses as a seamless fallback.
+	var best_key: String=""
+	var best_time: float=-INF
+	for candidate_value in building_texture_cache.keys():
+		var candidate:=str(candidate_value)
+		if building_cache_family_key(candidate)!=family: continue
+		var parts:=candidate.split("|",false)
+		var texture:=building_texture_cache.get(candidate) as Texture2D
+		if parts.size()!=10 or not _building_cache_entry_valid(candidate,texture,str(parts[0]),int(parts[1]),str(parts[2])): continue
+		var used:=float(building_texture_times.get(candidate,-INF))
+		if used>best_time:
+			best_time=used
+			best_key=candidate
+	if best_key.is_empty():
+		building_cache_fallback_keys.erase(family)
+	else:
+		building_cache_fallback_keys[family]=best_key
+	return best_key
+
+func _evict_building_cache_entry(key: String) -> void:
+	var evicted_family:=building_cache_family_key(key)
+	building_texture_cache.erase(key)
+	building_texture_times.erase(key)
+	building_texture_metadata.erase(key)
+	for family_value in building_cache_fallback_keys.keys():
+		if str(building_cache_fallback_keys[family_value])==key:
+			building_cache_fallback_keys.erase(family_value)
+	var replacement:=_repair_building_cache_fallback(evicted_family) if not evicted_family.is_empty() else ""
+	record_building_cache_event("cache_eviction",key,{"family":evicted_family,"replacement_fallback":replacement})
+
+func record_building_cache_event(event_name: String, key: String, details: Dictionary = {}) -> void:
+	if not building_visual_diagnostics_enabled or building_visual_event_log.size()>=8192: return
+	var event: Dictionary={"event":event_name,"frame":Engine.get_process_frames(),"cache_key":key,"time_usec":Time.get_ticks_usec()}
+	for detail_key in details: event[detail_key]=details[detail_key]
+	building_visual_event_log.append(event)
 
 func record_building_visual_event(entity: Dictionary, requested_key: String, chosen_key: String, reason: String) -> void:
 	if not building_visual_diagnostics_enabled or building_visual_event_log.size()>=8192: return
@@ -413,13 +662,14 @@ func record_building_visual_event(entity: Dictionary, requested_key: String, cho
 	var animation_frame := _building_animation_frame(entity)
 	var production_stage := _factory_visual_stage(entity) if kind=="factory" else 0
 	var chosen_texture := building_texture_cache.get(chosen_key) as Texture2D if not chosen_key.is_empty() else null
+	var chosen_metadata: Dictionary=building_texture_metadata.get(chosen_key,{}) if not chosen_key.is_empty() else {}
 	var construction_stage := 5
 	if not bool(entity.get("complete",true)):
 		var total := maxf(0.01,float(sim.definition(entity).time))
 		construction_stage=_construction_stage_index(clampf(float(entity.get("build_progress",0.0))/total,0.0,1.0))
 	building_visual_event_log.append({
 		"frame":Engine.get_process_frames(),"entity_id":int(entity.get("id",0)),"faction":faction,"building_type":kind,
-		"model_path":model_path,"glb_path":model_path if model_path.ends_with(".glb") and ResourceLoader.exists(model_path,"PackedScene") else "",
+		"model_path":model_path,"expected_model_path":model_path,"actual_model_path":str(chosen_metadata.get("actual_model_source","")),"glb_path":model_path if model_path.ends_with(".glb") and ResourceLoader.exists(model_path,"PackedScene") else "",
 		"construction_state":construction_stage,"production_state":production_stage,"damage_state":industrial_art.damage_state(entity) if industrial_art.has_method("damage_state") else "runtime_overlay",
 		"animation_state":animation_frame,"orientation":posmod(int(entity.get("rotation",0)),4),"cache_key":requested_key,
 		"chosen_cache_key":chosen_key,"texture_instance_id":chosen_texture.get_instance_id() if chosen_texture!=null else 0,
@@ -458,6 +708,15 @@ func draw_cached_building(entity: Dictionary) -> bool:
 	# progress remains in the HUD bar, while phase transitions alter the model.
 	var key := building_cache_key(entity)
 	var texture: Texture2D=building_texture_cache.get(key)
+	var owner:=int(entity.get("owner",-1))
+	var faction:=str(sim.factions[owner]) if owner>=0 and owner<sim.factions.size() else "unknown"
+	if texture!=null and not _building_cache_entry_valid(key,texture,str(entity.get("kind","unknown")),owner,faction):
+		building_texture_cache.erase(key)
+		building_texture_times.erase(key)
+		building_texture_metadata.erase(key)
+		_repair_building_cache_fallback(building_cache_family_key(key))
+		texture=null
+		record_building_visual_event(entity,key,"","cache_identity_rejected")
 	if texture==null:
 		building_cache_misses+=1
 		if not building_cache_pending.has(key):
@@ -471,18 +730,28 @@ func draw_cached_building(entity: Dictionary) -> bool:
 				var ratio:=clampf(float(entity.get("build_progress",0.0))/total,0.0,1.0)
 				snapshot.construction_stage=_construction_stage_index(ratio)
 			if entity.kind=="tower": snapshot.turret=float(posmod(roundi(float(entity.get("turret",0.0))*16.0/TAU),16))*TAU/16.0
-			building_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":sim.factions[entity.owner]})
+			var requested_faction:=str(sim.factions[entity.owner])
+			building_cache_queue.append({"key":key,"entity":snapshot,"team":sim.team_color(entity.owner),"faction":requested_faction})
 			process_building_cache_queue.call_deferred()
 		texture=building_cache_fallback_texture(key)
+		var chosen_key:=str(building_cache_fallback_keys.get(building_cache_family_key(key),""))
+		var fallback_reason:="same_family_cached_fallback"
 		if texture==null:
+			chosen_key=str(building_entity_last_pose_keys.get(int(entity.get("id",0)),""))
+			texture=building_entity_fallback_texture(entity,key)
+			fallback_reason="previous_entity_pose_fallback"
+		if texture==null:
+			building_entity_last_pose_keys.erase(int(entity.get("id",0)))
 			record_building_visual_event(entity,key,"","initial_procedural_fallback")
 			return false
 		building_cache_fallbacks+=1
-		record_building_visual_event(entity,key,str(building_cache_fallback_keys.get(building_cache_family_key(key),"")),"same_family_cached_fallback")
+		building_entity_last_pose_keys[int(entity.get("id",0))]=chosen_key
+		record_building_visual_event(entity,key,chosen_key,fallback_reason)
 	else:
 		building_cache_hits+=1
 		building_cache_fallback_keys[building_cache_family_key(key)]=key
 		building_texture_times[key]=elapsed
+		building_entity_last_pose_keys[int(entity.get("id",0))]=key
 		record_building_visual_event(entity,key,key,"exact_cache_hit")
 	draw_texture_rect(texture,Rect2(entity.pos-Vector2(128,128),Vector2(256,256)),false)
 	var footprint:=sim.building_footprint(entity.kind,int(entity.get("rotation",0)))
@@ -567,6 +836,11 @@ func process_building_cache_queue() -> void:
 	building_cache_worker_active=false
 
 func _build_building_texture(key: String, source: Dictionary, team: Color, faction: String) -> void:
+	if _building_snapshot_cache_key(source,faction)!=key:
+		building_cache_pending.erase(key)
+		record_building_cache_event("cache_build_rejected",key,{"reason":"snapshot_key_mismatch","actual_snapshot_key":_building_snapshot_cache_key(source,faction),"kind":str(source.get("kind","unknown")),"faction":faction})
+		push_error("Building cache request rejected: snapshot identity does not match key %s" % key)
+		return
 	var viewport := SubViewport.new()
 	# Cache art at a higher sample rate than its 256 px world draw size. This
 	# keeps roof seams, warning stripes and small machinery crisp at 1080p.
@@ -600,7 +874,10 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 	if not is_instance_valid(viewport):
 		building_cache_pending.erase(key)
 		return
+	var building_readback_started:=Time.get_ticks_usec()
 	var image := viewport.get_texture().get_image()
+	building_cache_readback_ms_total+=float(Time.get_ticks_usec()-building_readback_started)/1000.0
+	building_cache_readbacks_total+=1
 	if image!=null:
 		if building_texture_cache.size()>=64:
 			var oldest_key := str(building_texture_cache.keys()[0])
@@ -609,13 +886,17 @@ func _build_building_texture(key: String, source: Dictionary, team: Color, facti
 				var candidate_time := int(building_texture_times.get(candidate,0.0)*1000.0)
 				if candidate_time<oldest_time:
 					oldest_key=str(candidate); oldest_time=candidate_time
-			building_texture_cache.erase(oldest_key)
-			building_texture_times.erase(oldest_key)
-			for family in building_cache_fallback_keys.keys():
-				if str(building_cache_fallback_keys[family])==oldest_key: building_cache_fallback_keys.erase(family)
-		building_texture_cache[key]=ImageTexture.create_from_image(image)
+			_evict_building_cache_entry(oldest_key)
+		var actual_texture:=ImageTexture.create_from_image(image)
+		building_texture_cache[key]=actual_texture
 		building_texture_times[key]=elapsed
+		building_texture_metadata[key]={
+			"cache_key":key,"kind":painter.resolved_visual_kind,"owner":int(source.get("owner",-1)),
+			"faction":painter.resolved_visual_faction,"actual_model_source":painter.resolved_visual_source,
+			"texture_instance_id":actual_texture.get_instance_id(),"created_frame":Engine.get_process_frames()
+		}
 		building_cache_fallback_keys[building_cache_family_key(key)]=key
+		record_building_cache_event("cache_build_completed",key,{"kind":painter.resolved_visual_kind,"faction":painter.resolved_visual_faction,"actual_model_source":painter.resolved_visual_source,"texture_instance_id":actual_texture.get_instance_id()})
 	building_cache_pending.erase(key)
 	viewport.queue_free()
 
@@ -646,47 +927,65 @@ func _build_vehicle_texture(key: String, source: Dictionary, team: Color, factio
 	painter.sim=sim
 	viewport.add_child(painter)
 	add_child(viewport)
+	vehicle_cache_inflight_viewport=viewport
+	vehicle_cache_inflight_painter=painter
+	vehicle_cache_inflight_key=key
+	vehicle_cache_inflight_started_usec=build_started
 	vehicle_cache_active_subviewports+=1
 	vehicle_cache_peak_subviewports=maxi(vehicle_cache_peak_subviewports,vehicle_cache_active_subviewports)
 	var render_wait_started:=Time.get_ticks_usec()
 	record_vehicle_cache_event("subviewport_render_start",key)
-	await RenderingServer.frame_post_draw
+	# Do not suspend the match thread until the GPU has finished this pose.
+	# Keep showing the nearest completed pose while this SubViewport renders;
+	# the post-draw callback installs the texture only after the render finishes.
+	vehicle_cache_inflight_callback=_on_vehicle_pose_rendered.bind(key,viewport,painter,build_started,render_wait_started)
+	RenderingServer.frame_post_draw.connect(vehicle_cache_inflight_callback,CONNECT_ONE_SHOT)
+
+func _on_vehicle_pose_rendered(key: String, viewport: SubViewport, painter: Node, build_started: int, render_started: int) -> void:
 	if not is_inside_tree():
 		pending_pose_keys.erase(key)
 		vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
 		if is_instance_valid(viewport): viewport.queue_free()
+		vehicle_cache_worker_active=false
 		return
 	if not is_instance_valid(viewport):
 		vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
 		pending_pose_keys.erase(key)
+		vehicle_cache_worker_active=false
 		return
-	vehicle_cache_last_render_wait_ms=float(Time.get_ticks_usec()-render_wait_started)/1000.0
-	vehicle_cache_render_wait_ms_total+=vehicle_cache_last_render_wait_ms
-	record_vehicle_cache_event("subviewport_render_complete",key,vehicle_cache_last_render_wait_ms)
-	# The viewport target itself is the cached Texture2D. Keep it GPU-resident
-	# and stop updating it after this single pose render; get_image() here caused
-	# a synchronous GPU→CPU readback and was the source of the combat frame spikes.
+	vehicle_cache_last_completion_latency_ms=float(Time.get_ticks_usec()-render_started)/1000.0
+	vehicle_cache_completion_latency_ms_total+=vehicle_cache_last_completion_latency_ms
+	record_vehicle_cache_event("subviewport_render_complete",key,vehicle_cache_last_completion_latency_ms)
+	# Copy the finished pose to an ordinary texture during the loading/prewarm
+	# window, then release its SubViewport. Keeping hundreds of MSAA render
+	# targets alive consumed nearly all dedicated VRAM; the compact ImageTexture
+	# keeps the same pixels while leaving no render targets resident in combat.
 	viewport.render_target_update_mode=SubViewport.UPDATE_DISABLED
-	var pose_texture: Texture2D=viewport.get_texture()
+	var readback_started:=Time.get_ticks_usec()
+	var pose_image: Image=viewport.get_texture().get_image()
+	vehicle_cache_readback_ms_total+=float(Time.get_ticks_usec()-readback_started)/1000.0
+	vehicle_cache_readbacks_total+=1
+	var pose_texture: Texture2D=ImageTexture.create_from_image(pose_image) if pose_image!=null else null
 	if pose_texture!=null:
 		if vehicle_texture_cache.size()>=vehicle_cache_capacity: evict_vehicle_cache_entry()
 		vehicle_texture_cache[key]=pose_texture
-		invalidate_vehicle_fallbacks_for_new_pose(key)
-		vehicle_cache_viewports[key]=viewport
+		register_vehicle_cache_pose(key)
 		vehicle_texture_last_used[key]=Time.get_ticks_usec()
-		# The rendered image is retained by the SubViewport texture. Its 3D scene
-		# graph is no longer needed after UPDATE_DISABLED and can be released.
-		viewport.remove_child(painter)
-		painter.queue_free()
-		viewport.world_3d=null
 		if vehicle_cache_diagnostics_enabled:
 			if vehicle_cache_created_keys.has(key): vehicle_cache_recreated_poses_total+=1
 			elif vehicle_cache_created_keys.size()<4096: vehicle_cache_created_keys[key]=true
 		vehicle_cache_new_poses_total+=1
 		record_vehicle_cache_event("cache_entry_complete",key,float(Time.get_ticks_usec()-build_started)/1000.0)
-	if not vehicle_cache_viewports.has(key): viewport.queue_free()
+	# A completed cache pose is now an ImageTexture, never a retained viewport.
+	viewport.queue_free()
 	pending_pose_keys.erase(key)
 	vehicle_cache_active_subviewports=maxi(0,vehicle_cache_active_subviewports-1)
+	vehicle_cache_inflight_viewport=null
+	vehicle_cache_inflight_painter=null
+	vehicle_cache_inflight_key=""
+	vehicle_cache_inflight_callback=Callable()
+	vehicle_cache_worker_active=false
+	if not vehicle_cache_queue.is_empty(): process_vehicle_cache_queue.call_deferred()
 
 func seed_mission_ground_details() -> void:
 	if sim==null: return
@@ -710,6 +1009,9 @@ func seed_mission_ground_details() -> void:
 		if sim.grid.inside(cell): combat_fx.craters.append({"pos":sim.grid.center(cell),"radius":float(raw.get("radius",30.0)),"age":120.0})
 
 func _ready() -> void:
+	building_visual_diagnostics_enabled=OS.get_environment("SOLARIT_BUILDING_CACHE_DIAGNOSTICS")=="1"
+	var diagnostic_path:=OS.get_environment("SOLARIT_BUILDING_CACHE_DIAGNOSTICS_PATH")
+	if not diagnostic_path.is_empty(): building_visual_diagnostic_output_path=diagnostic_path
 	solarit_atlas=load("res://assets/solarit_atlas.png")
 	terrain_sprite=Sprite2D.new()
 	terrain_sprite.centered=false; terrain_sprite.z_index=-3
@@ -1050,7 +1352,11 @@ func _draw() -> void:
 	profile_buildings_ms=0.0; profile_vehicles_ms=0.0; profile_combat_fx_ms=0.0
 	profile_tracks_ms=0.0; profile_projectiles_ms=0.0; profile_impacts_ms=0.0
 	profile_explosions_ms=0.0; profile_smoke_ms=0.0; profile_fog_ms=0.0
+	profile_phase_setup_ms=0.0; profile_phase_ground_ms=0.0; profile_phase_cull_sort_ms=0.0
+	profile_phase_entities_ms=0.0; profile_phase_combat_ms=0.0; profile_phase_overlays_ms=0.0
+	profile_phase_post_ms=0.0; profile_phase_unattributed_ms=0.0
 	profile_solarit_count=0; profile_ruin_count=0; profile_projectile_count=0; profile_impact_count=0; profile_particle_count=0
+	profile_track_segments_in_view=0
 	impact_disc_vertices.clear(); impact_disc_colors.clear(); impact_disc_indices.clear()
 	impact_glow_vertices.clear(); impact_glow_uvs.clear(); impact_glow_colors.clear(); impact_glow_indices.clear()
 	impact_line_points.clear(); impact_line_colors.clear()
@@ -1058,16 +1364,17 @@ func _draw() -> void:
 	impact_line_points_heavy.clear(); impact_line_colors_heavy.clear()
 	vehicle_cache_hits=0; vehicle_cache_misses=0
 	building_cache_hits=0; building_cache_misses=0
-	terrain_sprite.visible=not benchmark_disabled_categories.has("world")
-	terrain_detail.visible=not benchmark_disabled_categories.has("world") and not benchmark_disabled_categories.has("terrain_detail")
+	terrain_sprite.visible=not benchmark_disabled_categories.has("world") and not benchmark_disabled_categories.has("terrain_base")
+	terrain_detail.visible=not benchmark_disabled_categories.has("world") and not benchmark_disabled_categories.has("terrain_detail") and not benchmark_disabled_categories.has("terrain_detail_sprite")
 	if benchmark_disabled_categories.has("world"):
 		if profile_enabled: profile_total_ms=float(Time.get_ticks_usec()-profile_started)/1000.0
 		return
 	var output := get_viewport_rect().size
+	var phase_started:=Time.get_ticks_usec() if profile_enabled else 0
 	heat_layer.size=output
 	var ratio := output.x/logical_size.x
 	var scale_value := zoom*ratio
-	terrain_sprite.visible=true
+	terrain_sprite.visible=not benchmark_disabled_categories.has("terrain_base")
 	terrain_sprite.position=output*0.5-camera*scale_value+visual_offset*ratio
 	var terrain_mask_scale:=8.0
 	if terrain_sprite.texture!=null and sim.grid.width>0:
@@ -1081,6 +1388,9 @@ func _draw() -> void:
 	var from := g.cell(camera-half)-Vector2i.ONE
 	var to := g.cell(camera+half)+Vector2i.ONE
 	draw_special_objective_markers()
+	if profile_enabled:
+		profile_phase_setup_ms=float(Time.get_ticks_usec()-phase_started)/1000.0
+		phase_started=Time.get_ticks_usec()
 	var terrain_started := Time.get_ticks_usec() if profile_enabled else 0
 	vfx_budget_tier=0
 	var combat_load:=sim.projectiles.size()+sim.effects.size()+combat_fx.particles.size()+visual_bursts.size()
@@ -1097,7 +1407,7 @@ func _draw() -> void:
 	if benchmark_vfx_tier_floor>=0: vfx_budget_tier=maxi(vfx_budget_tier,benchmark_vfx_tier_floor)
 	if benchmark_vfx_tier_override>=0: vfx_budget_tier=clampi(benchmark_vfx_tier_override,0,3)
 	visible_terrain_chunk_count=0
-	if not benchmark_disabled_categories.has("terrain_detail"):
+	if not benchmark_disabled_categories.has("terrain_detail") and not benchmark_disabled_categories.has("terrain_detail_mesh"):
 		for chunk_y in range(maxi(0,floori(float(from.y)/DETAIL_CHUNK_SIZE)),mini(ceili(float(g.height)/DETAIL_CHUNK_SIZE),floori(float(to.y)/DETAIL_CHUNK_SIZE)+1)):
 			for chunk_x in range(maxi(0,floori(float(from.x)/DETAIL_CHUNK_SIZE)),mini(ceili(float(g.width)/DETAIL_CHUNK_SIZE),floori(float(to.x)/DETAIL_CHUNK_SIZE)+1)):
 				var chunk_key:=Vector2i(chunk_x,chunk_y)
@@ -1121,9 +1431,17 @@ func _draw() -> void:
 	var track_points := PackedVector2Array()
 	var track_colors := PackedColorArray()
 	var track_step:=1 if vfx_budget_tier==0 else (2 if vfx_budget_tier==1 else (3 if vfx_budget_tier==2 else 5))
+	var track_view_rect:=Rect2(camera-logical_size*0.5/maxf(zoom,0.01),logical_size/maxf(zoom,0.01)).grow(32.0) if benchmark_track_visibility_diagnostics else Rect2()
 	if not benchmark_disabled_categories.has("tracks"):
 		for track_index in range(0,tracks.size(),track_step):
 			var track: Dictionary=tracks[track_index]
+			if benchmark_track_visibility_diagnostics:
+				var a: Vector2=track.a
+				var b: Vector2=track.b
+				var segment_min:=Vector2(minf(a.x,b.x),minf(a.y,b.y))-Vector2.ONE*12.0
+				var segment_max:=Vector2(maxf(a.x,b.x),maxf(a.y,b.y))+Vector2.ONE*12.0
+				if track_view_rect.intersects(Rect2(segment_min,segment_max-segment_min)):
+					profile_track_segments_in_view+=1
 			var offset := Vector2.from_angle(track.angle).orthogonal()*9
 			var shade := Color(0.10,0.12,0.10,0.18*track.life/maxf(benchmark_track_lifetime,0.1))
 			for sign_value in [-1,1]:
@@ -1146,6 +1464,9 @@ func _draw() -> void:
 			if g.inside(c) and sim.fog[sim.view_owner][c.y*g.width+c.x]==0:
 				var d: Dictionary = sim.db.buildings[memory.kind]
 				draw_rect(Rect2(memory.pos-Vector2(sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[0],sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[1])*g.tile*0.5,Vector2(sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[0],sim.building_footprint(memory.kind,int(memory.get("rotation",0)))[1])*g.tile),Color("3c3023"))
+	if profile_enabled:
+		profile_phase_ground_ms=float(Time.get_ticks_usec()-phase_started)/1000.0
+		phase_started=Time.get_ticks_usec()
 	# Cull hidden and off-screen entities before sorting or rendering any per-unit
 	# effects. They still simulate normally; they simply have no drawing cost here.
 	var sorted: Array[Dictionary]=[]
@@ -1189,6 +1510,9 @@ func _draw() -> void:
 		if absf(visual.pos.x-camera.x)>half.x+120 or absf(visual.pos.y-camera.y)>half.y+120: continue
 		sorted.append({"entity":e,"visual":visual})
 	sorted.sort_custom(func(a,b):return a.visual.pos.y<b.visual.pos.y)
+	if profile_enabled:
+		profile_phase_cull_sort_ms=float(Time.get_ticks_usec()-phase_started)/1000.0
+		phase_started=Time.get_ticks_usec()
 	# Vehicle tread links are part of the cached 3D model. Drawing screen-space
 	# dashes around moving units made them look like detached chains or skid marks,
 	# especially when a harvester turned diagonally. The persistent paired ground
@@ -1221,6 +1545,7 @@ func _draw() -> void:
 				if bool(visual.get("production_exit_active",false)) and draw_production_exit_vehicle(visual,output,scale_value,ratio):
 					pass
 				elif not draw_cached_vehicle(visual,output,scale_value,ratio):
+					vehicle_cache_procedural_fallback_total+=1
 					industrial_art.simplified=zoom<0.68
 					draw_unit(visual)
 				draw_vehicle_damage(visual)
@@ -1233,6 +1558,9 @@ func _draw() -> void:
 				for point in e.path: draw_line(last,point,Color("a2e48a"),1); last=point
 			elif e.owner==sim.view_owner:
 				draw_arc(e.pos,float(sim.db.rules.build_radius)*g.tile,0,TAU,64,Color(0.5,0.9,0.8,0.15),1)
+	if profile_enabled:
+		profile_phase_entities_ms=float(Time.get_ticks_usec()-phase_started)/1000.0
+		phase_started=Time.get_ticks_usec()
 	var combat_fx_started := Time.get_ticks_usec() if profile_enabled else 0
 	var projectile_started := Time.get_ticks_usec() if profile_enabled else 0
 	for p in ([] if benchmark_disabled_categories.has("combat_vfx") else sim.projectiles):
@@ -1286,6 +1614,9 @@ func _draw() -> void:
 		draw_texture_rect(fog_texture,Rect2(Vector2.ZERO,Vector2(g.width,g.height)*g.tile),false)
 		draw_fog_dust(from,to)
 	if profile_enabled: profile_fog_ms=float(Time.get_ticks_usec()-fog_started)/1000.0
+	if profile_enabled:
+		profile_phase_combat_ms=float(Time.get_ticks_usec()-phase_started)/1000.0
+		phase_started=Time.get_ticks_usec()
 	active_vfx_count=sim.effects.size()+sim.projectiles.size()+combat_fx.particles.size()+tracks.size()
 	# World status is deliberately above explosions, smoke and fog.
 	var occupied_bars: Array[Rect2] = []
@@ -1296,6 +1627,8 @@ func _draw() -> void:
 			draw_harvester_cargo(e,visual)
 		if not benchmark_disabled_categories.has("health_selection") and e.kind=="harvester" and e.harvest_state=="UNLOAD":
 			draw_unload_transfer(e,visual)
+		if not benchmark_disabled_categories.has("harvester_feed") and e.kind=="harvester" and e.harvest_state=="HARVEST":
+			draw_harvester_feed(e,visual)
 		if not benchmark_disabled_categories.has("health_selection") and (selected.has(e.id) or health_mode=="always" or (health_mode=="damaged" and (e.hp<e.max_hp or int(e.id)==hovered_entity_id))):
 			if health_mode!="off" or selected.has(e.id):
 				var w := 42.0 if e.building else 24.0
@@ -1323,11 +1656,15 @@ func _draw() -> void:
 				smooth_polygon(PackedVector2Array([e.rally-Vector2(0,24),e.rally+Vector2(16,-19),e.rally-Vector2(0,14)]),sim.team_color(e.owner))
 		elif not benchmark_disabled_categories.has("health_selection") and int(e.id)==hovered_entity_id:
 			draw_selection(visual,true)
-	if placement!="":
+	if profile_enabled:
+		profile_phase_overlays_ms=float(Time.get_ticks_usec()-phase_started)/1000.0
+		phase_started=Time.get_ticks_usec()
+	if placement!="" and placement_cell_valid and g.inside(placement_cell):
 		var d: Dictionary = sim.db.buildings[placement]
 		var footprint := sim.building_footprint(placement,placement_rotation)
 		var rect := Rect2(Vector2(placement_cell*g.tile),Vector2(footprint[0],footprint[1])*g.tile)
 		var valid := sim.build_reason(placement,sim.view_owner,placement_cell,placement_rotation)==""
+		record_building_cache_event("placement_preview_drawn","",{"kind":placement,"owner":sim.view_owner,"cell_x":placement_cell.x,"cell_y":placement_cell.y,"rotation":placement_rotation,"cell_valid":placement_cell_valid,"placement_valid":valid,"visual_path":"industrial_art.building"})
 		var color := Color(0.3,0.95,0.7,0.5) if valid else Color(1,0.3,0.23,0.5)
 		var ghost := {"owner":sim.view_owner,"pos":rect.get_center(),"kind":placement,"complete":true,"hp":1.0,"max_hp":1.0,"turret":0.0,"rotation":placement_rotation}
 		industrial_art.opacity=0.35
@@ -1336,13 +1673,19 @@ func _draw() -> void:
 		draw_rect(rect,Color(color,0.08))
 		for y in range(0,int(rect.size.y),6): draw_line(rect.position+Vector2(0,y),rect.position+Vector2(rect.size.x,y),Color(color,0.2),0.8,true)
 		draw_rect(rect,color.lightened(0.3),false,2)
+	elif placement!="" and building_visual_diagnostics_enabled:
+		record_building_cache_event("placement_preview_suppressed_invalid_cell","",{"kind":placement,"cell_x":placement_cell.x,"cell_y":placement_cell.y,"rotation":placement_rotation})
 	if selecting: draw_rect(selection_rect,Color(0.4,0.9,0.75,0.13)); draw_rect(selection_rect,Color("8ee9c5"),false,1)
 	if marker_time>0:
 		draw_arc(command_marker,12+marker_time*12,0,TAU,16,Color(0.65,1,0.8,marker_time),2)
 	draw_set_transform(Vector2.ZERO)
 	if classic and crt>0:
 		for y in range(0,int(output.y),3): draw_line(Vector2(0,y),Vector2(output.x,y),Color(0,0,0,0.1 if crt==1 else 0.22),1)
-	if profile_enabled: profile_total_ms=float(Time.get_ticks_usec()-profile_started)/1000.0
+	if profile_enabled:
+		profile_phase_post_ms=float(Time.get_ticks_usec()-phase_started)/1000.0
+		profile_total_ms=float(Time.get_ticks_usec()-profile_started)/1000.0
+		var measured_phases:=profile_phase_setup_ms+profile_phase_ground_ms+profile_phase_cull_sort_ms+profile_phase_entities_ms+profile_phase_combat_ms+profile_phase_overlays_ms+profile_phase_post_ms
+		profile_phase_unattributed_ms=maxf(0.0,profile_total_ms-measured_phases)
 
 func draw_special_objective_markers() -> void:
 	if sim == null: return
@@ -1436,12 +1779,14 @@ func draw_harvester_cargo(e: Dictionary, visual: Dictionary) -> void:
 	var capacity:=maxf(1.0,float(sim.db.rules.harvest_capacity))
 	var cargo:=clampf(float(e.get("cargo",0.0)),0.0,capacity)
 	var focused:=selected.has(e.id) or int(e.id)==hovered_entity_id
-	var width:=36.0
+	# The collector is often only 35–45 screen pixels wide at normal RTS zoom;
+	# give the world-space cargo meter enough area to read without selection text.
+	var width:=72.0
 	var top_left:Vector2=visual.pos-Vector2(width*0.5,sim.unit_radius(e.kind)+18.0)
 	var returning:=str(e.get("harvest_state","")) in ["RETURN_TO_BASE","UNLOAD"]
 	var fill:=Color("efbd70") if returning else Color("55ddc5")
-	draw_rect(Rect2(top_left-Vector2(1,1),Vector2(width+2,5)),Color("15120f",0.94))
-	draw_rect(Rect2(top_left,Vector2(width*cargo/capacity,3)),fill)
+	draw_rect(Rect2(top_left-Vector2(1,1),Vector2(width+2,9)),Color("15120f",0.96))
+	draw_rect(Rect2(top_left,Vector2(width*cargo/capacity,7)),fill)
 	if focused:
 		var label:="LÄDT AB" if str(e.harvest_state)=="UNLOAD" else ("KEHRT ZUR RAFFINERIE" if returning else "SOLARIT-LADUNG")
 		var text_value:="%s · %d / %d"%[label,roundi(cargo),roundi(capacity)]
@@ -1463,6 +1808,35 @@ func draw_unload_transfer(e: Dictionary, visual: Dictionary) -> void:
 		var t:=fposmod(phase+float(i)/3.0,1.0)
 		var point:Vector2=visual.pos.lerp(target,t)
 		draw_circle(point,2.2,Color(tint,1.0-t*0.28))
+
+func draw_harvester_feed(e: Dictionary, visual: Dictionary) -> void:
+	# Short, directional ore flecks bridge the crystal field and the front intake.
+	# This makes collection readable at normal RTS scale without adding a full
+	# particle system or changing the cached 3D asset / simulation geometry.
+	var direction:=Vector2.from_angle(float(e.get("angle",0.0)))
+	var side:=direction.orthogonal()
+	var resource_position:Vector2=visual.pos+direction*34.0+side*21.0
+	var resource_key:=str(e.get("resource",""))
+	if not resource_key.is_empty():
+		resource_position=sim.grid.center(sim.grid.parse_key(resource_key))+direction*12.0+side*18.0
+	var intake:Vector2=visual.pos+direction*24.0
+	var flow:Vector2=intake-resource_position
+	if flow.length()<24.0:
+		resource_position=visual.pos+direction*76.0+side*24.0
+		flow=intake-resource_position
+	var phase:=fposmod(elapsed*2.7+float(e.get("id",0))*0.173,1.0)
+	draw_polyline(PackedVector2Array([resource_position,intake]),Color(0.30,0.92,0.78,0.62),2.0,true)
+	var axis:Vector2=flow.normalized()
+	var cross:Vector2=axis.orthogonal()
+	for index in 4:
+		var t:=fposmod(phase+float(index)*0.25,1.0)
+		var wobble:=sin(elapsed*8.0+float(index)*2.1)*4.0
+		var point:=resource_position.lerp(intake,t)+side*wobble
+		var radius:=3.0+1.3*(1.0-t)
+		var shard:=PackedVector2Array([point-axis*radius,point+cross*radius*0.72,point+axis*radius,point-cross*radius*0.72])
+		var tint:=Color("ffd786") if index%2==0 else Color("a3ffeb")
+		draw_circle(point,radius*2.0,Color(tint,0.34))
+		draw_colored_polygon(shard,tint)
 
 func draw_vehicle_damage(e: Dictionary) -> void:
 	var hp_ratio:=clampf(float(e.hp)/maxf(1.0,float(e.max_hp)),0.0,1.0)

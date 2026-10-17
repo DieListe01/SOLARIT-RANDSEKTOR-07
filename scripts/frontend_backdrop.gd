@@ -6,6 +6,7 @@ var intro := false
 var elapsed := 0.0
 var duration := 15.0
 var finished := false
+var parallax := Vector2.ZERO
 const SAND = Color("c49a65")
 const LIGHT = Color("9cdcc5")
 const DARK = Color("2a201b")
@@ -17,6 +18,11 @@ func _ready() -> void:
 
 func _process(dt: float) -> void:
 	elapsed+=dt
+	var viewport_size:=get_viewport_rect().size
+	if viewport_size.x>0.0 and viewport_size.y>0.0:
+		var pointer:=get_global_mouse_position()/viewport_size-Vector2(0.5,0.5)
+		var target:=Vector2(clampf(pointer.x,-0.5,0.5),clampf(pointer.y,-0.5,0.5))
+		parallax=parallax.lerp(target,clampf(dt*2.2,0.0,1.0))
 	queue_redraw()
 	if intro and elapsed>=duration and not finished:
 		finished=true
@@ -41,7 +47,7 @@ func _draw() -> void:
 		var p := Vector2(31+(i*179)%1850,53+(i*97)%590)
 		var glow := 0.25+0.3*(0.5+0.5*sin(elapsed*0.5+i*2.1))
 		draw_rect(Rect2(p,Vector2.ONE*(2 if i%9 else 3)),Color(0.8,0.88,0.8,glow))
-	var planet := Vector2(1442,245)
+	var planet := Vector2(1442,245)+parallax*Vector2(18,12)
 	for i in range(8,0,-1): paint_circle(planet,185+i*3,Color(0.93,0.71,0.4,0.011))
 	paint_circle(planet,185,Color("bea17c"))
 	for i in range(-176,177,8):
@@ -51,14 +57,14 @@ func _draw() -> void:
 	paint_circle(planet-Vector2(72,33),174,Color("2e2228"))
 	draw_arc(planet,190,-0.9,1.6,90,Color(0.97,0.81,0.55,0.38),2)
 	# A distant orbital beacon slowly travels over the basin.
-	var beacon := Vector2(1100+sin(elapsed*0.06)*230,150+cos(elapsed*0.06)*48)
+	var beacon := Vector2(1100+sin(elapsed*0.06)*230,150+cos(elapsed*0.06)*48)+parallax*Vector2(10,7)
 	draw_line(beacon-Vector2(15,0),beacon+Vector2(15,0),Color("769492"),2)
 	draw_line(beacon-Vector2(0,5),beacon+Vector2(0,5),LIGHT,2)
 	for layer in 4:
 		var ridge := PackedVector2Array([Vector2(-50,1100)])
 		for x in range(-50,2001,64):
 			var y := 550+layer*92+sin(x*0.005+layer*1.7)*64+sin(x*0.013+layer)*32
-			ridge.append(Vector2(x+sin(elapsed*0.04)*layer*4,y))
+			ridge.append(Vector2(x+sin(elapsed*0.04)*layer*4+parallax.x*(layer+1)*7,y+parallax.y*layer*3))
 		ridge.append(Vector2(2000,1100))
 		var colors := [Color("46352c"),Color("66503b"),Color("8a6747"),Color("ad793e")]
 		smooth_polygon(ridge,colors[layer])
@@ -72,19 +78,19 @@ func _draw() -> void:
 		var contour := PackedVector2Array()
 		for j in 9: contour.append(Vector2(x+j*7,y+sin(j*0.35+i)*3))
 		draw_polyline(contour,Color(0.9,0.76,0.52,0.07),1,true)
-	draw_colony(Vector2(1340,628),0.92)
+	draw_colony(Vector2(1340,628)+parallax*Vector2(10,6),0.92)
 	for i in 22:
-		var p := Vector2(1010+(i*83)%765,792+(i*47)%144)
+		var p := Vector2(1010+(i*83)%765,792+(i*47)%144)+parallax*Vector2(13,8)
 		var height_value := 8+float((i*13)%19)
 		smooth_polygon(PackedVector2Array([p+Vector2(-6,5),p+Vector2(-4,-height_value),p+Vector2(3,-height_value-5),p+Vector2(8,0)]),Color("6dada0"))
 		draw_line(p+Vector2(2,-height_value),p+Vector2(3,-4),LIGHT,2)
 		if i%4==0: paint_circle(p+Vector2(1,-height_value),3,Color(0.63,0.95,0.81,0.35+sin(elapsed*2+i)*0.15))
 	# Foreground heavy survey vehicle, with separate hull, tracks and turret.
-	draw_crawler(Vector2(1415,913),1.1)
+	draw_crawler(Vector2(1415,913)+parallax*Vector2(22,13)+Vector2(0,sin(elapsed*1.15)*1.4),1.1)
 	for i in 48:
 		var x := fposmod(i*137.0+elapsed*(18+i%5*4),2070)-80
 		var y := 730+(i*79)%333
-		draw_line(Vector2(x,y),Vector2(x+12+i%6*4,y-2),Color(0.85,0.72,0.49,0.08),1)
+		draw_line(Vector2(x+parallax.x*20,y+parallax.y*12),Vector2(x+12+i%6*4+parallax.x*20,y-2+parallax.y*12),Color(0.85,0.72,0.49,0.08),1)
 	if intro:
 		var landing := smoothstep(4.5,9.0,elapsed)
 		if elapsed>4.5 and elapsed<10.3:
@@ -174,11 +180,12 @@ func paint_ellipse(rect: Rect2, color: Color) -> void:
 	smooth_polygon(points,color)
 
 func draw_crawler(p: Vector2, scale_value: float) -> void:
-	draw_set_transform(p,-0.15,Vector2.ONE*scale_value)
+	draw_set_transform(p,-0.15+sin(elapsed*0.42)*0.006,Vector2.ONE*scale_value)
 	paint_ellipse(Rect2(-143,-9,292,81),Color(0.05,0.09,0.09,0.35))
 	for y in [-32,31]:
 		draw_rect(Rect2(-122,y,244,29),Color("102329"))
-		for i in 17: draw_line(Vector2(-112+i*14,y+3),Vector2(-116+i*14,y+24),Color("425751"),4)
+		var tread_offset:=int(fposmod(elapsed*12.0,14.0))
+		for i in 17: draw_line(Vector2(-112+i*14+tread_offset,y+3),Vector2(-116+i*14+tread_offset,y+24),Color("425751"),4)
 	smooth_polygon(PackedVector2Array([Vector2(-118,-17),Vector2(95,-28),Vector2(126,0),Vector2(104,37),Vector2(-103,49)]),Color("34534f"))
 	smooth_polygon(PackedVector2Array([Vector2(-118,-17),Vector2(-95,-42),Vector2(84,-51),Vector2(95,-28)]),Color("759182"))
 	smooth_polygon(PackedVector2Array([Vector2(-95,-29),Vector2(76,-39),Vector2(95,-10),Vector2(-78,1)]),Color("59786b"))

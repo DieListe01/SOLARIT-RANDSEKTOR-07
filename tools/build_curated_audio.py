@@ -43,12 +43,18 @@ SOURCES: dict[str, dict[str, str]] = {
     "sewers": {"file": "through_the_sewers_1766bpm.ogg", "root": "cyber", "author": "Alexander Ehlers / tricksntraps", "url": "https://opengameart.org/content/t-t-free-cyberpunk-pack-2", "license": "CC0 1.0"},
     "expanse": {"file": "our_expanse_loop.mp3", "root": "project", "author": "Bobjt", "url": "https://opengameart.org/content/our-expanse", "license": "CC0 1.0"},
     "final_battle": {"file": "the_final_battle.ogg", "root": "project", "author": "skrjablin", "url": "https://opengameart.org/content/the-final-battle", "license": "CC0 1.0"},
+    "graveyard": {"file": "space_graveyard.mp3", "root": "candidate", "author": "TinyWorlds", "title": "Space Graveyard - Ambient Track", "url": "https://opengameart.org/content/space-graveyard-ambient-track", "license": "CC0 1.0"},
+    "epic_fight": {"file": "bombastic/epic_fight_theme.mp3", "root": "candidate", "author": "Tarush Singhal", "title": "Epic Fight Theme / Boss Battle", "url": "https://opengameart.org/content/epic-fight-themeboss-battle", "license": "CC0 1.0"},
+    "battle_theme_a": {"file": "bombastic/battle_theme_a.mp3", "root": "candidate", "author": "cynicmusic / pixelsphere", "title": "Battle Theme A", "url": "https://opengameart.org/content/battle-theme-a", "license": "CC0 1.0"},
+    "noisy_battle": {"file": "noisy_battle.ogg", "root": "candidate", "author": "Some Weirdo", "title": "Noisy Battle", "url": "https://opengameart.org/content/noisy-battle", "license": "CC0 1.0"},
+    "space_battle": {"file": "bombastic/space_battle_bpm130.ogg", "root": "candidate", "author": "MintoDog", "title": "Space Battle", "url": "https://opengameart.org/content/space-battle", "license": "CC0 1.0"},
 }
 
 
 def source_path(name: str) -> Path:
     spec = SOURCES[name]
-    base = {"source": SOURCE_ROOT, "project": PROJECT_SOURCES, "dark": DARK, "cyber": CYBER}[spec["root"]]
+    base = {"source": SOURCE_ROOT, "project": PROJECT_SOURCES, "candidate": PROJECT_SOURCES / "candidates",
+            "dark": DARK, "cyber": CYBER}[spec["root"]]
     return base / spec["file"]
 
 
@@ -59,8 +65,17 @@ def ffmpeg(args: list[str]) -> None:
         raise RuntimeError(result.stderr.decode("utf-8", "replace")[-3000:])
 
 
+def audio_duration(source: Path) -> float:
+    result = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                             "-of", "default=noprint_wrappers=1:nokey=1", str(source)], cwd=ROOT,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+    return float(result.stdout.strip())
+
+
 def master_ogg(source: Path, output: Path, masters: Path, start: float = 0.0, duration: float | None = None,
-               target_duration: float | None = None, overwrite: bool = False) -> None:
+               target_duration: float | None = None, overwrite: bool = False, fade_edges: bool = True) -> None:
+    if output.is_file() and not overwrite:
+        return
     if not source.is_file() or source.stat().st_size == 0:
         raise FileNotFoundError(f"Missing source audio: {source}")
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -75,11 +90,11 @@ def master_ogg(source: Path, output: Path, masters: Path, start: float = 0.0, du
     length = duration if duration is not None else target_duration
     fade = 0.35
     fade_filter = ""
-    if length is not None and length > fade * 2:
+    if fade_edges and length is not None and length > fade * 2:
         fade_filter = f",afade=t=in:st=0:d={fade},afade=t=out:st={length-fade}:d={fade}"
     af = f"loudnorm=I=-18:TP=-1.5:LRA=11{fade_filter},aresample=48000"
     repeat = ["-stream_loop", "-1"] if target_duration is not None else []
-    ffmpeg([*repeat, "-i", str(source), *trim, "-af", af, "-ar", "48000", "-c:a", "pcm_s24le", str(master)])
+    ffmpeg([*repeat, "-i", str(source), *trim, "-af", af, "-ar", "48000", "-ac", "2", "-c:a", "pcm_s24le", str(master)])
     ffmpeg(["-i", str(master), "-c:a", "libvorbis", "-q:a", "6", str(output)])
 
 
@@ -92,7 +107,7 @@ def entry(asset_id: str, path: str, source_id: str, bpm: int, intensity: str, *,
         "loop_end_seconds": 180.0 if loop else 0.0, "weight": 1.0,
         "intensity": intensity, "transition_points_bars": [0, 8, 16, 24, 32],
         "asset_status": "candidate", "human_listening_approval": "pending",
-        "source": {"author": provenance["author"], "url": provenance["url"]},
+        "source": {"author": provenance["author"], "url": provenance["url"], **({"title": provenance["title"]} if provenance.get("title") else {})},
         "license": {"name": provenance["license"], "status": "cleared", "commercial_use": True,
                     "attribution": provenance["author"]},
     }
@@ -108,11 +123,14 @@ def build(overwrite: bool = False) -> None:
             "kobalt_contact": ("welcome", "music/kobalt/contact.ogg"),
             "kobalt_battle_low": ("ai_fight", "music/kobalt/battle_low.ogg"),
             "kobalt_battle_high": ("determined", "music/kobalt/battle_high.ogg"),
+            "kobalt_battle_high_theme_a": ("battle_theme_a", "music/kobalt/battle_high_theme_a.ogg"),
             "kobalt_critical": ("overload", "music/kobalt/critical.ogg"),
             "wanderpakt_calm": ("sewers", "music/wanderpakt/calm_a.ogg"),
+            "wanderpakt_calm_b": ("graveyard", "music/wanderpakt/calm_b.ogg"),
             "wanderpakt_contact": ("electric", "music/wanderpakt/contact.ogg"),
             "wanderpakt_battle_low": ("cyborg", "music/wanderpakt/battle_low.ogg"),
             "wanderpakt_battle_high": ("final_battle", "music/wanderpakt/battle_high.ogg"),
+            "wanderpakt_battle_high_epic": ("epic_fight", "music/wanderpakt/battle_high_epic.ogg"),
             "wanderpakt_critical": ("prepare", "music/wanderpakt/critical.ogg"),
             "prisma_calm_a": ("sector", "music/prisma/calm_a.ogg"),
             "prisma_calm_b": ("airy", "music/prisma/calm_b.ogg"),
@@ -132,7 +150,23 @@ def build(overwrite: bool = False) -> None:
             target = AUDIO / relpath
             source_targets[relpath] = target
             if overwrite or not target.exists():
-                master_ogg(source_path(source_id), target, masters, target_duration=180.0)
+                if source_id == "graveyard":
+                    # Preserve the full ambient loop and apply the same short
+                    # anti-click edge fades as other runtime loop masters.
+                    source = source_path(source_id)
+                    master_ogg(source, target, masters, target_duration=audio_duration(source), overwrite=overwrite)
+                else:
+                    master_ogg(source_path(source_id), target, masters, target_duration=180.0, overwrite=overwrite)
+        for source_id, relpath in (("epic_fight", "music/wanderpakt/battle_high_epic.ogg"),
+                                   ("battle_theme_a", "music/kobalt/battle_high_theme_a.ogg"),
+                                   ("noisy_battle", "music/prisma/battle_high_noisy.ogg"),
+                                   ("space_battle", "music/prisma/space_battle.ogg")):
+            source = source_path(source_id)
+            if source_id == "space_battle":
+                master_ogg(source, AUDIO / relpath, masters, target_duration=audio_duration(source) * 2.0,
+                           overwrite=overwrite, fade_edges=True)
+            else:
+                master_ogg(source, AUDIO / relpath, masters, target_duration=180.0, overwrite=overwrite)
         for key, (_, relpath) in mappings.items():
             output[key] = Path(relpath)
         output["first_signal"] = Path("music/global/first_signal.ogg")
@@ -148,7 +182,7 @@ def build(overwrite: bool = False) -> None:
         stingers: dict[str, dict[str, Any]] = {}
         for name, (source_id, start, duration) in stinger_specs.items():
             relpath = f"music/global/stingers/{name}.ogg"
-            master_ogg(source_path(source_id), AUDIO / relpath, masters, start, duration)
+            master_ogg(source_path(source_id), AUDIO / relpath, masters, start, duration, overwrite=overwrite)
             track = entry(f"stinger_{name}", relpath, source_id, 120, "stinger", loop=False)
             track["loop_end_seconds"] = 0.0
             stingers[name] = track
@@ -163,7 +197,7 @@ def build(overwrite: bool = False) -> None:
                   "contact": ("kobalt_contact", 110, "low"), "battle_low": ("kobalt_battle_low", 120, "medium"),
                   "battle_high": ("kobalt_battle_high", 116, "high"), "critical": ("kobalt_critical", 154, "high")},
         "drift": {"display_name": "Wanderpakt", "motif": [0, 2, 7, 5], "identity": "rau, mobil, gebrochen",
-                  "calm_a": ("wanderpakt_calm", 108, "low"), "calm_b": ("factory", 108, "low"),
+                  "calm_a": ("wanderpakt_calm", 108, "low"), "calm_b": ("wanderpakt_calm_b", 0, "low"),
                   "contact": ("wanderpakt_contact", 180, "low"), "battle_low": ("wanderpakt_battle_low", 110, "medium"),
                   "battle_high": ("wanderpakt_battle_high", 120, "high"), "critical": ("wanderpakt_critical", 154, "high")},
         "lumen": {"display_name": "Prisma-Konklave", "motif": [0, 11, 4, 9], "identity": "fremdartig, präzise, räumlich",
@@ -178,7 +212,28 @@ def build(overwrite: bool = False) -> None:
             # Aliases reuse the same licensed runtime file where the four-stage game director shares a cue.
             source_id, relpath = mappings.get(track_id, ("factory", str(output[track_id])))
             path = str(output[track_id]) if track_id in output else relpath
-            tracks[state] = [entry(f"{faction}_{state}", path, source_id, bpm, intensity)]
+            track_entry = entry(f"{faction}_{state}", path, source_id, bpm, intensity)
+            if source_id == "graveyard":
+                duration = float(subprocess.check_output([
+                    "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1",
+                    str(AUDIO / relpath),
+                ], cwd=ROOT, text=True).strip())
+                track_entry["loop_end_seconds"] = round(duration, 3)
+                track_entry["unmetered"] = True
+            tracks[state] = [track_entry]
+            extras = {
+                ("forge", "battle_high"): [("forge_battle_high_theme_a", "battle_theme_a", "music/kobalt/battle_high_theme_a.ogg")],
+                ("drift", "battle_high"): [("drift_battle_high_epic", "epic_fight", "music/wanderpakt/battle_high_epic.ogg")],
+                ("lumen", "battle_high"): [
+                    ("lumen_battle_high_noisy", "noisy_battle", "music/prisma/battle_high_noisy.ogg"),
+                    ("lumen_battle_high_space", "space_battle", "music/prisma/space_battle.ogg"),
+                ],
+            }.get((faction, state), [])
+            for extra_id, extra_source, extra_path in extras:
+                extra_entry = entry(extra_id, extra_path, extra_source, 0, "high")
+                extra_entry["unmetered"] = True
+                extra_entry["loop_end_seconds"] = audio_duration(source_path(extra_source)) * 2.0 if extra_source == "space_battle" else 180.0
+                tracks[state].append(extra_entry)
         catalog.setdefault("factions", {}).setdefault(faction, {}).update({
             "display_name": spec["display_name"], "motif": spec["motif"], "identity": spec["identity"],
             "tracks": tracks,

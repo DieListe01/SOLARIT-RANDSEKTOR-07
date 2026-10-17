@@ -36,6 +36,27 @@ func run() -> void:
 	game.renderer.camera = Vector2(640,1440)
 	game.renderer.zoom = 1.3
 	var terrain_before: PackedInt32Array = game.sim.grid.terrain.duplicate()
+	# Capture controlled layer combinations at the exact same paused camera.
+	# This isolates the rectangular patches reported in active gameplay without
+	# changing terrain generation or the production render settings.
+	var layer_cases := [
+		{"name":"terrain_layers_all_on","disabled":[]},
+		{"name":"terrain_layers_no_detail_sprite","disabled":["terrain_detail_sprite"]},
+		{"name":"terrain_layers_no_detail_mesh","disabled":["terrain_detail_mesh"]},
+		{"name":"terrain_layers_no_fog","disabled":["fog"]},
+		{"name":"terrain_layers_base_only","disabled":["fog","terrain_detail"]}
+	]
+	for layer_case in layer_cases:
+		game.renderer.benchmark_disabled_categories.clear()
+		for category in ["tracks","wrecks","combat_vfx","buildings","vehicles","health_selection"]:
+			game.renderer.benchmark_disabled_categories.append(category)
+		for category in layer_case.disabled:
+			game.renderer.benchmark_disabled_categories.append(category)
+		game.renderer.queue_redraw()
+		await process_frame
+		await process_frame
+		var layer_capture_path: String="res://test-output/%s.png" % str(layer_case.name)
+		check(root.get_texture().get_image().save_png(ProjectSettings.globalize_path(layer_capture_path))==OK,"Layer isolation capture saved: "+str(layer_case.name))
 	var mask_started:=Time.get_ticks_usec()
 	var mask: Image=game.renderer._build_visual_terrain_mask(game.sim.grid)
 	var mask_build_ms:=float(Time.get_ticks_usec()-mask_started)/1000.0
@@ -108,6 +129,12 @@ func run() -> void:
 	var detail_capture_path := "res://test-output/terrain_irregular_boundaries_detail.png"
 	check(root.get_texture().get_image().save_png(detail_capture_path)==OK,"Close terrain material-edge capture is saved")
 	game.renderer.benchmark_disabled_categories.append("terrain_detail")
+	game.renderer.camera=Vector2(640,1440)
+	game.renderer.zoom=1.3
+	game.renderer.queue_redraw()
+	await create_timer(0.3).timeout
+	var no_detail_path:="res://test-output/terrain_no_detail_default_shader.png"
+	check(root.get_texture().get_image().save_png(ProjectSettings.globalize_path(no_detail_path))==OK,"Default shader without terrain detail is saved at the baseline camera")
 	game.renderer.queue_redraw()
 	await create_timer(0.3).timeout
 	var material_only_path := "res://test-output/terrain_material_only.png"
@@ -126,11 +153,93 @@ func run() -> void:
 	var diagnostic_material:=ShaderMaterial.new()
 	diagnostic_material.shader=diagnostic_shader
 	var normal_material:Material=game.renderer.terrain_sprite.material
+	var baseline_camera:=Vector2(640,1440)
+	game.renderer.camera=baseline_camera
+	game.renderer.zoom=1.3
 	game.renderer.terrain_sprite.material=diagnostic_material
 	game.renderer.queue_redraw()
 	await create_timer(0.3).timeout
 	var class_capture_path:="res://test-output/terrain_mask_classes.png"
 	check(root.get_texture().get_image().save_png(ProjectSettings.globalize_path(class_capture_path))==OK,"Material-class diagnostic capture is saved")
+	var flat_shader:=Shader.new()
+	flat_shader.code="""
+	shader_type canvas_item;
+	render_mode unshaded;
+	vec3 terrain_color(float kind) {
+		if(kind<0.5) return vec3(0.69,0.45,0.27);
+		if(kind<1.5) return vec3(0.46,0.39,0.32);
+		if(kind<2.5) return vec3(0.75,0.53,0.34);
+		if(kind<3.5) return vec3(0.48,0.39,0.31);
+		if(kind<4.5) return vec3(0.59,0.47,0.35);
+		if(kind<5.5) return vec3(0.45,0.34,0.26);
+		return vec3(0.35,0.29,0.23);
+	}
+	void fragment() {
+		float kind=floor(texture(TEXTURE,UV).r*8.0);
+		COLOR=vec4(terrain_color(kind),1.0);
+	}
+	"""
+	var flat_material:=ShaderMaterial.new()
+	flat_material.shader=flat_shader
+	game.renderer.terrain_sprite.material=flat_material
+	game.renderer.queue_redraw()
+	await create_timer(0.3).timeout
+	var flat_capture_path:="res://test-output/terrain_flat_material.png"
+	check(root.get_texture().get_image().save_png(ProjectSettings.globalize_path(flat_capture_path))==OK,"Flat material diagnostic capture is saved")
+	var production_shader: Shader=normal_material.shader
+	var production_shader_code:=production_shader.code
+	var no_warp_code:=production_shader_code
+	no_warp_code=no_warp_code.replace("vec2 warp=(vec2(noise(world*0.0032),noise(world*0.0032+91.0))-0.5)*5.2;","vec2 warp=vec2(0.0);")
+	no_warp_code=no_warp_code.replace("\twarp+=(vec2(noise(world*0.012+27.0),noise(world*0.012+118.0))-0.5)*2.2;","")
+	no_warp_code=no_warp_code.replace("\twarp+=(vec2(noise(world*0.045+211.0),noise(world*0.045+302.0))-0.5)*0.7;","")
+	for diagnostic in [
+		{"id":"no_variation","code":production_shader_code.replace("COLOR=vec4(base+variation,1.0);","COLOR=vec4(base,1.0);")},
+		{"id":"no_edge_blend","code":production_shader_code.replace("base=mix(base,adjacent,transition);","// Material transition disabled for artifact isolation.")},
+		{"id":"no_warp","code":no_warp_code}
+	]:
+		var isolation_shader:=Shader.new()
+		isolation_shader.code=str(diagnostic.code)
+		check(isolation_shader.code!=production_shader_code,"Shader isolation variant changes the intended production shader code: "+str(diagnostic.id))
+		var isolation_material:=ShaderMaterial.new()
+		isolation_material.shader=isolation_shader
+		# Diagnostic materials do not inherit shader parameters from the original
+		# terrain ShaderMaterial. Keep the world-to-mask mapping identical or a
+		# default 64x64 map scale introduces false square/block artifacts.
+		isolation_material.set_shader_parameter("map_cells",Vector2(game.sim.grid.width,game.sim.grid.height))
+		game.renderer.terrain_sprite.material=isolation_material
+		game.renderer.queue_redraw()
+		await create_timer(0.3).timeout
+		var isolation_path:="res://test-output/terrain_shader_%s.png" % str(diagnostic.id)
+		check(root.get_texture().get_image().save_png(ProjectSettings.globalize_path(isolation_path))==OK,"Terrain shader isolation capture is saved: "+str(diagnostic.id))
+	# Compare the production shader with a flat class mask at the exact game zoom.
+	var isolated_viewport:=SubViewport.new()
+	isolated_viewport.size=game.viewport.size
+	isolated_viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS
+	isolated_viewport.transparent_bg=false
+	root.add_child(isolated_viewport)
+	var isolated_sprite:=Sprite2D.new()
+	isolated_sprite.centered=false
+	isolated_sprite.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
+	isolated_sprite.texture=game.renderer.terrain_sprite.texture
+	var isolated_scale:float=game.renderer.zoom*float(isolated_viewport.size.x)/game.renderer.logical_size.x*game.sim.grid.tile/8.0
+	isolated_sprite.position=Vector2(isolated_viewport.size)*0.5-game.renderer.camera*(game.renderer.zoom*float(isolated_viewport.size.x)/game.renderer.logical_size.x)+game.renderer.visual_offset
+	isolated_sprite.scale=Vector2.ONE*isolated_scale
+	var isolated_material:ShaderMaterial=(normal_material as ShaderMaterial).duplicate() as ShaderMaterial
+	isolated_material.set_shader_parameter("map_cells",Vector2(game.sim.grid.width,game.sim.grid.height))
+	isolated_sprite.material=isolated_material
+	isolated_viewport.add_child(isolated_sprite)
+	await process_frame
+	await process_frame
+	var shader_only_image:=isolated_viewport.get_texture().get_image()
+	check(shader_only_image.save_png(ProjectSettings.globalize_path("res://test-output/terrain_shader_only.png"))==OK,"Isolated production-shader capture is saved")
+	check(production_shader_code.contains("vec2 noise_gradient"),"Terrain shader uses gradient noise to avoid visible square value-noise cells")
+	isolated_sprite.material=flat_material
+	isolated_sprite.queue_redraw()
+	await create_timer(0.5).timeout
+	var flat_only_image:=isolated_viewport.get_texture().get_image()
+	check(flat_only_image.save_png(ProjectSettings.globalize_path("res://test-output/terrain_flat_shader_only.png"))==OK,"Isolated flat-shader comparison is saved")
+	check(shader_only_image.get_data()!=flat_only_image.get_data(),"Isolated shader comparison renders distinct materials rather than a stale viewport frame")
+	isolated_viewport.queue_free()
 	game.renderer.terrain_sprite.material=normal_material
 	game.music.shutdown()
 	game.queue_free()

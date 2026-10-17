@@ -12,10 +12,23 @@ func check(condition: bool, message: String) -> void:
 	checks+=1
 	if not condition: failures.append(message); push_error("FRONTEND FAIL: "+message)
 
-func capture(name_value: String) -> void:
+func capture(name_value: String) -> Image:
 	await process_frame
 	await process_frame
-	root.get_texture().get_image().save_png("res://test-output/"+name_value+".png")
+	var frame:=root.get_texture().get_image()
+	frame.save_png("res://test-output/"+name_value+".png")
+	return frame
+
+func sampled_pixel_changes(first: Image, second: Image, stride: int = 4) -> int:
+	if first.get_size()!=second.get_size(): return 0
+	var changes:=0
+	for y in range(0,first.get_height(),stride):
+		for x in range(0,first.get_width(),stride):
+			var a:=first.get_pixel(x,y)
+			var b:=second.get_pixel(x,y)
+			var delta:=maxf(maxf(absf(a.r-b.r),absf(a.g-b.g)),maxf(absf(a.b-b.b),absf(a.a-b.a)))
+			if delta>0.012: changes+=1
+	return changes
 
 func key(code: int) -> void:
 	var event := InputEventKey.new()
@@ -118,7 +131,14 @@ func run() -> void:
 		check(game.special_order_run.is_empty() and game.mission_index >= 0 and game.mission_index_for_id(str(game.db.mission.id)) == game.mission_index, "Returning from special orders restores a fixed campaign mission and clears special-run state")
 	game.show_main_menu()
 	await create_timer(0.8).timeout
-	await capture("menu_new")
+	var menu_art_nodes:Array=game.ui.get_children().filter(func(item):return item is FrontendBackdrop)
+	var menu_backdrop:FrontendBackdrop=menu_art_nodes[0] if not menu_art_nodes.is_empty() else null
+	var menu_elapsed_before:=menu_backdrop.elapsed if menu_backdrop!=null else 0.0
+	var menu_frame_start:Image=await capture("main_menu_redesign_1920")
+	await create_timer(0.65).timeout
+	var menu_frame_motion:Image=await capture("main_menu_motion_1920")
+	var menu_pixel_changes:=sampled_pixel_changes(menu_frame_start,menu_frame_motion)
+	check(menu_backdrop!=null and menu_backdrop.elapsed>menu_elapsed_before+0.5 and menu_pixel_changes>=1,"Full-HD menu artwork visibly animates over time (scene motion/parallax, sampled image delta %d)"%menu_pixel_changes)
 	check(game.music.frontend_player.playing,"Menu continues the intro soundtrack")
 	game.online_directory = load("res://scripts/online_directory.gd").new()
 	game.online_directory.enabled = false
@@ -256,6 +276,13 @@ func run() -> void:
 	check(briefing_panel!=null,"Large, independent preparation panel exists")
 	var tactical_preview: Control=briefing_panel.find_child("MissionTacticalPreview",true,false)
 	check(tactical_preview!=null and tactical_preview.mission_data.get("resources",[]).size()>0 and tactical_preview.mission_data.get("terrain_regions",[]).size()>0,"Mission briefing previews authored terrain and resource locations")
+	var mission_description: Label=briefing_panel.get_node_or_null("MissionDescription")
+	check(mission_description!=null and mission_description.text==game.db.mission.briefing and not mission_description.clip_text and mission_description.autowrap_mode!=TextServer.AUTOWRAP_OFF,"Mission briefing keeps the complete, wrapping operation description visible")
+	check(mission_description!=null and mission_description.get_rect().end.x<=briefing_panel.size.x-16 and mission_description.get_rect().end.y<briefing_panel.get_node("CampaignMissionButton_00").position.y,"Mission description fits above the campaign selector within the Full-HD briefing panel")
+	var objective_cards:Array=briefing_panel.find_children("ObjectiveCard_*","Panel",true,false)
+	check(objective_cards.size()==3 and objective_cards.all(func(item):return item.position.y>=briefing_panel.get_node("ObjectivesHeading").position.y and item.get_rect().end.x<briefing_panel.size.x-16 and item.get_rect().end.y<briefing_panel.get_node("LaunchMission").position.y),"Three distinct objective cards fit between the heading and launch footer")
+	var faction_choices:Array=briefing_panel.find_children("FactionChoice_*","Button",true,false)
+	check(faction_choices.size()==game.db.factions.size() and faction_choices.all(func(item):return item.find_children("*","Polygon2D",true,false).size()>0 or item.find_children("*","ColorRect",true,false).size()>0),"Faction choices retain their separate insignia and readable identity cards")
 	check(briefing_panel.find_children("*","Button",true,false).any(func(item):return item is Button and item.text.contains("SIGNAL GESPERRT") and item.tooltip_text.contains("vorherigen Einsatz")),"Locked campaign missions explain their unlock condition")
 	check(briefing_panel.find_children("*","Label",true,false).any(func(item):return item is Label and item.text=="SCHWIERIGKEIT"),"Resistance selection is clearly labeled as difficulty")
 	check(briefing_panel.find_children("*","Label",true,false).any(func(item):return item is Label and item.text=="BEDROHUNG"),"Difficulty includes a quick threat indicator")
@@ -267,13 +294,50 @@ func run() -> void:
 		if child is Label and child.autowrap_mode!=TextServer.AUTOWRAP_OFF:
 			check(child.position.x+child.size.x<=briefing_panel.size.x,"Wrapped briefing text stays inside panel")
 			check(child.size.y>=child.get_theme_font_size("font_size"),"Wrapped text has visible height")
-	await capture("briefing_detailed")
+	var tactical_time_before:float=tactical_preview.elapsed
+	var briefing_frame_start:Image=await capture("mission_briefing_redesign_1920")
+	await create_timer(0.65).timeout
+	var briefing_frame_motion:Image=await capture("mission_briefing_motion_1920")
+	var briefing_pixel_changes:=sampled_pixel_changes(briefing_frame_start,briefing_frame_motion)
+	check(tactical_preview.elapsed>tactical_time_before+0.5 and briefing_pixel_changes>=1,"Full-HD tactical map scan/pulse produces visible motion between adjacent captures (sampled image delta %d)"%briefing_pixel_changes)
 	game.start_game()
 	check(game.playing and not game.music.frontend and not game.music.frontend_player.playing,"Mission replaces frontend soundtrack")
 	game.show_main_menu()
 	check(game.music.frontend and game.music.frontend_player.playing,"Returning from mission restores menu score")
 	game.show_credits()
 	check(not game.music.frontend and game.music.layers[0].playing,"Layer sound test works after menu soundtrack")
+	await capture("audio_review_room")
+	var audio_credit_panels:Array=game.overlay.find_children("*","RichTextLabel",true,false)
+	check(audio_credit_panels.size()==1 and audio_credit_panels[0].text.contains("Hörfreigabe") and audio_credit_panels[0].text.contains("Piper") and audio_credit_panels[0].text.contains("bart"),"Music & credits accurately describes pending recordings and lists sourced audio authors")
+	var prisma_preview:Array=game.overlay.find_children("*","Button",true,false).filter(func(item):return item is Button and item.text=="PRISMA-KONKLAVE")
+	if not prisma_preview.is_empty(): prisma_preview[0].pressed.emit()
+	check(not prisma_preview.is_empty() and game.music.faction_id=="lumen" and game.music.review_preview,"Music review can audibly switch to the Prisma faction profile")
+	var battle_high_preview:Array=game.overlay.find_children("*","Button",true,false).filter(func(item):return item is Button and item.text=="GEFECHT II")
+	if not battle_high_preview.is_empty(): battle_high_preview[0].pressed.emit()
+	check(not battle_high_preview.is_empty() and game.music.active_arrangement_index==4,"Music review can directly select the faction's high-intensity battle arrangement")
+	var voice_preview:Array=game.overlay.find_children("*","Button",true,false).filter(func(item):return item is Button and item.text=="STIMME: ANGRIFF")
+	if not voice_preview.is_empty(): voice_preview[0].pressed.emit()
+	check(not voice_preview.is_empty() and game.music.speech.last_line_id.begins_with("voice_lumen_attack_"),"Music & credits exposes an audible German attack-line audition for the selected faction")
+	var build_voice_preview:Array=game.overlay.find_children("*","Button",true,false).filter(func(item):return item is Button and item.text=="STIMME: BAUBEGINN")
+	if not build_voice_preview.is_empty(): build_voice_preview[0].pressed.emit()
+	check(not build_voice_preview.is_empty() and game.music.speech.last_line_id.begins_with("voice_lumen_build_start_"),"Music & credits exposes an audible faction-specific construction-start audition")
+	var harvester_voice_previews:Dictionary={
+		"STIMME: ERNTEN":"voice_lumen_harvest_start_",
+		"STIMME: VOLLMELDUNG":"voice_lumen_harvest_full_",
+		"STIMME: ENTLADEN":"voice_lumen_harvest_unload_",
+		"STIMME: GEFAHR":"voice_lumen_harvest_danger_"
+	}
+	var credits_buttons:Array=game.overlay.find_children("*","Button",true,false)
+	for button_text in harvester_voice_previews:
+		var voice_button:Array=credits_buttons.filter(func(item):return item is Button and item.text==str(button_text))
+		if not voice_button.is_empty(): voice_button[0].pressed.emit()
+		check(not voice_button.is_empty() and game.music.speech.last_line_id.begins_with(str(harvester_voice_previews[button_text])),"Music & credits exposes an audible harvester voice audition: "+str(button_text))
+	var victory_preview:Array=game.overlay.find_children("*","Button",true,false).filter(func(item):return item is Button and item.text=="SIEG")
+	var defeat_preview:Array=game.overlay.find_children("*","Button",true,false).filter(func(item):return item is Button and item.text=="NIEDERLAGE")
+	if not victory_preview.is_empty(): victory_preview[0].pressed.emit()
+	check(not victory_preview.is_empty() and game.music.stinger_player.playing and game.music.stinger_player.stream is AudioStreamOggVorbis,"Victory preview plays the selected long-form OGG stinger rather than the legacy WAV cue")
+	if not defeat_preview.is_empty(): defeat_preview[0].pressed.emit()
+	check(not defeat_preview.is_empty() and game.music.stinger_player.playing and game.music.stinger_player.stream is AudioStreamOggVorbis,"Defeat preview plays the selected long-form OGG stinger rather than the legacy WAV cue")
 	game.show_main_menu()
 	check(game.music.frontend,"Leaving sound test restores menu score")
 	game.music.music_volume=0

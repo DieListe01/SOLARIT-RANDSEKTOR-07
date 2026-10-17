@@ -3,6 +3,9 @@ extends SceneTree
 var errors: Array[String] = []
 var checks := 0
 var game: Control
+var last_world_target := Vector2.ZERO
+var last_injected_local := Vector2.ZERO
+var last_injected_raw := Vector2.ZERO
 
 func check(condition: bool, message: String) -> void:
 	checks+=1
@@ -17,12 +20,15 @@ func capture(name_value: String) -> void:
 	root.get_texture().get_image().save_png("res://test-output/"+name_value+".png")
 
 func wait_for_vehicle_pose_warmup() -> void:
-	for _frame in 300:
-		if not game.vehicle_pose_warmup_active: return
+	for _frame in 1200:
+		if not game.vehicle_pose_warmup_active: break
 		await process_frame
+	check(not game.vehicle_pose_warmup_active,"Vehicle pose warmup completes or exits through its bounded fallback before input checks")
 
 func mouse(local: Vector2, button_value: int = 1, pressed: bool = true) -> void:
 	var raw: Vector2 = root.get_final_transform()*game.get_global_transform_with_canvas()*local
+	last_injected_raw=raw
+	last_injected_local=game.get_global_transform_with_canvas().affine_inverse()*raw
 	var motion := InputEventMouseMotion.new()
 	motion.position=raw; motion.global_position=raw
 	Input.parse_input_event(motion)
@@ -32,7 +38,8 @@ func mouse(local: Vector2, button_value: int = 1, pressed: bool = true) -> void:
 	await process_frame
 
 func click_world(point: Vector2, button_value: int = 1) -> void:
-	var local: Vector2 = game.WORLD_RECT.position+game.WORLD_RECT.size*0.5+(point-game.renderer.camera)*game.renderer.zoom
+	last_world_target=point
+	var local: Vector2 = game.WORLD_RECT.position+game.WORLD_RECT.size*0.5+(point-game.renderer.camera)*game.renderer.zoom+game.renderer.visual_offset
 	await mouse(local,button_value,true)
 	await mouse(local,button_value,false)
 
@@ -101,15 +108,23 @@ func run() -> void:
 	check(game.hovered_entity_id==first_scout.id and game.hover_panel.visible and game.hover_label.text.contains("Späher"),"Unit hover reveals a selectable highlight and identity card")
 	var move_point: Vector2 = first_scout.pos+Vector2(0,120)
 	await click_world(move_point,2)
-	check(first_scout.order=="move" and first_scout.destination.distance_to(move_point)<3,"Engine right-click issues move")
+	var move_issued: bool=first_scout.order=="move" and first_scout.destination.distance_to(move_point)<3
+	if not move_issued: print("UI MOVE DIAG order=",first_scout.order," expected=move destination=",first_scout.destination," requested=",move_point," selected=",game.selected," right_held=",game.right_held," camera=",game.renderer.camera," zoom=",game.renderer.zoom," target=",last_world_target," injected_local=",last_injected_local," raw=",last_injected_raw," root_final=",root.get_final_transform()," game_transform=",game.get_global_transform_with_canvas())
+	check(move_issued,"Engine right-click issues move")
 	await drag_map()
 	await mouse(game.WORLD_RECT.get_center(),2,true)
 	await mouse(Vector2(1630,520),2,false)
 	check(not game.right_held,"RMB drag releases cleanly over the HUD")
 	game.catalog_click("power",false)
 	check(game.placement=="power","Build button enters placement")
-	check(game.sim.build("power",0,Vector2i(14,43))>0,"Placement starts construction")
-	game.placement=""; game.renderer.placement=""
+	check(not game.renderer.placement_cell_valid,"A new placement invalidates the stale previous map cell")
+	game.music.speech.stop()
+	game.music.speech.global_cooldown=0.0
+	game.music.speech.event_cooldowns.erase("build_start")
+	var power_id: int = game.sim.build("power",0,Vector2i(14,43))
+	check(power_id>0,"Placement starts construction")
+	check(game.music.speech.last_line_id.begins_with("voice_forge_build_start_"),"Own visible construction triggers a Kobalt build-start response")
+	game.placement=""; game.renderer.placement=""; game.renderer.placement_cell_valid=false
 	for i in 20*30: game.sim.tick(1.0/30)
 	game.sim.build("refinery",0,Vector2i(14,47))
 	for i in 14*30: game.sim.tick(1.0/30)
@@ -121,9 +136,13 @@ func run() -> void:
 	check(not game.harvest_button.disabled and not game.unload_button.disabled,"Selected harvester exposes usable task buttons")
 	var resource_point: Vector2 = game.sim.grid.center(Vector2i(19,43))
 	await click_world(resource_point,2)
-	check(harvester.harvest_state in ["MOVE_TO_RESOURCE","HARVEST"] and harvester.resource==game.sim.grid.key(Vector2i(19,43)),"RMB on Solarit assigns an explicit harvest field")
+	var harvest_assigned: bool=harvester.harvest_state in ["MOVE_TO_RESOURCE","HARVEST"] and harvester.resource==game.sim.grid.key(Vector2i(19,43))
+	if not harvest_assigned: print("UI HARVEST DIAG assigned: state=",harvester.harvest_state," resource=",harvester.resource," expected=",game.sim.grid.key(Vector2i(19,43))," order=",harvester.order," pos=",harvester.pos," target=",harvester.destination," camera=",game.renderer.camera," zoom=",game.renderer.zoom," world_rect=",game.WORLD_RECT," selected=",game.selected," right_held=",game.right_held," target=",last_world_target," injected_local=",last_injected_local," raw=",last_injected_raw," root_final=",root.get_final_transform()," game_transform=",game.get_global_transform_with_canvas())
+	check(harvest_assigned,"RMB on Solarit assigns an explicit harvest field")
 	for i in 20*30: game.sim.tick(1.0/30)
-	check(harvester.cargo>0 or game.sim.stats.gathered>0,"Assigned harvester actually collects Solarit")
+	var harvested: bool=harvester.cargo>0 or game.sim.stats.gathered>0
+	if not harvested: print("UI HARVEST DIAG after 20s: state=",harvester.harvest_state," cargo=",harvester.cargo," gathered=",game.sim.stats.gathered," pos=",harvester.pos," target=",harvester.destination," resource=",harvester.resource)
+	check(harvested,"Assigned harvester actually collects Solarit")
 	game.sim.command([harvester.id],Vector2.ZERO,"stop")
 	game.harvest_button.pressed.emit()
 	await click_world(resource_point)

@@ -397,29 +397,32 @@ func show_main_menu() -> void:
 	var art := FrontendBackdrop.new()
 	art.size=Vector2(1920,1080); art.elapsed=scene_time
 	ui.add_child(art)
-	label(ui,"VEYRA  /  RANDSEKTOR 07  /  2186",Vector2(96,65),17,MUTED)
+	label(ui,"VEYRA-SYSTEM  /  RANDSEKTOR 07  /  2186",Vector2(96,65),15,MUTED)
 	label(ui,"SOLARIT:\nRANDSEKTOR 07",Vector2(85,151),58,GOLD)
 	label(ui,"DIE VEYRA-FRONT",Vector2(96,301),25,MINT)
 	label(ui,"Unter der Asche einer fremden Welt\nbeginnt deine erste Kolonie.",Vector2(98,373),24,Color("cbd5c8"))
-	label(ui,"KOMMANDO / BEREIT",Vector2(98,482),16,MUTED)
+	var campaign_rule:=ColorRect.new(); campaign_rule.position=Vector2(98,463); campaign_rule.size=Vector2(500,1); campaign_rule.color=Color("d8b36f",0.44); campaign_rule.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(campaign_rule)
+	label(ui,"KAMPAGNENKANAL  /  VEYRA-FRONT",Vector2(98,478),14,MUTED)
 	menu_buttons.clear()
-	menu_buttons.start=menu_button("01","EINSATZ WÄHLEN",526,show_briefing,true)
-	menu_buttons.special_orders=menu_button("02","SPEZIALAUFTRÄGE",596,show_special_orders)
-	menu_buttons.multiplayer=menu_button("03","MULTIPLAYER",650,show_online_menu)
-	menu_buttons.load=menu_button("04","SPIELSTAND LADEN",704,func():show_load_dialog(show_main_menu))
+	menu_buttons.start=menu_button("01","EINSATZ VORBEREITEN",514,show_briefing,true)
+	menu_buttons.special_orders=menu_button("02","SPEZIALAUFTRÄGE",584,show_special_orders)
+	menu_buttons.multiplayer=menu_button("03","MULTIPLAYER",638,show_online_menu)
+	menu_buttons.load=menu_button("04","SPIELSTAND LADEN",692,func():show_load_dialog(show_main_menu))
 	menu_buttons.load.disabled=not FileAccess.file_exists(SAVE_PATH) and not FileAccess.file_exists("user://autosave.json")
-	menu_buttons.options=menu_button("05","OPTIONEN",758,func():show_options(show_main_menu))
-	menu_buttons.credits=menu_button("06","MUSIK & CREDITS",812,show_credits)
-	menu_buttons.quit=menu_button("07","BEENDEN",866,func():music.shutdown(); get_tree().quit())
+	menu_buttons.options=menu_button("05","OPTIONEN",746,func():show_options(show_main_menu))
+	menu_buttons.credits=menu_button("06","MUSIK & CREDITS",800,show_credits)
+	menu_buttons.quit=menu_button("07","BEENDEN",854,func():music.shutdown(); get_tree().quit())
 	menu_buttons.start.grab_focus()
 	show_menu_commander()
-	var replay := button(ui,"↺  INTRO ANSEHEN",Rect2(98,928,245,38),show_intro)
+	var secondary_rule:=ColorRect.new(); secondary_rule.position=Vector2(98,916); secondary_rule.size=Vector2(906,1); secondary_rule.color=Color("d8b36f",0.28); secondary_rule.mouse_filter=Control.MOUSE_FILTER_IGNORE; ui.add_child(secondary_rule)
+	label(ui,"SYSTEM",Vector2(98,922),11,MUTED)
+	var replay := button(ui,"↺  INTRO",Rect2(98,944,180,36),show_intro)
 	replay.add_theme_font_size_override("font_size",16)
-	menu_buttons.updates=button(ui,"UPDATEINFO",Rect2(360,928,190,38),func():show_updates(show_main_menu))
+	menu_buttons.updates=button(ui,"UPDATEINFO",Rect2(290,944,170,36),func():show_updates(show_main_menu))
 	menu_buttons.updates.add_theme_font_size_override("font_size",16)
-	menu_buttons.highscores=button(ui,"BESTENLISTE",Rect2(567,928,200,38),func():show_highscores(show_main_menu))
+	menu_buttons.highscores=button(ui,"BESTENLISTE",Rect2(472,944,185,36),func():show_highscores(show_main_menu))
 	menu_buttons.highscores.add_theme_font_size_override("font_size",16)
-	update_button=button(ui,"UPDATES PRÜFEN",Rect2(784,928,220,38),check_for_game_update)
+	update_button=button(ui,"UPDATES PRÜFEN",Rect2(669,944,220,36),check_for_game_update)
 	update_button.add_theme_font_size_override("font_size",16)
 	ghost_button_style(replay); ghost_button_style(menu_buttons.updates); ghost_button_style(menu_buttons.highscores); ghost_button_style(update_button)
 	if not commander_profile.has_identity(): show_profile_dialog(true,show_main_menu)
@@ -592,19 +595,22 @@ func _on_installer_download_finished(success: bool, message: String) -> void:
 
 func menu_button(number: String, text_value: String, y: float, callback: Callable, primary: bool = false) -> Button:
 	var b := button(ui,number+"     /     "+text_value,Rect2(96,y,510,64 if primary else 48),callback)
+	b.name="MenuAction_"+number
 	b.alignment=HORIZONTAL_ALIGNMENT_LEFT
 	b.add_theme_font_size_override("font_size",21 if primary else 18)
+	b.set_meta("menu_home_x",b.position.x)
 	var style := StyleBoxFlat.new()
 	style.set_border_width_all(0)
-	style.bg_color=Color(0.20,0.15,0.10,0.72) if primary else Color(0.045,0.055,0.055,0.36)
-	style.border_color=Color("7e694f") if primary else Color(0.25,0.39,0.37,0.38)
-	style.border_width_left=3 if primary else 0
+	style.bg_color=Color(0.20,0.15,0.10,0.70) if primary else Color(0.035,0.052,0.052,0.20)
+	style.border_color=Color("98734b") if primary else Color(0.39,0.52,0.49,0.25)
+	style.border_width_left=2 if primary else 0
 	style.border_width_bottom=1
+	style.set_corner_radius_all(2)
 	style.content_margin_left=18
 	style.shadow_color=Color(0,0,0,0.16); style.shadow_size=4; style.shadow_offset=Vector2(0,2)
 	var hover: StyleBoxFlat = style.duplicate()
 	hover.set_border_width_all(0)
-	hover.bg_color=Color(0.08,0.12,0.115,0.82); hover.border_color=MINT
+	hover.bg_color=Color(0.08,0.12,0.115,0.76); hover.border_color=MINT
 	hover.border_width_left=3; hover.shadow_color=Color(MINT.r,MINT.g,MINT.b,0.12); hover.shadow_size=7
 	var pressed: StyleBoxFlat = hover.duplicate()
 	pressed.bg_color=Color("59452d")
@@ -628,8 +634,26 @@ func menu_button(number: String, text_value: String, y: float, callback: Callabl
 		arrow.add_theme_color_override("font_color",GOLD)
 		arrow.mouse_filter=Control.MOUSE_FILTER_IGNORE
 		b.add_child(arrow)
-	b.mouse_entered.connect(func():music.cue("select",0.3))
+	else:
+		var marker:=ColorRect.new(); marker.name="FocusMarker"; marker.position=Vector2(0,0); marker.size=Vector2(2,48); marker.color=MINT; marker.modulate.a=0.0; marker.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(marker)
+		var chevron:=Label.new(); chevron.name="MenuChevron"; chevron.text="›"; chevron.position=Vector2(476,7); chevron.size=Vector2(24,30); chevron.add_theme_font_size_override("font_size",24); chevron.add_theme_color_override("font_color",MINT); chevron.modulate.a=0.0; chevron.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(chevron)
+	b.mouse_entered.connect(func():music.cue("select",0.3); _animate_menu_action(b,true))
+	b.mouse_exited.connect(func():_animate_menu_action(b,b.has_focus()))
+	b.focus_entered.connect(func():_animate_menu_action(b,true))
+	b.focus_exited.connect(func():_animate_menu_action(b,b.is_hovered()))
 	return b
+
+func _animate_menu_action(target: Button, active: bool) -> void:
+	if not is_instance_valid(target): return
+	var old_tween: Tween=target.get_meta("menu_tween") as Tween if target.has_meta("menu_tween") else null
+	if old_tween!=null and old_tween.is_running(): old_tween.kill()
+	var tween:=target.create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	target.set_meta("menu_tween",tween)
+	tween.tween_property(target,"position:x",float(target.get_meta("menu_home_x",96.0))+(8.0 if active else 0.0),0.16)
+	var marker:=target.get_node_or_null("FocusMarker") as ColorRect
+	var chevron:=target.get_node_or_null("MenuChevron") as Label
+	if marker!=null: tween.parallel().tween_property(marker,"modulate:a",1.0 if active else 0.0,0.12)
+	if chevron!=null: tween.parallel().tween_property(chevron,"modulate:a",1.0 if active else 0.0,0.12)
 
 func ghost_button_style(target: Button) -> void:
 	var normal := StyleBoxFlat.new()
@@ -833,6 +857,55 @@ func mission_objective_brief() -> String:
 		lines.append(prefix+"  ·  "+str(objective.get("text","")))
 	return "\n".join(lines)
 
+func mission_objective_groups() -> Dictionary:
+	var groups: Dictionary={"primary":[],"secure":[],"optional":[]}
+	for item in db.mission.get("objectives",[]):
+		if not item is Dictionary: continue
+		var objective: Dictionary=item
+		var group: String="primary" if bool(objective.get("primary",false)) else ("secure" if str(objective.get("type",""))=="protect" and not bool(objective.get("optional",false)) else "optional")
+		groups[group].append(str(objective.get("text","Ziel nicht definiert")))
+	for key in groups:
+		if groups[key].is_empty(): groups[key].append("Kein Ziel für diesen Bereich.")
+	return groups
+
+func _briefing_objective_card(parent: Control, title: String, entries: Array, rect: Rect2, accent: Color, serial: String) -> Panel:
+	var card:=panel(parent,rect,Color("10191a",0.76))
+	card.name="ObjectiveCard_"+serial
+	var style:=card.get_theme_stylebox("panel") as StyleBoxFlat
+	style.bg_color=Color("111b1c",0.78); style.border_color=Color(accent.r,accent.g,accent.b,0.34)
+	style.set_border_width_all(1); style.set_corner_radius_all(3)
+	style.shadow_size=4; style.shadow_color=Color(0,0,0,0.24)
+	var rail:=ColorRect.new(); rail.position=Vector2.ZERO; rail.size=Vector2(3,rect.size.y); rail.color=accent; rail.mouse_filter=Control.MOUSE_FILTER_IGNORE; card.add_child(rail)
+	label(card,title,Vector2(16,11),13,accent,rect.size.x-32)
+	var count:=label(card,"%02d" % entries.size(),Vector2(rect.size.x-48,10),12,MUTED,32)
+	count.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	var rule:=ColorRect.new(); rule.position=Vector2(16,35); rule.size=Vector2(rect.size.x-32,1); rule.color=Color(accent.r,accent.g,accent.b,0.28); rule.mouse_filter=Control.MOUSE_FILTER_IGNORE; card.add_child(rule)
+	var cursor:=46.0
+	for index in range(entries.size()):
+		var marker:=label(card,"•",Vector2(16,cursor),15,accent,16)
+		marker.vertical_alignment=VERTICAL_ALIGNMENT_TOP
+		var item:=label(card,str(entries[index]),Vector2(34,cursor),14,Color("d7ded8"),rect.size.x-48)
+		item.name="Objective_"+serial+"_%02d"%index
+		item.size.y=maxf(20.0,item.size.y)
+		cursor+=item.size.y+7.0
+	return card
+
+func _faction_insignia(parent: Control, faction_id: String, accent: Color, pos: Vector2) -> Control:
+	var icon:=Control.new(); icon.position=pos; icon.size=Vector2(54,54); icon.mouse_filter=Control.MOUSE_FILTER_IGNORE; parent.add_child(icon)
+	if faction_id=="forge":
+		var plate:=StyleBoxFlat.new(); plate.bg_color=Color(accent,0.12); plate.border_color=Color(accent,0.72); plate.set_border_width_all(1); plate.set_corner_radius_all(1)
+		var frame:=Panel.new(); frame.position=Vector2(3,5); frame.size=Vector2(46,44); frame.add_theme_stylebox_override("panel",plate); frame.mouse_filter=Control.MOUSE_FILTER_IGNORE; icon.add_child(frame)
+		for i in 3:
+			var rib:=ColorRect.new(); rib.position=Vector2(10,15+i*10); rib.size=Vector2(32,2); rib.color=Color(accent,0.68-0.12*i); rib.mouse_filter=Control.MOUSE_FILTER_IGNORE; icon.add_child(rib)
+	elif faction_id=="drift":
+		var wedge:=Polygon2D.new(); wedge.position=Vector2(27,27); wedge.polygon=PackedVector2Array([Vector2(-24,-11),Vector2(16,-20),Vector2(24,-12),Vector2(8,20),Vector2(-22,16)]); wedge.color=Color(accent,0.22); icon.add_child(wedge)
+		var spine:=ColorRect.new(); spine.position=Vector2(17,26); spine.size=Vector2(28,3); spine.color=accent; spine.rotation=-0.34; spine.mouse_filter=Control.MOUSE_FILTER_IGNORE; icon.add_child(spine)
+		var pod:=ColorRect.new(); pod.position=Vector2(8,12); pod.size=Vector2(8,6); pod.color=accent; pod.mouse_filter=Control.MOUSE_FILTER_IGNORE; icon.add_child(pod)
+	else:
+		var diamond:=Polygon2D.new(); diamond.position=Vector2(27,27); diamond.polygon=PackedVector2Array([Vector2(0,-25),Vector2(21,0),Vector2(0,25),Vector2(-21,0)]); diamond.color=Color(accent,0.17); icon.add_child(diamond)
+		var core:=Polygon2D.new(); core.position=Vector2(27,27); core.polygon=PackedVector2Array([Vector2(0,-12),Vector2(10,0),Vector2(0,12),Vector2(-10,0)]); core.color=accent; icon.add_child(core)
+	return icon
+
 func show_briefing() -> void:
 	if mission_index < 0 or not special_order_run.is_empty():
 		special_order_run.clear()
@@ -845,89 +918,121 @@ func show_briefing() -> void:
 	art.size=Vector2(1920,1080)
 	ui.add_child(art)
 	var veil := ColorRect.new()
-	veil.color=Color(0.025,0.035,0.038,0.50); veil.size=Vector2(1920,1080); veil.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	veil.color=Color(0.025,0.035,0.038,0.42); veil.size=Vector2(1920,1080); veil.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	ui.add_child(veil)
-	label(ui,"SOLARIT: RANDSEKTOR 07   /   EINSATZVORBEREITUNG",Vector2(72,34),17,MINT)
-	var p := panel(ui,Rect2(300,64,1320,950),Color("202a29"))
+	var p := panel(ui,Rect2(48,36,1824,1008),Color("11191a",0.93))
+	p.name="MissionBriefingPanel"
 	p.clip_contents=true
-	var rail := ColorRect.new(); rail.color=MINT; rail.position=Vector2.ZERO; rail.size=Vector2(5,950); rail.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(rail)
-	label(p,"EINSATZ / %02d     ·     VEYRA-FRONT" % (mission_index+1),Vector2(48,27),17,MINT)
-	label(p,str(db.mission.get("display_name",db.mission.get("name","Einsatz"))),Vector2(48,62),42,GOLD)
-	var description:=label(p,db.mission.briefing,Vector2(48,116),19,Color("d5ded5"),1215)
-	description.name="MissionDescription"; description.size=Vector2(1215,96); description.clip_contents=true
-	label(p,"KAMPAGNENFOLGE  ·  EINSATZ %02d / %02d" % [mission_index+1,MISSION_PATHS.size()],Vector2(48,234),14,MUTED)
+	var root_style:=p.get_theme_stylebox("panel") as StyleBoxFlat
+	root_style.bg_color=Color("11191a",0.91); root_style.border_color=Color("b59a70",0.5); root_style.set_border_width_all(1); root_style.set_corner_radius_all(4); root_style.shadow_size=18
+	var rail := ColorRect.new(); rail.color=Color("72d5b6",0.8); rail.position=Vector2.ZERO; rail.size=Vector2(3,1008); rail.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(rail)
+	label(p,"SOLARIT  /  EINSATZVORBEREITUNG",Vector2(48,18),14,MINT)
+	label(p,"EINSATZ %02d  /  VEYRA-FRONT" % (mission_index+1),Vector2(48,44),15,MUTED)
+	label(p,str(db.mission.get("display_name",db.mission.get("name","Einsatz"))),Vector2(48,68),46,GOLD)
+	var description:=label(p,db.mission.briefing,Vector2(50,128),16,Color("d6ded7"),1260)
+	description.name="MissionDescription"; description.size=Vector2(1260,48); description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; description.clip_text=false
+	var order_state:=panel(p,Rect2(1382,22,394,150),Color("172121",0.62))
+	var order_style:=order_state.get_theme_stylebox("panel") as StyleBoxFlat
+	order_style.bg_color=Color("172121",0.72); order_style.border_color=Color("b59a70",0.32); order_style.set_border_width_all(1); order_style.set_corner_radius_all(3)
+	label(order_state,"OPERATIONAL BRIEF",Vector2(18,13),11,MUTED)
+	label(order_state,"VEYRA  /  2186",Vector2(18,39),21,Color("e2e7df"))
+	var serial:=label(order_state,"SLOT  %02d OF %02d" % [mission_index+1,MISSION_PATHS.size()],Vector2(18,72),13,MINT)
+	serial.name="MissionSerial"
+	label(order_state,"KAMPAGNENSTATUS  ·  EINSATZBEREIT",Vector2(18,101),11,MUTED)
+	var divider:=ColorRect.new(); divider.position=Vector2(48,181); divider.size=Vector2(1728,1); divider.color=Color("d8b36f",0.30); divider.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(divider)
+	label(p,"KAMPAGNENFOLGE",Vector2(48,188),12,MUTED)
+	label(p,"EINSATZ %02d / %02d" % [mission_index+1,MISSION_PATHS.size()],Vector2(1540,188),12,MINT,236).horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	var campaign_width:=550.0
 	for i in range(MISSION_PATHS.size()):
 		var preview:=Catalog.new(MISSION_PATHS[i])
 		var unlocked:=i<=int(campaign_progress.unlocked_mission)
-		var mission_button:=button(p,("%02d  %s" % [i+1,str(preview.mission.get("short_name",preview.mission.get("display_name","Einsatz")))]) if unlocked else ("%02d  SIGNAL GESPERRT"%[i+1]),Rect2(48+i*406,260,386,55),func():select_mission(i))
+		var mission_button:=button(p,("%02d  /  %s" % [i+1,str(preview.mission.get("short_name",preview.mission.get("display_name","Einsatz")))]) if unlocked else ("%02d  /  SIGNAL GESPERRT"%[i+1]),Rect2(48+i*568,210,campaign_width,48),func():select_mission(i))
+		mission_button.name="CampaignMissionButton_%02d"%i
 		mission_button.disabled=not unlocked
 		mission_button.tooltip_text="" if unlocked else "Wird nach dem Sieg im vorherigen Einsatz freigeschaltet."
-		var mission_style:=StyleBoxFlat.new(); mission_style.bg_color=Color("173732") if i==mission_index else Color("263331"); mission_style.border_color=MINT if i==mission_index else Color("485b55"); mission_style.set_border_width_all(1); mission_style.set_corner_radius_all(4)
-		mission_button.add_theme_stylebox_override("normal",mission_style); mission_button.add_theme_color_override("font_color",Color("82e3c0") if unlocked and i==mission_index else (Color("d5ded5") if unlocked else MUTED))
+		var mission_style:=StyleBoxFlat.new(); mission_style.bg_color=Color("1a302f",0.84) if i==mission_index else Color("141e1f",0.72); mission_style.border_color=MINT if i==mission_index else Color("738176",0.36); mission_style.set_border_width_all(1); mission_style.border_width_left=3 if i==mission_index else 1; mission_style.set_corner_radius_all(3)
+		mission_button.add_theme_stylebox_override("normal",mission_style); mission_button.add_theme_color_override("font_color",Color("9ce6cf") if unlocked and i==mission_index else (Color("d5ded5") if unlocked else MUTED))
 		var completed_missions: Array=campaign_progress.get("completed",[])
 		var mission_id:=str(preview.mission.get("id",""))
-		var progress_segment:=ColorRect.new()
-		progress_segment.position=Vector2(48+i*406,321); progress_segment.size=Vector2(386,3)
+		var progress_segment:=ColorRect.new(); progress_segment.position=Vector2(48+i*568,261); progress_segment.size=Vector2(campaign_width,2)
 		progress_segment.color=GOLD if completed_missions.has(mission_id) else (MINT if i==mission_index else (Color("52746b") if unlocked else Color("3b3027")))
-		progress_segment.mouse_filter=Control.MOUSE_FILTER_IGNORE
-		p.add_child(progress_segment)
+		progress_segment.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(progress_segment)
 		var medals_value: Variant=campaign_progress.get("mission_medals",{})
 		var saved_medal:=str(medals_value.get(mission_id,"")) if medals_value is Dictionary else ""
-		var medal_label:=label(p,("BESTE MEDAILLE  ·  "+saved_medal) if not saved_medal.is_empty() else "NOCH KEINE MEDAILLE",Vector2(48+i*406,328),12,medal_color(saved_medal))
+		var medal_label:=label(p,("BESTE MEDAILLE  ·  "+saved_medal) if not saved_medal.is_empty() else ("OFFEN  ·  " if unlocked else "GESPERRT  ·  ")+"KEINE MEDAILLE",Vector2(48+i*568,266),11,medal_color(saved_medal),campaign_width)
 		medal_label.name="MissionMedal%02d"%i
-		medal_label.tooltip_text="Deine beste dauerhaft gespeicherte Missionswertung." if not saved_medal.is_empty() else "Wird nach einem Missionssieg angezeigt."
-	label(p,"KOMMANDO WÄHLEN",Vector2(48,352),14,MUTED)
-	var index := 0
+		medal_label.tooltip_text="Dauerhaft gespeicherte Bestwertung dieses Einsatzes." if not saved_medal.is_empty() else "Medaillen werden nach einem Sieg vergeben."
+	label(p,"KOMMANDO",Vector2(48,292),12,MUTED)
+	var faction_index:=0
 	for id in db.factions:
-		var f: Dictionary = db.factions[id]
-		var b := button(p,f.name+"\n"+f.tag,Rect2(48+index*406,378,386,76),func():faction=id; show_briefing())
-		var accent:=Color(str(f.get("color","69d6c0")))
-		var card := StyleBoxFlat.new(); card.bg_color=Color("173732") if faction==id else Color("263331"); card.border_color=accent if faction==id else accent.darkened(0.45); card.set_border_width_all(1); card.set_corner_radius_all(4)
-		b.add_theme_stylebox_override("normal",card); b.add_theme_color_override("font_color",accent if faction==id else Color("d5ded5"))
-		var faction_rail:=ColorRect.new(); faction_rail.color=accent; faction_rail.position=Vector2(0,0); faction_rail.size=Vector2(4,76); faction_rail.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(faction_rail)
-		var insignia:=ColorRect.new(); insignia.color=Color(accent,0.15); insignia.position=Vector2(16,15); insignia.size=Vector2(46,46); insignia.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(insignia)
-		var initial:=Label.new(); initial.text=str(f.name).substr(0,1); initial.position=Vector2(16,15); initial.size=Vector2(46,46); initial.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; initial.vertical_alignment=VERTICAL_ALIGNMENT_CENTER; initial.add_theme_color_override("font_color",accent); initial.add_theme_font_size_override("font_size",23); initial.mouse_filter=Control.MOUSE_FILTER_IGNORE; b.add_child(initial)
-		b.tooltip_text=f.description
-		index+=1
-	label(p,db.factions[faction].description,Vector2(48,464),17,Color(str(db.factions[faction].get("color","69d6c0"))),1215)
-	label(p,"SCHWIERIGKEIT",Vector2(48,508),14,MUTED)
-	index=0
+		var faction_data: Dictionary=db.factions[id]
+		var accent:=Color(str(faction_data.get("color","69d6c0")))
+		var card_rect:=Rect2(48+faction_index*560,314,550,88)
+		var faction_button:=button(p,"",card_rect,func():faction=id; show_briefing())
+		faction_button.name="FactionChoice_"+str(id)
+		faction_button.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		var faction_style:=StyleBoxFlat.new(); faction_style.bg_color=Color(accent.r,accent.g,accent.b,0.14) if faction==id else Color("182021",0.76); faction_style.border_color=Color(accent.r,accent.g,accent.b,0.82) if faction==id else Color(accent.r,accent.g,accent.b,0.35); faction_style.set_border_width_all(1); faction_style.border_width_left=4; faction_style.set_corner_radius_all(3); faction_style.content_margin_left=89
+		faction_button.add_theme_stylebox_override("normal",faction_style)
+		faction_button.add_theme_color_override("font_color",Color("e8eee6")); faction_button.add_theme_font_size_override("font_size",19)
+		var faction_label:=Label.new(); faction_label.text=str(faction_data.name)+"\n"+str(faction_data.tag); faction_label.position=Vector2(91,18); faction_label.size=Vector2(428,54); faction_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER; faction_label.add_theme_font_size_override("font_size",19); faction_label.add_theme_color_override("font_color",Color("e8eee6")); faction_label.add_theme_color_override("font_shadow_color",Color(0,0,0,0.45)); faction_label.add_theme_constant_override("shadow_offset_x",1); faction_label.add_theme_constant_override("shadow_offset_y",1); faction_label.mouse_filter=Control.MOUSE_FILTER_IGNORE; faction_button.add_child(faction_label)
+		var tag_label:=Label.new(); tag_label.text="GEWÄHLT" if faction==id else "KOMMANDO WÄHLEN"; tag_label.position=Vector2(400,62); tag_label.size=Vector2(128,14); tag_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT; tag_label.add_theme_font_size_override("font_size",9); tag_label.add_theme_color_override("font_color",accent if faction==id else MUTED); tag_label.mouse_filter=Control.MOUSE_FILTER_IGNORE; faction_button.add_child(tag_label)
+		_faction_insignia(faction_button,str(id),accent,Vector2(18,17))
+		faction_button.tooltip_text=str(faction_data.description)
+		faction_index+=1
+	var selected_faction: Dictionary=db.factions.get(faction,{})
+	var faction_summary:=label(p,str(selected_faction.get("description","")),Vector2(50,408),14,Color(str(selected_faction.get("color","69d6c0"))),1680)
+	faction_summary.name="FactionBonusSummary"; faction_summary.size.y=20
+	var middle_rule:=ColorRect.new(); middle_rule.position=Vector2(48,437); middle_rule.size=Vector2(1728,1); middle_rule.color=Color("d8b36f",0.22); middle_rule.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(middle_rule)
+	label(p,"SCHWIERIGKEIT",Vector2(48,449),12,MUTED)
+	var index:=0
 	for id in ["easy","normal","hard"]:
-		var names := {"easy":"Ruhig","normal":"Ausgewogen","hard":"Entschlossen"}
-		var b := button(p,names[id],Rect2(48+index*406,530,386,40),func():difficulty=id; show_briefing())
-		var card := StyleBoxFlat.new(); card.bg_color=Color("173732") if difficulty==id else Color("263331"); card.border_color=MINT if difficulty==id else Color("485b55"); card.set_border_width_all(1); card.set_corner_radius_all(4)
-		b.add_theme_stylebox_override("normal",card); b.add_theme_color_override("font_color",Color("82e3c0") if difficulty==id else Color("d5ded5"))
+		var names: Dictionary={"easy":"Ruhig","normal":"Ausgewogen","hard":"Entschlossen"}
+		var b:=button(p,str(names[id]),Rect2(48+index*282,474,266,42),func():difficulty=id; show_briefing())
+		b.name="Difficulty_"+id
+		b.add_theme_font_size_override("font_size",14)
+		var card:=StyleBoxFlat.new(); card.bg_color=Color("1a302f",0.88) if difficulty==id else Color("151f20",0.64); card.border_color=MINT if difficulty==id else Color("79867e",0.34); card.set_border_width_all(1); card.set_corner_radius_all(3)
+		b.add_theme_stylebox_override("normal",card); b.add_theme_color_override("font_color",Color("9ce6cf") if difficulty==id else Color("d5ded5"))
 		index+=1
 	var resistance_copy: String={"easy":"Ruhig · längere Vorwarnung und kleinere feindliche Angriffe.","normal":"Ausgewogen · regulärer Druck und mittlere Angriffsgruppen.","hard":"Entschlossen · kurze Vorwarnung, größere Gruppen und häufigere Angriffe."}.get(difficulty,"Ausgewogen")
-	var resistance_note:=label(p,resistance_copy,Vector2(48,578),14,MINT,740)
-	resistance_note.name="DifficultyDescription"
-	resistance_note.size.y=20
+	var resistance_note:=label(p,resistance_copy,Vector2(48,522),13,MINT,840); resistance_note.name="DifficultyDescription"; resistance_note.size.y=20
+	var objectives_heading:=label(p,"AUFTRAG",Vector2(48,554),12,MUTED); objectives_heading.name="ObjectivesHeading"
+	var groups:=mission_objective_groups()
+	_briefing_objective_card(p,"HAUPTZIELE",groups.primary,Rect2(48,578,268,270),Color("e8b963"),"Primary")
+	_briefing_objective_card(p,"SICHERUNG",groups.secure,Rect2(330,578,268,270),Color("72d5b6"),"Secure")
+	_briefing_objective_card(p,"OPTIONAL",groups.optional,Rect2(612,578,268,270),Color("b69bfa"),"Optional")
+	label(p,"TAKTISCHE LAGE",Vector2(930,449),12,MUTED)
 	var threat_level:=1 if difficulty=="easy" else (2 if difficulty=="normal" else 3)
-	label(p,"BEDROHUNG",Vector2(842,578),12,MUTED,100)
 	var threat_names: Array[String]=["NIEDRIG","MITTEL","HOCH"]
-	label(p,threat_names[threat_level-1],Vector2(946,576),13,Color("e8b963") if threat_level<3 else Color("e06d4e"),112)
+	label(p,"BEDROHUNG",Vector2(1148,447),11,MUTED)
+	var threat_label:=label(p,threat_names[threat_level-1],Vector2(1237,445),14,Color("e8b963") if threat_level<3 else Color("e06d4e"),130); threat_label.name="ThreatValue"
 	for threat_index in range(5):
-		var threat_mark:=ColorRect.new(); threat_mark.position=Vector2(1064+threat_index*42,582); threat_mark.size=Vector2(34,6)
-		threat_mark.color=Color("e8b963") if threat_index<threat_level*2-1 else Color("3b3a35")
+		var threat_mark:=ColorRect.new(); threat_mark.position=Vector2(1540+threat_index*42,453); threat_mark.size=Vector2(34,5)
+		threat_mark.color=Color("e8b963") if threat_index<threat_level*2-1 else Color("393c38")
 		threat_mark.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(threat_mark)
-	label(p,"AUFTRAG",Vector2(48,606),14,MUTED)
-	label(p,mission_objective_brief(),Vector2(48,631),16,Color("d5ded5"),720)
-	label(p,"AUFBAUROUTE",Vector2(48,730),13,MUTED)
-	label(p,str(db.mission.get("briefing_hint","Impulswerk → Raffinerie → Werft · Späher erkunden die Engstelle")),Vector2(48,753),15,Color("d5ded5"),720)
-	label(p,"NÄCHSTE FREIGABE",Vector2(48,790),13,MUTED)
-	var unlock_text := "Kampagne abgeschlossen" if mission_index>=MISSION_PATHS.size()-1 else "Sieg schaltet Einsatz %02d frei" % (mission_index+2)
-	label(p,unlock_text,Vector2(48,812),15,MINT,720)
-	label(p,"TAKTISCHE LAGE",Vector2(832,606),14,MUTED)
-	var tactical_preview := MissionTacticalPreview.new()
-	tactical_preview.name="MissionTacticalPreview"
-	tactical_preview.position=Vector2(802,631); tactical_preview.size=Vector2(470,180); tactical_preview.mission_data=db.mission
-	tactical_preview.tooltip_text="Einsatzkarte mit Gelände, Solaritfeldern, bekannten Gegnern und Hauptziel"
-	p.add_child(tactical_preview)
-	label(p,"RANDSEKTOR 07   ·   %d × %d FELDER   ·   SOLARITVORKOMMEN" % [int(db.mission.get("width",64)),int(db.mission.get("height",64))],Vector2(802,820),12,MUTED,470)
-	button(p,"ZURÜCK ZUM HAUPTMENÜ",Rect2(48,854,350,58),show_main_menu)
-	button(p,"MULTIPLAYER",Rect2(420,854,340,58),show_online_menu)
-	var launch := button(p,"EINSATZ STARTEN     →",Rect2(798,854,474,58),start_game)
-	launch.add_theme_color_override("font_color",GOLD); launch.add_theme_font_size_override("font_size",21)
+	var map_frame:=panel(p,Rect2(930,472,800,300),Color("0a1517",0.78)); map_frame.name="TacticalMapFrame"
+	var map_style:=map_frame.get_theme_stylebox("panel") as StyleBoxFlat; map_style.bg_color=Color("0b1516",0.88); map_style.border_color=Color("b59a70",0.46); map_style.set_border_width_all(1); map_style.set_corner_radius_all(3); map_style.shadow_size=6
+	var tactical_preview:=MissionTacticalPreview.new(); tactical_preview.name="MissionTacticalPreview"; tactical_preview.position=Vector2(10,10); tactical_preview.size=Vector2(780,280); tactical_preview.mission_data=db.mission
+	tactical_preview.tooltip_text="Taktische Karte mit Gelände, Solaritfeldern, Startpunkt und Hauptziel"
+	map_frame.add_child(tactical_preview)
+	var legend_y:=782.0
+	for entry in [{"name":"STARTPUNKT","color":MINT},{"name":"HAUPTZIEL","color":GOLD},{"name":"FEINDKONTAKT","color":Color("e06d4e")},{"name":"SOLARIT","color":Color("7bd8c3")}]:
+		var chip:=ColorRect.new(); chip.position=Vector2(930+float(legend_y-782.0)*0.0,legend_y+4); chip.size=Vector2(7,7); chip.color=entry.color; chip.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(chip)
+		var legend_index: int=["STARTPUNKT","HAUPTZIEL","FEINDKONTAKT","SOLARIT"].find(str(entry.name))
+		label(p,str(entry.name),Vector2(943+legend_index*196,legend_y),10,MUTED,180)
+		chip.position.x=930+legend_index*196
+	var intel_card:=panel(p,Rect2(930,808,800,40),Color("182121",0.6)); intel_card.name="MissionIntelStrip"
+	var intel_style:=intel_card.get_theme_stylebox("panel") as StyleBoxFlat; intel_style.bg_color=Color("182121",0.62); intel_style.border_color=Color("b59a70",0.25); intel_style.set_border_width_all(1); intel_style.set_corner_radius_all(2)
+	label(intel_card,str(db.mission.get("briefing_hint","Förderroute sichern · Späher voraus")),Vector2(14,9),12,Color("d5ded5"),770)
+	var unlock_text: String="Kampagne abgeschlossen" if mission_index>=MISSION_PATHS.size()-1 else "Sieg schaltet Einsatz %02d frei"%(mission_index+2)
+	label(p,unlock_text,Vector2(930,857),11,MINT,800)
+	var footer_rule:=ColorRect.new(); footer_rule.position=Vector2(48,891); footer_rule.size=Vector2(1728,1); footer_rule.color=Color("d8b36f",0.28); footer_rule.mouse_filter=Control.MOUSE_FILTER_IGNORE; p.add_child(footer_rule)
+	var back:=button(p,"ZURÜCK ZUM HAUPTMENÜ",Rect2(48,914,320,56),show_main_menu); back.name="BackToMainMenu"; ghost_button_style(back)
+	var multiplayer_button:=button(p,"MULTIPLAYER",Rect2(388,914,280,56),show_online_menu); multiplayer_button.name="BriefingMultiplayer"; ghost_button_style(multiplayer_button)
+	label(p,"BEREIT FÜR DEN EINSATZ?",Vector2(710,932),12,MUTED,370)
+	var launch:=button(p,"EINSATZ STARTEN     →",Rect2(1290,907,440,70),start_game); launch.name="LaunchMission"; launch.add_theme_color_override("font_color",GOLD); launch.add_theme_font_size_override("font_size",21)
+	var launch_normal:=StyleBoxFlat.new(); launch_normal.bg_color=Color("60482d",0.72); launch_normal.border_color=Color("e8b963",0.82); launch_normal.border_width_left=3; launch_normal.border_width_bottom=1; launch_normal.set_corner_radius_all(3); launch_normal.shadow_color=Color("e8b963",0.12); launch_normal.shadow_size=8; launch_normal.content_margin_left=22
+	var launch_hover:=launch_normal.duplicate(); launch_hover.bg_color=Color("795a34",0.88); launch_hover.shadow_color=Color("e8b963",0.24); launch_hover.shadow_size=13
+	launch.add_theme_stylebox_override("normal",launch_normal); launch.add_theme_stylebox_override("hover",launch_hover); launch.add_theme_stylebox_override("focus",launch_hover)
 
 func local_owner() -> int:
 	return sim.view_owner if sim!=null else online.local_owner()
@@ -1550,6 +1655,13 @@ func start_game() -> void:
 
 func prepare_starting_vehicle_views() -> void:
 	if renderer==null: return
+	# Classic 2D rendering uses the painter directly and never samples the 3D
+	# vehicle atlas. Do not make 2D match startup wait for GPU pose rendering.
+	if renderer.classic:
+		renderer.freeze_vehicle_pose_generation(true)
+		print("VEHICLE POSE BASELINE skipped: classic 2D renderer")
+		await renderer.prepare_factory_preview_cache()
+		return
 	renderer.vehicle_cache_generation_frozen=false
 	renderer.queue_redraw()
 	var stable_frames:=0
@@ -1562,10 +1674,50 @@ func prepare_starting_vehicle_views() -> void:
 			if stable_frames>=2: break
 		else:
 			stable_frames=0
-	# Building a 3D pose SubViewport can still stall the renderer even without a
-	# CPU readback. Keep novel poses pending during play and drain them only in
-	# loading or pause windows; the nearest resident GPU texture remains visible.
-	renderer.vehicle_cache_generation_frozen=true
+	# A live match can introduce any unit from either active faction. Bake one
+	# complete chassis-heading baseline for every catalog vehicle before play;
+	# otherwise a newly produced type has no same-family texture and falls back
+	# to the much more expensive procedural 2D painter. The baseline is bounded
+	# by the existing cache capacity and does not add turret/state combinations.
+	var baseline_started_msec:=Time.get_ticks_msec()
+	var baseline_pose_count_before:=renderer.vehicle_cache_new_poses_total
+	var baseline_queued:=renderer.enqueue_vehicle_pose_baseline()
+	print("VEHICLE POSE BASELINE start queued=%d cache=%d capacity=%d" % [baseline_queued,renderer.vehicle_texture_cache.size(),renderer.vehicle_cache_capacity])
+	stable_frames=0
+	var last_completed_pose_count:=renderer.vehicle_cache_new_poses_total
+	var stalled_frames:=0
+	for frame in 1800:
+		await get_tree().process_frame
+		if renderer.vehicle_cache_new_poses_total!=last_completed_pose_count:
+			last_completed_pose_count=renderer.vehicle_cache_new_poses_total
+			stalled_frames=0
+		elif renderer.vehicle_cache_worker_active and is_instance_valid(renderer.vehicle_cache_inflight_viewport):
+			stalled_frames+=1
+		else:
+			stalled_frames=0
+		if renderer.vehicle_cache_queue.is_empty() and renderer.pending_pose_keys.is_empty():
+			stable_frames+=1
+			if stable_frames>=2: break
+		else:
+			stable_frames=0
+		# Some compatibility/software renderers can fail to deliver the
+		# frame_post_draw signal for a SubViewport. Do not leave match start
+		# waiting for the full 1800-frame budget: discard that in-flight pose,
+		# continue with resident fallback art, and keep gameplay bake-free.
+		if stalled_frames>=240:
+			push_warning("Vehicle pose warmup made no render progress for 240 frames; using resident fallback poses.")
+			break
+		if frame%120==119:
+			print("VEHICLE POSE BASELINE progress frame=%d queue=%d pending=%d poses=%d" % [frame+1,renderer.vehicle_cache_queue.size(),renderer.pending_pose_keys.size(),renderer.vehicle_cache_new_poses_total])
+	var unfinished:=renderer.vehicle_cache_queue.size()+renderer.pending_pose_keys.size()
+	if unfinished>0:
+		push_warning("Vehicle pose baseline reached its loading budget with %d requests unfinished; active matches will use nearest resident poses." % unfinished)
+	# The bake window ends before control returns to the player. Drop the
+	# remaining stale requests and cancel any unfinished SubViewport so active
+	# matches never create vehicle poses, including while the match is paused.
+	renderer.freeze_vehicle_pose_generation(true)
+	print("VEHICLE POSE BASELINE ready elapsed_ms=%d new_poses=%d cache=%d retained_viewports=%d stale_dropped=%d queued=%d pending=%d" % [Time.get_ticks_msec()-baseline_started_msec,renderer.vehicle_cache_new_poses_total-baseline_pose_count_before,renderer.vehicle_texture_cache.size(),renderer.vehicle_cache_viewports.size(),renderer.vehicle_cache_stale_requests_dropped_total,renderer.vehicle_cache_queue.size(),renderer.pending_pose_keys.size()])
+	print("VEHICLE POSE PREWARM readbacks=%d readback_ms=%.3f active_subviewports=%d" % [renderer.vehicle_cache_readbacks_total,renderer.vehicle_cache_readback_ms_total,renderer.vehicle_cache_active_subviewports])
 	# Factory production uses its own bounded GPU-resident views. Prepare them
 	# before input/gameplay is resumed so no production pose is baked in combat.
 	await renderer.prepare_factory_preview_cache()
@@ -1828,10 +1980,10 @@ func catalog_adjust_priority(kind: String, direction: int) -> void:
 func catalog_click(id: String, cancel: bool) -> void:
 	if paused: return
 	if db.buildings.has(id):
-		if cancel: placement=""; renderer.placement=""; return
+		if cancel: placement=""; renderer.placement=""; renderer.placement_cell_valid=false; return
 		var block_reason:=catalog_block_reason(id)
 		if block_reason!="": notify(block_reason); music.cue("error"); return
-		placement=id; placement_rotation=0; renderer.placement_rotation=0; renderer.placement=id; attack_mode=false
+		placement=id; placement_rotation=0; renderer.placement_rotation=0; renderer.placement=id; renderer.placement_cell_valid=false; attack_mode=false
 		notify("%s: R / E dreht, Q dreht zurück. Baufläche anklicken; Rechtsklick bricht ab." % db.buildings[id].name)
 	else:
 		if cancel: submit_player_command({"type":"cancel_produce","owner_id":local_owner(),"kind":id})
@@ -2568,17 +2720,21 @@ func _process(dt: float) -> void:
 			direction+=edge_scroll_direction(local)
 		renderer.camera+=direction*680*dt/renderer.zoom
 		clamp_camera()
-		if placement!="": renderer.placement_cell=sim.grid.cell(screen_world(local))
+		if placement!="":
+			renderer.placement_cell=sim.grid.cell(screen_world(local))
+			renderer.placement_cell_valid=sim.grid.inside(renderer.placement_cell)
 	else:
 		hovered_entity_id=0
 		renderer.hovered_entity_id=0
 		hover_panel.visible=false
 		renderer.placement=""
+		renderer.placement_cell_valid=false
 	notice_timer-=dt
 	if is_instance_valid(alert_panel): alert_panel.visible=notice_timer>0 or placement!=""
 	if is_instance_valid(notification): notification.modulate=Color(1,0.9+sin(notice_timer*10)*0.1,0.7+sin(notice_timer*10)*0.3) if notice_timer>4.5 else Color.WHITE
 	if notice_timer<=0 and is_instance_valid(notification):
-		if placement!="": notification.text="%d° · R / E drehen · Q zurück · %s" % [placement_rotation*90,sim.build_reason(placement,local_owner(),renderer.placement_cell,placement_rotation)]
+		if placement!="" and renderer.placement_cell_valid: notification.text="%d° · R / E drehen · Q zurück · %s" % [placement_rotation*90,sim.build_reason(placement,local_owner(),renderer.placement_cell,placement_rotation)]
+		elif placement!="": notification.text="Mauszeiger ins Spielfeld bewegen, dann Baufläche anklicken. Rechtsklick bricht ab."
 		else: notification.text=""
 	update_timer-=dt
 	if update_timer<=0: update_hud(); update_timer=0.15
@@ -2685,7 +2841,7 @@ func write_performance_event(event_type: String, duration: float, minimum_fps: f
 	var frame_ms:=1000.0/maxf(average_fps,0.01)
 	var unaccounted_ms:=maxf(0.0,frame_ms-process_ms-physics_ms)
 	var viewport_size:=renderer.get_viewport_rect().size
-	var values:Array = [Time.get_datetime_string_from_system(false),event_type,"%.1f"%sim.time,"%.2f"%duration,"%.2f"%average_fps,"%.2f"%minimum_fps,str(sim.entities.size()),str(total_units),str(total_buildings),str(friendly_units),str(enemy_units),str(friendly_buildings),str(enemy_buildings),str(renderer.visible_mobile_count),str(renderer.culled_mobile_fog_count),str(renderer.culled_mobile_offscreen_count),str(renderer.visible_building_count),str(renderer.active_vfx_count),str(sim.projectiles.size()),str(sim.effects.size()),str(renderer.combat_fx.particles.size()),str(renderer.tracks.size()),str(renderer.visual_bursts.size()),str(renderer.combat_fx.ruins.size()),str(renderer.combat_fx.craters.size()),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),"%.2f"%process_ms,"%.2f"%physics_ms,"%.2f"%frame_ms,"%.2f"%unaccounted_ms,"%.2f"%renderer.profile_total_ms,"%.2f"%renderer.profile_terrain_ms,"%.2f"%renderer.profile_ground_fx_ms,"%.2f"%renderer.profile_wrecks_ms,"%.2f"%renderer.profile_buildings_ms,"%.2f"%renderer.profile_vehicles_ms,"%.2f"%renderer.profile_tracks_ms,"%.2f"%renderer.profile_projectiles_ms,"%.2f"%renderer.profile_impacts_ms,"%.2f"%renderer.profile_explosions_ms,"%.2f"%renderer.profile_smoke_ms,"%.2f"%renderer.profile_fog_ms,"%.2f"%renderer.profile_sim_ms,"%.2f"%renderer.profile_ui_ms,str(renderer.vehicle_texture_cache.size()),str(renderer.vehicle_cache_queue.size()),str(renderer.pending_pose_keys.size()),str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses),str(renderer.building_texture_cache.size()),str(renderer.building_cache_queue.size()),str(renderer.building_cache_pending.size()),str(renderer.building_cache_hits),str(renderer.building_cache_misses),"%dx%d"%[roundi(viewport_size.x),roundi(viewport_size.y)],"%.2f"%renderer.zoom,str(renderer.vehicle_cache_capacity),str(renderer.vehicle_cache_new_poses_total),str(renderer.vehicle_cache_readbacks_total),"%.2f"%renderer.vehicle_cache_readback_ms_total,"%.2f"%renderer.vehicle_cache_render_wait_ms_total,str(renderer.vehicle_cache_active_subviewports),str(renderer.vehicle_cache_evictions_total),str(renderer.vehicle_cache_recreated_poses_total)]
+	var values:Array = [Time.get_datetime_string_from_system(false),event_type,"%.1f"%sim.time,"%.2f"%duration,"%.2f"%average_fps,"%.2f"%minimum_fps,str(sim.entities.size()),str(total_units),str(total_buildings),str(friendly_units),str(enemy_units),str(friendly_buildings),str(enemy_buildings),str(renderer.visible_mobile_count),str(renderer.culled_mobile_fog_count),str(renderer.culled_mobile_offscreen_count),str(renderer.visible_building_count),str(renderer.active_vfx_count),str(sim.projectiles.size()),str(sim.effects.size()),str(renderer.combat_fx.particles.size()),str(renderer.tracks.size()),str(renderer.visual_bursts.size()),str(renderer.combat_fx.ruins.size()),str(renderer.combat_fx.craters.size()),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),str(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),"%.2f"%process_ms,"%.2f"%physics_ms,"%.2f"%frame_ms,"%.2f"%unaccounted_ms,"%.2f"%renderer.profile_total_ms,"%.2f"%renderer.profile_terrain_ms,"%.2f"%renderer.profile_ground_fx_ms,"%.2f"%renderer.profile_wrecks_ms,"%.2f"%renderer.profile_buildings_ms,"%.2f"%renderer.profile_vehicles_ms,"%.2f"%renderer.profile_tracks_ms,"%.2f"%renderer.profile_projectiles_ms,"%.2f"%renderer.profile_impacts_ms,"%.2f"%renderer.profile_explosions_ms,"%.2f"%renderer.profile_smoke_ms,"%.2f"%renderer.profile_fog_ms,"%.2f"%renderer.profile_sim_ms,"%.2f"%renderer.profile_ui_ms,str(renderer.vehicle_texture_cache.size()),str(renderer.vehicle_cache_queue.size()),str(renderer.pending_pose_keys.size()),str(renderer.vehicle_cache_hits),str(renderer.vehicle_cache_misses),str(renderer.building_texture_cache.size()),str(renderer.building_cache_queue.size()),str(renderer.building_cache_pending.size()),str(renderer.building_cache_hits),str(renderer.building_cache_misses),"%dx%d"%[roundi(viewport_size.x),roundi(viewport_size.y)],"%.2f"%renderer.zoom,str(renderer.vehicle_cache_capacity),str(renderer.vehicle_cache_new_poses_total),str(renderer.vehicle_cache_readbacks_total),"%.2f"%renderer.vehicle_cache_readback_ms_total,"%.2f"%renderer.vehicle_cache_completion_latency_ms_total,str(renderer.vehicle_cache_active_subviewports),str(renderer.vehicle_cache_evictions_total),str(renderer.vehicle_cache_recreated_poses_total)]
 	var row:=PackedStringArray()
 	for value in values: row.append(str(value))
 	file.store_line(",".join(row))
@@ -2835,6 +2991,12 @@ func on_event(kind: String, pos: Vector2, message: String) -> void:
 				if unloading_id>0 and sim.entities.has(unloading_id): music.speech.request("harvest_unload",str(sim.entities[unloading_id].get("faction_id",faction)),unloading_id)
 				music.cue("harvest_unload",0.9,audio_position)
 		return
+	if visible and kind=="build":
+		for entity in sim.entities.values():
+			if not entity.building or int(entity.owner)!=local_owner(): continue
+			if entity.pos.distance_to(pos)>sim.grid.tile: continue
+			music.speech.request("build_start",str(sim.factions[local_owner()]))
+			break
 	if visible and kind=="complete":
 		if message.begins_with("ZIEL ERFÜLLT"):
 			music.play_global_stinger("objective_complete")
@@ -3707,6 +3869,7 @@ func load_game(path: String = "") -> void:
 	placement_rotation=int(data.get("placement_rotation",0))%4
 	renderer.placement_rotation=placement_rotation
 	renderer.placement=placement
+	renderer.placement_cell_valid=false
 	category=str(data.get("category","buildings"))
 	if category not in ["buildings","units","production"]: category="buildings"
 	inspected=int(data.get("inspected",0)) if sim.number(data.get("inspected",0)) and sim.entities.has(int(data.get("inspected",0))) else 0
@@ -4086,19 +4249,79 @@ func show_updates(back: Callable) -> void:
 func show_credits() -> void:
 	clear(overlay)
 	var p := panel(overlay,Rect2(580,170,980,740),Color("2b221b"))
-	label(p,"SOLARIT: RANDSEKTOR 07 / ORIGINALAUDIO",Vector2(40,34),18,MINT)
-	label(p,"Frequenzen von Veyra",Vector2(40,80),42,GOLD)
-	label(p,"Eigenständige, fraktionsgebundene SOLARIT-Referenzmusik.\nTempo und Taktart folgen der jeweiligen Fraktion; Calm, Contact, Battle und Alarm liegen auf einer gemeinsamen Taktachse und werden überblendet.\n\nMusik und Effekte: intern erstellte Demo-/Referenzproduktion.\nEngine: Godot, MIT-Lizenz. Keine externen Musik- oder Spielassets.",Vector2(40,168),22,Color("c8d8ce"),900)
-	music.start(Simulation.new(db,faction))
+	label(p,"SOLARIT: RANDSEKTOR 07 / MUSIK & CREDITS",Vector2(40,34),18,MINT)
+	label(p,"SOLARIT-SOUNDTRACK / HÖRPROBE",Vector2(40,80),38,GOLD)
+	var credits: Array[String]=[
+		"Die Spielmusik ist jetzt eine adaptive Auswahl vollständiger CC0-Stücke: Titelmusik FIRST SIGNAL, drei Fraktionsprofile mit sechs Gefechtszuständen und fünf Missions-Stinger.",
+		"Alle aktuellen Musiktitel bleiben Kandidaten und warten auf Hörfreigabe. Die Kampfzustände überblenden vollständige Stücke; echte Stem-Aufnahmen liegen noch nicht vor.",
+		"Die deutschen Befehlszeilen sind abspielbare Piper-TTS-Aufnahmen, keine Textplatzhalter und keine Studiobesetzung. Ihre Aussprache und Fraktionsstimmen brauchen ebenfalls Hörfreigabe.",
+		"Die SFX-Bank nutzt CC0-Aufnahmen. Eine leise Raffinerie-Atmosphäre wird nur bei einer fertiggestellten eigenen Raffinerie abgespielt.",
+		"Quellen, Urheber, Lizenzen und Bearbeitungen stehen in THIRD_PARTY_NOTICES.md. Die Technik prüft Formate und Rechte; sie kann keine künstlerische Hörfreigabe erteilen.",
+		"QUELLEN / URHEBER"
+	]
+	var unique_sources: Dictionary={}
+	var music_data: Dictionary=music.music_catalog
+	var title_data: Dictionary=music_data.get("title_track",{})
+	for spec in [title_data]:
+		var source: Dictionary=spec.get("source",{})
+		var author:=str(source.get("author","")); var url:=str(source.get("url",""))
+		if not author.is_empty(): unique_sources[author+"|"+url]=author+(" — "+url if not url.is_empty() else "")
+	for faction_data in music_data.get("factions",{}).values():
+		for state_tracks in faction_data.get("tracks",{}).values():
+			for spec in state_tracks:
+				var source: Dictionary=spec.get("source",{})
+				var author:=str(source.get("author","")); var url:=str(source.get("url",""))
+				if not author.is_empty(): unique_sources[author+"|"+url]=author+(" — "+url if not url.is_empty() else "")
+	for spec in music_data.get("global_stingers",{}).values():
+		var source: Dictionary=spec.get("source",{})
+		var author:=str(source.get("author","")); var url:=str(source.get("url",""))
+		if not author.is_empty(): unique_sources[author+"|"+url]=author+(" — "+url if not url.is_empty() else "")
+	var sfx_data: Variant=JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/sfx_catalog.json"))
+	if sfx_data is Dictionary:
+		for cue_clips in sfx_data.get("cues",{}).values():
+			for clip in cue_clips:
+				var author:=str(clip.get("author","")); var url:=str(clip.get("source_url",""))
+				if not author.is_empty(): unique_sources[author+"|"+url]=author+(" — "+url if not url.is_empty() else "")
+	for source_line in unique_sources.values(): credits.append(str(source_line))
+	var body:=RichTextLabel.new()
+	body.position=Vector2(40,150); body.size=Vector2(900,200); body.bbcode_enabled=false; body.scroll_active=true; body.fit_content=false
+	body.add_theme_color_override("default_color",Color("c8d8ce")); body.add_theme_font_size_override("normal_font_size",16)
+	body.text="\n\n".join(credits)
+	p.add_child(body)
+	music.start_review_preview(Simulation.new(db,faction))
 	music.set_paused(false)
-	for i in 4:
-		button(p,["RUHE","KONTAKT","GEFECHT","BASISALARM"][i],Rect2(40+i*225,467,210,54),func():
-			for j in music.layers.size(): music.layers[j].volume_db=-6 if j<=i else -55
-			music.state=["BASE_CALM","ENEMY_CONTACT","BATTLE","BASE_UNDER_ATTACK"][i]
-			music.age=-100)
-	button(p,"SIEG-JINGLE",Rect2(40,548,430,50),func():music.cue("victory"))
-	button(p,"NIEDERLAGE-JINGLE",Rect2(490,548,430,50),func():music.cue("defeat"))
-	button(p,"ZURÜCK",Rect2(40,648,880,50),show_main_menu)
+	var review_faction_id:=faction
+	label(p,"FRAKTION / MUSIKPROFIL",Vector2(40,360),14,Color("bda98b"))
+	var faction_choices:Array[Dictionary]=[
+		{"id":"forge","label":"KOBALT-KONSORTIUM"},
+		{"id":"drift","label":"WANDERPAKT"},
+		{"id":"lumen","label":"PRISMA-KONKLAVE"}
+	]
+	for i in faction_choices.size():
+		var choice:Dictionary=faction_choices[i]
+		button(p,str(choice.label),Rect2(40+i*296,382,284,42),func():
+			review_faction_id=str(choice.id)
+			music.start_review_preview(Simulation.new(db,review_faction_id)))
+	label(p,"ARRANGEMENT / TACTICAL MIX",Vector2(40,431),14,Color("bda98b"))
+	var preview_states:Array[String]=["RUHE A","RUHE B","KONTAKT","GEFECHT I","GEFECHT II","KRITISCH"]
+	for i in preview_states.size():
+		var state_index:=i
+		button(p,preview_states[i],Rect2(40+i*148,453,140,42),func():music.preview_arrangement(state_index))
+	label(p,"MISSIONS-STINGER",Vector2(40,504),14,Color("bda98b"))
+	var stinger_names:Array[String]=["MISSION","ZIEL ERREICHT","ALARM","SIEG","NIEDERLAGE"]
+	var stinger_ids:Array[String]=["mission_start","objective_complete","major_alert","victory","defeat"]
+	for i in stinger_ids.size():
+		var stinger_id:=stinger_ids[i]
+		button(p,stinger_names[i],Rect2(40+i*176,526,168,40),func():music.play_global_stinger(stinger_id))
+	label(p,"DEUTSCHE SPRACHPROBEN",Vector2(40,575),14,Color("bda98b"))
+	var voice_events:Array[String]=["select","move","attack","harvest_start","harvest_full","harvest_return","harvest_unload","build_start","harvest_danger"]
+	var voice_labels:Array[String]=["AUSWAHL","BEWEGUNG","ANGRIFF","ERNTEN","VOLLMELDUNG","RÜCKKEHR","ENTLADEN","BAUBEGINN","GEFAHR"]
+	for i in voice_events.size():
+		var event_name:=voice_events[i]
+		var voice_column:=i%3
+		var voice_row:=int(i/3)
+		button(p,"STIMME: "+voice_labels[i],Rect2(40+voice_column*296,597+voice_row*32,284,30),func():music.speech.preview(event_name,music.faction_id))
+	button(p,"ZURÜCK",Rect2(40,698,880,34),show_main_menu)
 
 func capture_smoke() -> void:
 	var directory := "res://test-output" if OS.has_feature("editor") else "user://test-output"

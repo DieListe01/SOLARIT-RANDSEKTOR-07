@@ -25,6 +25,17 @@ MANIFEST = AUDIO / "audio_manifest.json"
 MUSIC_CATALOG = AUDIO / "music_catalog.json"
 VOICE_CATALOG = AUDIO / "voice" / "voice_catalog.json"
 SFX_CATALOG = AUDIO / "sfx_catalog.json"
+REVIEW_CRITERIA_VERSION = "playback-review-v2-2026-10-16"
+PROVISIONAL_APPROVAL_LABEL = "Vorläufige menschliche Hörabnahme für den aktuellen Entwicklungsstand – erneute Bewertung im realen Gameplay ausdrücklich vorbehalten."
+PROVISIONAL_SCOPE = "development_and_gameplay_test_only"
+# These cues remain runtime fallbacks outside the JSON SFX catalog. They are
+# loaded and played by music_director.gd and therefore remain release-required.
+RUNTIME_FALLBACK_SFX = ("build", "complete", "ready", "alarm", "error", "save", "rotate", "repair", "core_impact")
+PLAYBACK_REVIEW_KEYS = (
+    "gain", "volume_db", "bus", "loop", "loop_start_seconds", "loop_end_seconds",
+    "ducking", "fade_in_seconds", "fade_out_seconds", "crossfade_seconds", "spatial",
+    "priority", "unit_cooldown", "event_cooldown",
+)
 
 
 def sha256(path: Path) -> str:
@@ -90,6 +101,7 @@ def catalog_rows() -> list[dict[str, Any]]:
                  "state": "title", "catalog_path": str(title.get("path", "")),
                  "asset_status": str(title.get("asset_status", "missing")),
                  "approval": str(title.get("human_listening_approval", "pending")),
+                 "playback": {key: title[key] for key in PLAYBACK_REVIEW_KEYS if key in title},
                  "source": title.get("source", {}), "license": title.get("license", {"status": "unknown"})})
     for faction, faction_data in music.get("factions", {}).items():
         for state, choices in faction_data.get("tracks", {}).items():
@@ -98,12 +110,14 @@ def catalog_rows() -> list[dict[str, Any]]:
                              "state": state, "catalog_path": str(track.get("path", "")),
                              "asset_status": str(track.get("asset_status", "missing")),
                              "approval": str(track.get("human_listening_approval", "pending")),
+                             "playback": {key: track[key] for key in PLAYBACK_REVIEW_KEYS if key in track},
                              "source": track.get("source", {}), "license": track.get("license", {"status": "unknown"})})
     for stinger, track in music.get("global_stingers", {}).items():
         rows.append({"id": str(track.get("id", f"stinger_{stinger}")), "kind": "music", "faction": "global",
                      "state": f"stinger_{stinger}", "catalog_path": str(track.get("path", "")),
                      "asset_status": str(track.get("asset_status", "missing")),
                      "approval": str(track.get("human_listening_approval", "pending")),
+                     "playback": {key: track[key] for key in PLAYBACK_REVIEW_KEYS if key in track},
                      "source": track.get("source", {}), "license": track.get("license", {"status": "unknown"})})
     if SFX_CATALOG.exists():
         sfx_catalog = read_json(SFX_CATALOG)
@@ -115,6 +129,7 @@ def catalog_rows() -> list[dict[str, Any]]:
                              "state": cue, "catalog_path": str(clip.get("path", "")),
                              "asset_status": str(clip.get("asset_status", "missing")),
                              "approval": str(clip.get("human_listening_approval", "pending")),
+                             "playback": {key: clip[key] for key in PLAYBACK_REVIEW_KEYS if key in clip},
                              "source": rowsource,
                              "license": clip.get("license", {"status": "unknown"})})
     voice = read_json(VOICE_CATALOG)
@@ -125,6 +140,7 @@ def catalog_rows() -> list[dict[str, Any]]:
                              "state": event, "catalog_path": str(line.get("asset", "")),
                              "asset_status": str(line.get("asset_status", "recorded" if line.get("asset") else "missing")),
                              "approval": str(line.get("human_listening_approval", line.get("approval", "pending"))),
+                             "playback": {key: line[key] for key in PLAYBACK_REVIEW_KEYS if key in line},
                              "source": line.get("source", {}), "license": line.get("license", {"status": "unknown"})})
     for event, lines in voice.get("system", {}).items():
         for line in lines:
@@ -132,8 +148,73 @@ def catalog_rows() -> list[dict[str, Any]]:
                          "state": event, "catalog_path": str(line.get("asset", "")),
                          "asset_status": str(line.get("asset_status", "recorded" if line.get("asset") else "missing")),
                          "approval": str(line.get("human_listening_approval", line.get("approval", "pending"))),
+                         "playback": {key: line[key] for key in PLAYBACK_REVIEW_KEYS if key in line},
                          "source": line.get("source", {}), "license": line.get("license", {"status": "unknown"})})
+    # These hard-coded fallback cues are called by the live event/UI code and
+    # are not represented in sfx_catalog.json. Their old inventory IDs are
+    # retained so byte-bound review evidence and provenance map by path.
+    for cue in RUNTIME_FALLBACK_SFX:
+        rows.append({"id": "file_" + cue, "kind": "sfx", "faction": "global", "state": cue,
+                     "catalog_path": f"res://assets/audio/{cue}.wav", "asset_status": "placeholder",
+                     "approval": "pending", "release_required": True,
+                     "playback": {}, "source": {}, "license": {"status": "unknown"}})
+    for row in rows:
+        row["release_required"] = True
     return rows
+
+
+def playback_signature(row: dict[str, Any]) -> str:
+    """Bind listening evidence to asset bytes and the effective playback context."""
+    kind = str(row.get("kind", "unknown"))
+    state = str(row.get("state", ""))
+    configured = row.get("playback", {})
+    if not isinstance(configured, dict):
+        configured = {}
+    if kind == "music":
+        runtime = {
+            "bus": "Music", "gain_source": "user_music_volume_and_state_gain",
+            "loop_default": not state.startswith("stinger_"),
+            "crossfade_seconds": 4.0,
+            "state_transition": {
+                "minimum_dwell_seconds": 20.0,
+                "minimum_pending_stability_seconds": 6.0,
+                "urgent_states": ["BASE_UNDER_ATTACK", "VICTORY", "DEFEAT"],
+                "bar_aligned": True,
+            },
+            "voice_duck": {"gain": 0.5011872, "attack_rate": 9.0, "release_rate": 1.5},
+        }
+    elif kind == "voice":
+        runtime = {"bus": "Voice", "gain_source": "user_voice_volume_and_event_gain", "loop_default": False,
+                   "spatial_default": False, "music_duck": {"gain": 0.5011872, "attack_rate": 9.0, "release_rate": 1.5}}
+    elif kind == "sfx":
+        runtime = {"bus": "cue-dependent: UI/Combat/SFX", "gain_source": "user_sfx_volume_and_event_gain",
+                   "loop_default": False, "spatial_default": "2D event attenuation when world-positioned"}
+    else:
+        runtime = {"bus": "project-configured", "gain_source": "project-configured", "loop_default": False}
+    context = {"criteria_version": REVIEW_CRITERIA_VERSION, "kind": kind, "faction": str(row.get("faction", "")),
+               "state": state, "configured_playback": configured, "runtime_profile": runtime}
+    canonical = json.dumps(context, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def preserve_manifest_review_data(
+    row: dict[str, Any], old: dict[str, Any], *, current_sha256: str | None = None,
+    current_playback_signature: str | None = None,
+) -> dict[str, Any]:
+    """Carry review forward only when audio bytes and playback context match."""
+    for key in ("source", "license", "listening_review", "approval", "development_listening_review"):
+        if key in ("listening_review", "development_listening_review"):
+            reviewed_hash = str(old.get("sha256", ""))
+            reviewed_playback = str(old.get("playback_signature", ""))
+            if (not current_sha256 or reviewed_hash != current_sha256
+                    or not current_playback_signature or reviewed_playback != current_playback_signature):
+                continue
+        if key in old and key not in row:
+            row[key] = old[key]
+        elif key == "license" and row.get(key, {}).get("status") not in ("cleared", "pending", "rejected"):
+            if old.get(key, {}).get("status") not in (None, "unknown"):
+                row[key] = old[key]
+    return row
 
 
 def inventory() -> dict[str, Any]:
@@ -162,33 +243,36 @@ def inventory() -> dict[str, Any]:
         rows.append({"id": "file_" + re.sub(r"[^a-z0-9]+", "_", path.stem.lower()).strip("_"),
                      "kind": "sfx" if "/sfx/" in resource else "legacy_audio",
                      "faction": "global", "state": path.stem, "catalog_path": resource,
-                     "asset_status": "placeholder", "approval": "pending",
+                     "asset_status": "placeholder", "approval": "pending", "release_required": False,
                      "license": {"status": "unknown"}, "technical": technical})
     for row in rows:
         old = old_by_id.get(str(row["id"]), {})
-        # Preserve authored provenance and listening evidence, never infer approval.
-        for key in ("source", "license", "listening_review", "approval"):
-            if key in old and key not in row:
-                row[key] = old[key]
-            elif key == "license" and old.get(key, {}).get("status") not in (None, "unknown"):
-                row[key] = old[key]
         path_value = str(row.get("catalog_path", ""))
+        current_hash: str | None = None
         if path_value.startswith("res://"):
             disk_path = ROOT / path_value.removeprefix("res://")
             if disk_path.is_file():
                 try:
                     row["technical"] = probe(disk_path)
-                    row["sha256"] = sha256(disk_path)
+                    current_hash = sha256(disk_path)
+                    row["sha256"] = current_hash
                 except Exception as error:
                     row["technical"] = {"probe_error": str(error)}
             else:
                 row["technical"] = {"missing": True}
         else:
             row["technical"] = {"missing": True}
+        # Keep authored provenance and approval only for the exact reviewed bytes.
+        current_playback_signature = playback_signature(row)
+        row["playback_signature"] = current_playback_signature
+        preserve_manifest_review_data(row, old, current_sha256=current_hash,
+                                      current_playback_signature=current_playback_signature)
+        if "release_required" not in row:
+            row["release_required"] = False
     return {
         "schema_version": 1,
         "generated_date": date.today().isoformat(),
-        "policy": "Technical checks never grant human listening approval. Unknown rights, placeholders, missing files, or pending/rejected review block public release.",
+        "policy": "Technical checks never grant human listening approval. Only active release-required assets participate in the public release gate; inactive candidate/archive entries remain inventoried without blocking.",
         "assets": rows,
     }
 
@@ -209,7 +293,16 @@ def release_blockers(row: dict[str, Any], measured: dict[str, Any]) -> list[str]
     if not license_data.get("name") or license_data.get("status") != "cleared" or license_data.get("commercial_use") is not True:
         blockers.append(f"{asset_id}: commercial license is not explicitly cleared")
     review = row.get("listening_review", {})
-    needed = ("reviewer", "review_date", "at_30_seconds", "at_5_minutes", "in_match")
+    # Ask for evidence that fits the asset. Duration-based checks are useful for
+    # music loops, but make no sense for a 1-second confirmation SFX or a short
+    # unit bark. Every type still requires a named human reviewer, date, and an
+    # in-match mix check before it can be released.
+    review_fields = {
+        "music": ("at_30_seconds", "at_5_minutes", "in_match"),
+        "voice": ("clarity", "pronunciation", "faction_identity", "repeat_test", "in_match"),
+        "sfx": ("function_fit", "mix_level", "in_match"),
+    }
+    needed = ("reviewer", "review_date", *review_fields.get(str(row.get("kind", "")), ("in_match",)))
     if any(not review.get(field) for field in needed):
         blockers.append(f"{asset_id}: required human listening review is incomplete")
     if measured.get("sample_rate") != 48_000:
@@ -245,12 +338,18 @@ def check_manifest(strict: bool) -> list[str]:
     manifest = read_json(MANIFEST)
     errors: list[str] = []
     seen: set[str] = set()
+    catalog_by_id = {str(row.get("id", "")): row for row in catalog_rows()}
     for row in manifest.get("assets", []):
         asset_id = str(row.get("id", "<no-id>"))
         if asset_id in seen:
             errors.append(f"duplicate asset id: {asset_id}")
         seen.add(asset_id)
         path_value = str(row.get("catalog_path", ""))
+        is_release_required = bool(row.get("release_required", False))
+        if strict and not is_release_required:
+            # Unreferenced archive/candidate files remain inventoried but do
+            # not participate in the public release decision.
+            continue
         if not path_value.startswith("res://"):
             if not strict and row.get("asset_status") == "missing" and not path_value:
                 continue
@@ -267,16 +366,21 @@ def check_manifest(strict: bool) -> list[str]:
             continue
         if row.get("sha256") and row["sha256"] != sha256(path):
             errors.append(f"{asset_id}: SHA-256 mismatch; refresh inventory after a reviewed asset change")
+        current = catalog_by_id.get(asset_id)
+        if current is not None and row.get("playback_signature") != playback_signature(current):
+            if not strict or is_release_required:
+                errors.append(f"{asset_id}: playback signature changed; refresh inventory and re-review before release")
         if strict:
             errors.extend(release_blockers(row, measured))
     if strict:
         # Ensure the manifest still covers every catalog row; newly added cues cannot bypass the gate.
-        manifest_ids = {str(row.get("id", "")) for row in manifest.get("assets", [])}
+        manifest_rows = {str(row.get("id", "")): row for row in manifest.get("assets", [])}
         for row in catalog_rows():
-            if str(row["id"]) not in manifest_ids:
+            manifest_row = manifest_rows.get(str(row["id"]))
+            if manifest_row is None:
                 errors.append(f"catalog asset absent from manifest: {row['id']}")
-            if row["asset_status"] in {"placeholder", "missing"} or row["approval"] != "approved":
-                errors.append(f"catalog asset {row['id']}: status={row['asset_status']}, approval={row['approval']}")
+            elif row.get("release_required", False) and not manifest_row.get("release_required", False):
+                errors.append(f"catalog asset {row['id']}: release-required flag is missing from manifest")
         errors.extend(catalog_coverage_blockers())
     return errors
 
@@ -285,13 +389,69 @@ def write_gate_report(errors: list[str], strict: bool) -> Path:
     report_dir = ROOT / "test-output"
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / "audio_release_gate.json"
-    report_path.write_text(json.dumps({
+    report = {
         "gate": "release" if strict else "manifest",
         "status": "blocked" if errors else "pass",
         "issue_count": len(errors),
         "issues": errors,
-    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        "approval_policy": "Final public release requires final per-asset approval and listening criteria; provisional development approval does not satisfy this gate.",
+        "provisional_approval_label": PROVISIONAL_APPROVAL_LABEL,
+    }
+    if MANIFEST.is_file():
+        assets = read_json(MANIFEST).get("assets", [])
+        required = [row for row in assets if row.get("release_required", False)]
+        inactive = [row for row in assets if not row.get("release_required", False)]
+        active_catalog = {str(row.get("id", "")): row for row in catalog_rows()}
+        def has_current_provisional_review(row: dict[str, Any]) -> bool:
+            review = row.get("development_listening_review", {})
+            if not (review.get("status") == "provisional"
+                    and review.get("scope") == PROVISIONAL_SCOPE
+                    and review.get("sha256") == row.get("sha256")
+                    and review.get("playback_signature") == row.get("playback_signature")):
+                return False
+            current_path = str(row.get("catalog_path", ""))
+            file_path = ROOT / current_path.removeprefix("res://")
+            if not file_path.is_file() or sha256(file_path) != review.get("sha256"):
+                return False
+            current_row = active_catalog.get(str(row.get("id", "")))
+            return current_row is None or playback_signature(current_row) == review.get("playback_signature")
+        report["asset_counts"] = {
+            "manifest_total": len(assets),
+            "active_release_required": len(required),
+            "active_provisional_human_approval_current": sum(has_current_provisional_review(row) for row in required),
+            "active_final_approval_pending": sum(row.get("approval") != "approved" for row in required),
+            "inactive_pending_not_release_blocking": sum(row.get("approval") != "approved" or row.get("asset_status") in {"candidate", "placeholder", "missing"} for row in inactive),
+            "active_pending_release_status": sum(row.get("approval") != "approved" or row.get("asset_status") in {"candidate", "placeholder", "missing"} for row in required),
+        }
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return report_path
+
+
+def record_provisional_approval(reviewer: str) -> tuple[int, int]:
+    """Record provisional development listening approval, never final release approval."""
+    manifest = inventory()
+    recorded = 0
+    for row in manifest.get("assets", []):
+        if not row.get("release_required", False):
+            continue
+        if row.get("technical", {}).get("missing") or row.get("technical", {}).get("probe_error"):
+            continue
+        row["development_listening_review"] = {
+            "status": "provisional",
+            "scope": PROVISIONAL_SCOPE,
+            "label": PROVISIONAL_APPROVAL_LABEL,
+            "reviewer": reviewer,
+            "review_date": date.today().isoformat(),
+            "statement": "Aktive Audioassets sind für Entwicklung und Gameplay-Test vorläufig angehört/freigegeben; finale qualitative Hörabnahme bleibt ausdrücklich offen.",
+            "sha256": row.get("sha256", ""),
+            "playback_signature": row.get("playback_signature", ""),
+        }
+        recorded += 1
+    save_manifest(manifest)
+    inactive_pending = sum(1 for row in manifest.get("assets", [])
+                           if not row.get("release_required", False)
+                           and (row.get("approval") != "approved" or row.get("asset_status") in {"candidate", "placeholder", "missing"}))
+    return recorded, inactive_pending
 
 
 def prepare_wav(args: argparse.Namespace) -> int:
@@ -363,7 +523,8 @@ def main() -> int:
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--refresh-manifest", action="store_true", help="inventory catalogs/files; never grants approval")
     modes.add_argument("--check", action="store_true", help="check manifest consistency and file readability")
-    modes.add_argument("--release-gate", action="store_true", help="fail if any catalog/asset is missing, placeholder, pending, or uncleared")
+    modes.add_argument("--release-gate", action="store_true", help="fail if any active release-required audio asset is missing, unapproved, or uncleared")
+    modes.add_argument("--record-provisional-approval", action="store_true", help="record user's provisional development listening approval for active release-required assets only")
     modes.add_argument("--prepare-wav", metavar="PATH", help="convert a verified 48kHz/24-bit WAV master into a pending candidate OGG")
     parser.add_argument("--id", help="unique asset id for --prepare-wav")
     parser.add_argument("--kind", choices=("music", "voice", "sfx"), help="candidate type")
@@ -382,6 +543,11 @@ def main() -> int:
         manifest = inventory()
         save_manifest(manifest)
         print(f"Audio inventory refreshed: {len(manifest['assets'])} catalog/file entries; all unapproved entries remain pending.")
+        return 0
+    if args.record_provisional_approval:
+        recorded, inactive_pending = record_provisional_approval("project owner (explicit user confirmation)")
+        print(f"PROVISIONAL DEVELOPMENT LISTENING APPROVAL: {recorded} active release-required assets; {inactive_pending} inactive assets remain pending.")
+        print(PROVISIONAL_APPROVAL_LABEL)
         return 0
     if args.prepare_wav:
         if not all((args.id, args.kind, args.source_name, args.source_url, args.license_name)):

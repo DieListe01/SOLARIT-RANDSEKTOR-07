@@ -131,7 +131,13 @@ def synthesize(model: Path, config: Path, overwrite: bool) -> int:
                                    "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"}
                 line["human_listening_approval"] = "pending"
                 generated += 1
-    catalog["recordings_status"] = "118_neural_tts_candidates_pending_human_review"
+    faction_line_count = sum(
+        len(lines)
+        for faction_data in catalog.get("factions", {}).values()
+        for lines in faction_data.get("lines", {}).values()
+    )
+    system_line_count = sum(len(lines) for lines in catalog.get("system", {}).values())
+    catalog["recordings_status"] = f"{faction_line_count + system_line_count}_neural_tts_candidates_pending_human_review"
     catalog["voice_engine"] = {
         "name": "Piper neural TTS",
         "model": "thorsten_emotional medium",

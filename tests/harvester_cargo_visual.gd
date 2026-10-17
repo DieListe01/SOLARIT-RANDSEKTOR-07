@@ -1,6 +1,7 @@
 extends SceneTree
 
 const VehiclePainter = preload("res://scripts/vehicle_cache_painter.gd")
+const ModelAssets = preload("res://scripts/model_asset_library.gd")
 const LEVELS: Array[int] = [0, 2, 4, 6, 8]
 const FACTIONS: Array[String] = ["forge", "drift", "lumen"]
 const TILE_SIZE := 160
@@ -11,6 +12,31 @@ const MIN_EMPTY_FULL_PIXEL_DIFFERENCE := 0.01
 func _initialize() -> void:
 	print("Checking visible H09 Solarit cargo states: 0 / 25 / 50 / 75 / 100 percent")
 	call_deferred("run")
+
+func verify_cargo_gauges(faction: String) -> bool:
+	var path := "res://assets/models/vehicles/harvester.glb" if faction == "forge" else "res://assets/models/vehicles/factions/%s_harvester.glb" % faction
+	var packed := ResourceLoader.load(path, "PackedScene") as PackedScene
+	if packed == null:
+		push_error("%s harvester cargo-gauge GLB could not load" % faction)
+		return false
+	var model := packed.instantiate() as Node3D
+	root.add_child(model)
+	await process_frame
+	for level in LEVELS:
+		ModelAssets.apply_cached_animation(model, {"visual_animation_state":0,"drive_frame":0,"animation_frame_count":8,"visual_cargo_state":level})
+		var visible_gauges := 0
+		for gauge_stage in range(1,9,2):
+			var cargo_stage := model.find_child("CargoStage%02d" % gauge_stage, true, false) as Node3D
+			if cargo_stage != null and cargo_stage.visible: visible_gauges += 1
+		var expected := ceili(float(level) / 2.0)
+		if visible_gauges != expected:
+			push_error("%s harvester at %d/8 load shows %d fill gauges; expected %d" % [faction,level,visible_gauges,expected])
+			model.queue_free()
+			await process_frame
+			return false
+	model.queue_free()
+	await process_frame
+	return true
 
 func capture_level(level: int, faction: String) -> Image:
 	var painter = VehiclePainter.new()
@@ -52,6 +78,9 @@ func pixel_difference(a: Image, b: Image) -> float:
 
 func run() -> void:
 	for faction in FACTIONS:
+		if not await verify_cargo_gauges(faction):
+			quit(1)
+			return
 		var images: Array[Image] = []
 		for level in LEVELS:
 			var rendered := await capture_level(level, faction)

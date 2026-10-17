@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "recordings_status": "118_neural_tts_candidates_pending_human_review",
+  "recordings_status": "124_neural_tts_candidates_pending_human_review",
   "audio_format": "mono OGG Vorbis",
   "factions": {
     "forge": {
@@ -892,6 +892,62 @@
               "status": "cleared",
               "commercial_use": true,
               "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
+            }
+          }
+        ],
+        "build_start": [
+          {
+            "id": "voice_forge_build_start_01",
+            "event": "build_start",
+            "text": "Bauauftrag bestätigt.",
+            "asset": "res://assets/audio/voice/forge/build_start_01.ogg",
+            "asset_state": "generated_neural_tts_pending_review",
+            "priority": 3,
+            "unit_cooldown": 0,
+            "event_cooldown": 4,
+            "asset_status": "candidate",
+            "approval": "pending",
+            "human_listening_approval": "pending",
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
+            },
+            "source": {
+              "name": "Thorsten-Voice / Piper thorsten_emotional (speaker variant)",
+              "url": "https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/de/de_DE/thorsten_emotional/medium",
+              "model_card": "https://huggingface.co/rhasspy/piper-voices/blob/v1.0.0/de/de_DE/thorsten_emotional/medium/MODEL_CARD",
+              "license": "CC0 1.0 (Thorsten-Voice dataset)",
+              "speaker_id": 4,
+              "processing": "German neural TTS; faction response shaping; mono OGG, 48 kHz runtime resample"
+            }
+          },
+          {
+            "id": "voice_forge_build_start_02",
+            "event": "build_start",
+            "text": "Anlage wird errichtet.",
+            "asset": "res://assets/audio/voice/forge/build_start_02.ogg",
+            "asset_state": "generated_neural_tts_pending_review",
+            "priority": 3,
+            "unit_cooldown": 0,
+            "event_cooldown": 4,
+            "asset_status": "candidate",
+            "approval": "pending",
+            "human_listening_approval": "pending",
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
+            },
+            "source": {
+              "name": "Thorsten-Voice / Piper thorsten_emotional (speaker variant)",
+              "url": "https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/de/de_DE/thorsten_emotional/medium",
+              "model_card": "https://huggingface.co/rhasspy/piper-voices/blob/v1.0.0/de/de_DE/thorsten_emotional/medium/MODEL_CARD",
+              "license": "CC0 1.0 (Thorsten-Voice dataset)",
+              "speaker_id": 4,
+              "processing": "German neural TTS; faction response shaping; mono OGG, 48 kHz runtime resample"
             }
           }
         ]
@@ -1788,6 +1844,62 @@
               "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
             }
           }
+        ],
+        "build_start": [
+          {
+            "id": "voice_drift_build_start_01",
+            "event": "build_start",
+            "text": "Machen wir. Der Bau läuft.",
+            "asset": "res://assets/audio/voice/drift/build_start_01.ogg",
+            "asset_state": "generated_neural_tts_pending_review",
+            "priority": 3,
+            "unit_cooldown": 0,
+            "event_cooldown": 4,
+            "asset_status": "candidate",
+            "approval": "pending",
+            "human_listening_approval": "pending",
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
+            },
+            "source": {
+              "name": "Thorsten-Voice / Piper thorsten_emotional (speaker variant)",
+              "url": "https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/de/de_DE/thorsten_emotional/medium",
+              "model_card": "https://huggingface.co/rhasspy/piper-voices/blob/v1.0.0/de/de_DE/thorsten_emotional/medium/MODEL_CARD",
+              "license": "CC0 1.0 (Thorsten-Voice dataset)",
+              "speaker_id": 1,
+              "processing": "German neural TTS; faction response shaping; mono OGG, 48 kHz runtime resample"
+            }
+          },
+          {
+            "id": "voice_drift_build_start_02",
+            "event": "build_start",
+            "text": "Schrauben raus, wir bauen.",
+            "asset": "res://assets/audio/voice/drift/build_start_02.ogg",
+            "asset_state": "generated_neural_tts_pending_review",
+            "priority": 3,
+            "unit_cooldown": 0,
+            "event_cooldown": 4,
+            "asset_status": "candidate",
+            "approval": "pending",
+            "human_listening_approval": "pending",
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
+            },
+            "source": {
+              "name": "Thorsten-Voice / Piper thorsten_emotional (speaker variant)",
+              "url": "https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/de/de_DE/thorsten_emotional/medium",
+              "model_card": "https://huggingface.co/rhasspy/piper-voices/blob/v1.0.0/de/de_DE/thorsten_emotional/medium/MODEL_CARD",
+              "license": "CC0 1.0 (Thorsten-Voice dataset)",
+              "speaker_id": 1,
+              "processing": "German neural TTS; faction response shaping; mono OGG, 48 kHz runtime resample"
+            }
+          }
         ]
       }
     },
@@ -2682,6 +2794,62 @@
               "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
             }
           }
+        ],
+        "build_start": [
+          {
+            "id": "voice_lumen_build_start_01",
+            "event": "build_start",
+            "text": "Konstruktionsmatrix aktiviert.",
+            "asset": "res://assets/audio/voice/lumen/build_start_01.ogg",
+            "asset_state": "generated_neural_tts_pending_review",
+            "priority": 3,
+            "unit_cooldown": 0,
+            "event_cooldown": 4,
+            "asset_status": "candidate",
+            "approval": "pending",
+            "human_listening_approval": "pending",
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
+            },
+            "source": {
+              "name": "Thorsten-Voice / Piper thorsten_emotional (speaker variant)",
+              "url": "https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/de/de_DE/thorsten_emotional/medium",
+              "model_card": "https://huggingface.co/rhasspy/piper-voices/blob/v1.0.0/de/de_DE/thorsten_emotional/medium/MODEL_CARD",
+              "license": "CC0 1.0 (Thorsten-Voice dataset)",
+              "speaker_id": 7,
+              "processing": "German neural TTS; faction response shaping; mono OGG, 48 kHz runtime resample"
+            }
+          },
+          {
+            "id": "voice_lumen_build_start_02",
+            "event": "build_start",
+            "text": "Struktur wird materialisiert.",
+            "asset": "res://assets/audio/voice/lumen/build_start_02.ogg",
+            "asset_state": "generated_neural_tts_pending_review",
+            "priority": 3,
+            "unit_cooldown": 0,
+            "event_cooldown": 4,
+            "asset_status": "candidate",
+            "approval": "pending",
+            "human_listening_approval": "pending",
+            "license": {
+              "name": "CC0 1.0",
+              "status": "cleared",
+              "commercial_use": true,
+              "attribution": "Thorsten-Voice dataset (optional); Piper model card terms apply"
+            },
+            "source": {
+              "name": "Thorsten-Voice / Piper thorsten_emotional (speaker variant)",
+              "url": "https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/de/de_DE/thorsten_emotional/medium",
+              "model_card": "https://huggingface.co/rhasspy/piper-voices/blob/v1.0.0/de/de_DE/thorsten_emotional/medium/MODEL_CARD",
+              "license": "CC0 1.0 (Thorsten-Voice dataset)",
+              "speaker_id": 7,
+              "processing": "German neural TTS; faction response shaping; mono OGG, 48 kHz runtime resample"
+            }
+          }
         ]
       }
     }
@@ -3265,7 +3433,7 @@
     "model": "thorsten_emotional medium",
     "model_license": "CC0 1.0 (voice dataset)",
     "model_url": "https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/de/de_DE/thorsten_emotional/medium",
-    "generated_date": "2026-10-13",
+    "generated_date": "2026-10-15",
     "status": "candidate; human review required; not a substitute for studio-recorded faction actors",
     "speaker_profiles": {
       "forge": 4,
