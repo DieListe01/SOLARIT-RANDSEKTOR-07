@@ -1,6 +1,17 @@
 {
-  "current_version": "0.38.30",
+  "current_version": "0.38.31",
   "entries": [
+    {
+      "version": "0.38.31",
+      "date": "17.10.2026",
+      "title": "FPS-Diagnose und robuste Cache-Abnahme",
+      "changes": [
+        "Fahrzeugansichten werden vor dem Match vorbereitet; im aktiven Gefecht entstehen keine neuen Pose-RenderTargets und keine GPU→CPU-Readbacks.",
+        "Fehlende Fahrzeugrichtungen verwenden sofort die nächste fertige Ansicht. Begrenzte Queue, Familienindex und gespeicherte Fallbacks vermeiden veraltete Aufträge und wiederholte Vollcache-Suchen.",
+        "Die Pose-RenderTargets werden nach dem einmaligen Laden freigegeben. Im 2D-Klassikmodus wird der nicht benötigte 3D-Pose-Prewarm übersprungen.",
+        "Die CI-Diagnose liest Log-Tails aus einem begrenzten Speicherfenster, damit Renderer-Fehlerfluten die Einzeltest-Timeouts und Prozessbereinigung nicht blockieren."
+      ]
+    },
     {
       "version": "0.38.30",
       "date": "17.10.2026",

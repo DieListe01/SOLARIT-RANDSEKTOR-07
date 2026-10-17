@@ -251,7 +251,43 @@ function Stop-OwnedPids([System.Collections.Generic.HashSet[int]]$OwnedPids, [in
 
 function Get-LogTail([string]$Path, [int]$Count = 10) {
     if (-not (Test-Path -LiteralPath $Path)) { return @('<no output yet>') }
-    try { return @(Get-Content -LiteralPath $Path -Tail $Count -ErrorAction Stop) } catch { return @("<log unavailable: $($_.Exception.Message)>") }
+    # Get-Content -Tail can allocate heavily when a renderer floods stderr or
+    # emits a single very long line. Read a bounded byte window so diagnostics
+    # continue working even when the child process exhausts runner memory.
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        if ($stream.Length -eq 0) { return @('<empty log>') }
+        $encoding = [System.Text.Encoding]::UTF8
+        if ($stream.Length -ge 2) {
+            $stream.Position = 0
+            $bom = [byte[]]::new(2)
+            [void]$stream.Read($bom, 0, 2)
+            if ($bom[0] -eq 0xFF -and $bom[1] -eq 0xFE) { $encoding = [System.Text.Encoding]::Unicode }
+            elseif ($bom[0] -eq 0xFE -and $bom[1] -eq 0xFF) { $encoding = [System.Text.Encoding]::BigEndianUnicode }
+        }
+        $maxBytes = 131072
+        $start = [Math]::Max(0, $stream.Length - $maxBytes)
+        if ($encoding -ne [System.Text.Encoding]::UTF8 -and ($start % 2) -ne 0) { $start++ }
+        $stream.Position = $start
+        $remaining = [int]($stream.Length - $start)
+        $bytes = [byte[]]::new($remaining)
+        $read = 0
+        while ($read -lt $remaining) {
+            $chunk = $stream.Read($bytes, $read, $remaining - $read)
+            if ($chunk -le 0) { break }
+            $read += $chunk
+        }
+        $text = $encoding.GetString($bytes, 0, $read).Replace([string][char]0, '')
+        $lines = @($text -split "`r?`n")
+        if ($start -gt 0 -and $lines.Count -gt 1) { $lines = @($lines | Select-Object -Skip 1) }
+        while ($lines.Count -gt 1 -and [string]::IsNullOrEmpty($lines[-1])) { $lines = @($lines | Select-Object -First ($lines.Count - 1)) }
+        return @($lines | Select-Object -Last ([Math]::Max(1, $Count)))
+    } catch {
+        return @("<log unavailable: $($_.Exception.Message)>")
+    } finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+    }
 }
 
 function Write-CiSummary([switch]$AddStepSummary) {
