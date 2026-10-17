@@ -1655,6 +1655,14 @@ func start_game() -> void:
 
 func prepare_starting_vehicle_views() -> void:
 	if renderer==null: return
+	# The interactive UI regression runs on GitHub's virtual display adapter,
+	# which has no usable GPU for hundreds of 512px SubViewport bakes. Keep that
+	# UI test focused on input/game-flow; dedicated renderer/cache tests exercise
+	# the real pose pipeline. This debug-only switch is set by Test-Solarit.ps1.
+	if OS.is_debug_build() and OS.get_environment("SOLARIT_TEST_SKIP_POSE_PREWARM")=="1":
+		renderer.freeze_vehicle_pose_generation(true)
+		print("VEHICLE POSE BASELINE skipped: UI-only test on virtual display")
+		return
 	# Classic 2D rendering uses the painter directly and never samples the 3D
 	# vehicle atlas. Do not make 2D match startup wait for GPU pose rendering.
 	if renderer.classic:

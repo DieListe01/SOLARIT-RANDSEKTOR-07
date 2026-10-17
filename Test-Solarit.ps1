@@ -368,7 +368,14 @@ try {
             $argumentLine = ($entry.Arguments -join ' ')
             $windowStyle='Hidden'
             if($entry.Kind -eq 'Godot' -and $entry.Arguments -notcontains '--headless'){$windowStyle='Normal'}
-            $process = Start-Process -FilePath $entry.Executable -ArgumentList $argumentLine -WorkingDirectory $gameRoot -WindowStyle $windowStyle -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+            $previousSkipPoseWarmup = $env:SOLARIT_TEST_SKIP_POSE_PREWARM
+            if ($env:CI -and $entry.Name -eq 'ui_integration.gd') { $env:SOLARIT_TEST_SKIP_POSE_PREWARM='1' }
+            try {
+                $process = Start-Process -FilePath $entry.Executable -ArgumentList $argumentLine -WorkingDirectory $gameRoot -WindowStyle $windowStyle -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+            } finally {
+                if ($null -eq $previousSkipPoseWarmup) { Remove-Item Env:SOLARIT_TEST_SKIP_POSE_PREWARM -ErrorAction SilentlyContinue }
+                else { $env:SOLARIT_TEST_SKIP_POSE_PREWARM = $previousSkipPoseWarmup }
+            }
             $testPid = $process.Id
             $heldProcessHandle = $process.SafeHandle
             $heldProcessHandle.DangerousAddRef([ref]$processHandleRefAdded)

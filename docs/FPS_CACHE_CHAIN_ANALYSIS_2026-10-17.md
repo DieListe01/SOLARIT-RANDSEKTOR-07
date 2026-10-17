@@ -34,6 +34,10 @@ Der visuelle UI-Regressionslauf benutzt absichtlich Godots OpenGL-Kompatibilitä
 
 Der UI-Integrationstest wartet jetzt auf das Ende dieses begrenzten Warmups (maximal 1.200 Testframes) und prüft ausdrücklich, dass es vor den Eingabeprüfungen beendet wurde. Die bestehenden Gameplay-Assertions bleiben unverändert. Die lokale UI-Regression bestand danach in 125,4 s. Der OpenGL-Test schrieb zusätzlich die GLES3-Warnung `Parameter "material" is null`; der Testprozess beendete sich dennoch mit Exitcode 0. Vulkan ist der Benchmark-Renderer und hat den vollständigen Baseline-Prewarm mit 512 fertigen Texturen erfolgreich ausgeführt.
 
+GitHub-Lauf 39031696339 auf Commit `7dffa2b` belegte den CI-Umgebungseffekt: Der UI-Test lief mit `Microsoft Hyper-V Video`, fiel auf etwa 7–8 FPS und erzeugte massenhaft GLES3-`buffer_free_data`-Fehler. Danach starb der PowerShell-Supervisor in `Get-LogTail` mit `OutOfMemoryException`, bevor er den 600-s-Einzeltesttimeout sauber abhandeln konnte. Der Log-Tail liest jetzt höchstens 128 KiB statt das komplette Fehlerlog einzulesen. Lauf 39033808324 auf `a30a38f` endete weiter im UI-Schritt, dessen Metadaten im fehlgeschlagenen Job offen blieben; GitHub stellte für diesen Lauf kein Logarchiv bereit. Deshalb ist kein weiterer interner Godot-Fehler behauptet.
+
+Für den GPU-losen UI-Testlauf überspringt `ui_integration.gd` nun über ein Debug-/CI-Testflag nur den umfangreichen 3D-Pose-Warmup. Menü-, Input-, Match- und UI-Assertions laufen weiter; Renderer-/Cache- und Performancegruppen werden nicht verändert und laufen mit normalem Prewarm. Lokal bestand der UI-Test mit diesem Flag in 8,7 s, `update_info.gd` bestand mit 120 Checks und RendererCache bestand mit 6/6 Tests. Der Flag existiert ausschließlich für den interaktiven UI-Regressionstest in CI und ändert weder Release-Builds noch den normalen Spielstart.
+
 ## Messwerttabelle
 
 | Messung | Ø FPS | Ø Framezeit | langsamstes 1-%-Mittel | Maximum | >33 ms | >50 ms | >100 ms | Posen | Readbacks |
@@ -47,6 +51,7 @@ Weitere aktuelle Werte: 50 Fahrzeuge im Benchmark, mindestens 4 und durchschnitt
 
 - `scripts/world_renderer.gd` — Familienindex/Memo-Fallback, Pending-/Queue-Bounds, Bake-Freeze, einmaliger Loading-Readback in normale `ImageTexture`, Harvester-Turm-Key entfällt.
 - `scripts/main.gd` — begrenzter Pose-Baseline-Warmup mit Fortschritts-Watchdog; 2D-Klassikmodus überspringt ungenutzte 3D-Posen.
+- `Test-Solarit.ps1` — begrenzter Log-Tail und CI-only, UI-only Pose-Warmup-Schalter.
 - `tests/render_performance.gd` — Cache-Freeze, Queue/Pending und Harvester-Key geprüft.
 - `tests/ui_integration.gd` — Warmup-Ende vor UI-Eingabeprüfungen abwarten, ohne bestehende Erwartungen zu ändern.
 - `tests/fps_10buildings_50vehicles_benchmark.gd` — reproduzierbare 10-Gebäude-/50-Fahrzeuge-Szene, Warmup, 900-Frame-Messung und getrennte Cache-/Fallback-/Simulationswerte.

@@ -1,6 +1,16 @@
 {
-  "current_version": "0.38.31",
+  "current_version": "0.38.32",
   "entries": [
+    {
+      "version": "0.38.32",
+      "date": "17.10.2026",
+      "title": "Robuste UI-Regression ohne virtuelle GPU-Last",
+      "changes": [
+        "Der interaktive UI-Test auf virtuellen CI-Displays überspringt den großen 3D-Pose-Warmup; die dedizierten Renderer- und Cachetests prüfen weiterhin die unveränderte Renderpipeline.",
+        "Die Regression-Supervision liest Log-Tails aus einem begrenzten Speicherfenster, damit Renderer-Fehlerfluten die Einzeltest-Timeouts und Prozessbereinigung nicht blockieren.",
+        "Fahrzeugansichten werden vor normalen Matches vorbereitet; im aktiven Gefecht entstehen keine neuen Pose-RenderTargets und keine GPU→CPU-Readbacks. Im 2D-Klassikmodus läuft kein unnötiger 3D-Pose-Prewarm."
+      ]
+    },
     {
       "version": "0.38.31",
       "date": "17.10.2026",
